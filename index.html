@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#14213d">
+<meta name="theme-color" content="#cfe5f6">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Sales Brief">
 <title>Sales Brief</title>
@@ -12,22 +12,38 @@
 <body>
 <div id="app">
   <header class="top">
-    <div>
-      <h1>Sales Brief</h1>
-      <p id="subtitle">Your next best action</p>
+    <span class="orb sm" aria-hidden="true"></span>
+    <div class="id">
+      <h1>Sales Brief <i class="live" aria-hidden="true"></i></h1>
+      <span class="badge">Private, runs on this phone</span>
     </div>
-    <button id="who" class="who" hidden aria-label="Switch salesperson"></button>
+    <button class="round" data-act="more" aria-label="More options">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>
+    </button>
   </header>
+  <div id="people" class="people" role="tablist" aria-label="Salesperson" hidden></div>
 
   <main id="view-brief" class="view">
     <div id="chat" class="chat" aria-live="polite"></div>
     <div id="dock" class="dock" hidden>
-      <button data-act="brief">Today's visits</button>
-      <button data-act="close">Likely to close</button>
-      <button data-act="churn">May churn</button>
-      <button data-act="customers">My customers</button>
-      <button data-act="upload">Upload files</button>
-      <button data-act="more">More</button>
+      <div class="dock-row">
+        <button class="round" data-act="upload" aria-label="Upload files">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V5m0 0l-4 4m4-4l4 4M5 19h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <button class="say" data-act="note">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10v4M8 7v10M12 4v16M16 7v10M20 10v4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          Record a visit note
+        </button>
+        <button class="round dark" data-act="customers" aria-label="My customers">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zm-6 9c0-3.3 2.7-6 6-6s6 2.7 6 6M16 4.5a3.5 3.5 0 0 1 0 6.5M17.5 14.3c2.1.8 3.5 2.9 3.5 5.7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+      <div class="suggest">
+        <button data-act="brief">Today's brief</button>
+        <button data-act="close">Likely to close</button>
+        <button data-act="churn">May churn</button>
+        <button data-act="customers">My customers</button>
+      </div>
     </div>
   </main>
 
@@ -40,7 +56,7 @@
     </button>
     <button role="tab" id="tab-dash" aria-selected="false" data-tab="dash">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20V10M12 20V4M19 20v-7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
-      Revenue dashboard
+      Revenue
     </button>
   </nav>
 </div>

@@ -26,6 +26,11 @@ const ab = b => b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength);
     assert(L.churn.length >= 1, 'has churn list'); assert(L.close.length >= 1, 'has close list');
   }
 
+  // executive summary and per-salesperson dashboard
+  { const a = NBA.analyze(state, 'Aisha Rahman', { today }), ex = NBA.execSummary(state, 'Aisha Rahman', a, { today });
+    assert(/behind|ahead/.test(ex.headline)); assert(ex.points.some(x => x.kind === 'risk' && /Blue Harbor/.test(x.text))); assert(ex.offers.length >= 1);
+    const all = NBA.dashboard(state, { today }), one = NBA.dashboard(state, { today, sp: 'Aisha Rahman' });
+    assert(one.ytd.cur < all.ytd.cur && one.people.length === 1); console.log(ex); }
   // documents link to the right customer
   let an = NBA.analyze(state, 'Aisha Rahman', { today });
   const bh = an.customers.find(c => c.name === 'Blue Harbor Stores');

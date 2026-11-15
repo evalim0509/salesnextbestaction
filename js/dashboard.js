@@ -36,16 +36,15 @@
     return '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Revenue by month, ' + d.year + ' against ' + d.prevYear + '">' + s + '</svg>';
   }
 
-  function render(el, state) {
+  function render(el, state, sp) {
     if (!state.tx || !state.tx.length) {
       el.innerHTML = '<div class="empty"><h2>No sales data yet</h2><p>Upload a sales file in “My brief” and the revenue dashboard will appear here.</p></div>';
       return;
     }
-    var cur = (state.settings && state.settings.currency) || '$', d = NBA.dashboard(state), h = '';
-    h += '<h2>Management view</h2><p class="small">All salespeople. Figures up to ' + NBA.niceDate(d.asOf) + ', compared with the same dates in ' + d.prevYear + '.</p>';
-    h += '<div class="panel"><h3>Incremental revenue, ' + d.year + ' so far</h3>';
-    if (d.hasPrev) h += '<div class="hero-num" style="color:var(--' + (d.ytd.inc >= 0 ? 'go' : 'risk') + ')">' + signed(d.ytd.inc, cur) + '</div><div>' + (d.ytd.inc >= 0 ? '▲ ' : '▼ ') + NBA.pct(d.ytd.pct) + ' against the same period last year</div>';
-    else h += '<div class="hero-num">' + NBA.money(d.ytd.cur, cur) + '</div><div class="small">No sales from ' + d.prevYear + ' in the uploaded data, so there is nothing to compare with yet.</div>';
+    var cur = (state.settings && state.settings.currency) || '$', d = NBA.dashboard(state, { sp: sp || null }), h = '';
+    h += '<div class="panel hero"><div class="small">' + (sp ? esc(sp) : 'All salespeople') + ', ' + d.year + ' up to ' + NBA.niceDate(d.asOf) + '</div>';
+    if (d.hasPrev) h += '<div>Incremental revenue</div><div class="hero-num">' + signed(d.ytd.inc, cur) + '</div><span class="pill">' + (d.ytd.inc >= 0 ? '▲ ' : '▼ ') + NBA.pct(d.ytd.pct) + ' against the same dates in ' + d.prevYear + '</span>';
+    else h += '<div>Revenue this year</div><div class="hero-num">' + NBA.money(d.ytd.cur, cur) + '</div><span class="pill">No ' + d.prevYear + ' sales uploaded to compare with</span>';
     h += '</div><div class="kpis">' +
       '<div class="panel"><div class="small">' + d.year + ' to date</div><div class="v">' + NBA.money(d.ytd.cur, cur) + '</div><div class="small">' + d.prevYear + ': ' + NBA.money(d.ytd.prev, cur) + '</div></div>' +
       '<div class="panel"><div class="small">' + d.month.label + ' to date</div><div class="v">' + NBA.money(d.month.cur, cur) + '</div><div class="small">' + (d.hasPrev ? delta(d.month.inc, d.month.pct, cur) : '') + '</div></div></div>';
@@ -55,7 +54,7 @@
       d.months.map(function (m) { return '<tr><td>' + m.label + (m.partial ? ' (to date)' : '') + '</td><td>' + (m.future ? '' : NBA.money(m.cur, cur)) + '</td><td>' + NBA.money(m.partial ? m.prevToDate : m.prev, cur) + '</td><td>' + (m.future ? '' : signed(m.cur - (m.partial ? m.prevToDate : m.prev), cur)) + '</td></tr>'; }).join('') + '</table></div></div>';
 
     var maxInc = Math.max.apply(null, d.people.map(function (p) { return Math.abs(p.inc); })) || 1;
-    h += '<div class="panel"><h3>Incremental revenue by salesperson</h3><p class="small">' + d.year + ' to date against the same period in ' + d.prevYear + '.</p>' +
+    if (!sp) h += '<div class="panel"><h3>Incremental revenue by salesperson</h3><p class="small">' + d.year + ' to date against the same period in ' + d.prevYear + '.</p>' +
       d.people.map(function (p) {
         var w = Math.max(1.5, Math.abs(p.inc) / maxInc * 50), up = p.inc >= 0;
         return '<div class="person"><div class="row"><span>' + esc(p.name) + '</span><span class="delta ' + (up ? 'up' : 'down') + '">' + (up ? '▲ ' : '▼ ') + signed(p.inc, cur) + '</span></div>' +

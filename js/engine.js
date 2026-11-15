@@ -574,7 +574,7 @@
   function dashboard(state, opts) {
     opts = opts || {};
     var when = asOfDate(state, opts.today), asOf = when.asOf, Y = asOf.slice(0, 4), PY = String(+Y - 1), asOfPY = lastYear(asOf);
-    var tx = allTx(state).filter(function (t) { return t.d <= asOf; });
+    var tx = allTx(state).filter(function (t) { return t.d <= asOf && (!opts.sp || t.sp === opts.sp); });
     var mon = +asOf.slice(5, 7), months = [], i;
     for (i = 0; i < 12; i++) months.push({ label: MONTHS[i], cur: 0, prev: 0, prevToDate: 0, future: i + 1 > mon, partial: i + 1 === mon });
     var ytd = { cur: 0, prev: 0 }, sp = {}, cust = {};
@@ -590,7 +590,7 @@
     });
     var m = months[mon - 1];
     var people = Object.keys(sp).map(function (k) { sp[k].inc = sp[k].cur - sp[k].prev; return sp[k]; }).sort(function (a, b) { return b.inc - a.inc; });
-    var deals = (state.deals || []).slice().sort(function (a, b) { return a.ts < b.ts ? 1 : -1; }).map(function (d) {
+    var deals = (state.deals || []).filter(function (x) { return !opts.sp || x.sp === opts.sp; }).sort(function (a, b) { return a.ts < b.ts ? 1 : -1; }).map(function (d) {
       var c = cust[d.cid] || { cur: 0, prev: 0 };
       return { id: d.id, date: d.date, cname: d.cname, sp: d.sp, amt: d.amt, cat: d.cat, confirmed: !!d.confirmed, custCur: c.cur, custPrev: c.prev, custInc: c.cur - c.prev };
     });
@@ -602,6 +602,34 @@
       customers: Object.keys(cust).map(function (k) { cust[k].inc = cust[k].cur - cust[k].prev; return cust[k]; })
     };
   }
+  // ---------------------------------------------------------------- executive summary (morning brief)
+  // Fixed sentence templates filled with numbers. Returns the facts so the screen can lay them out.
+  function joinNames(a) { return a.length <= 1 ? a.join('') : a.slice(0, -1).join(', ') + ' and ' + a[a.length - 1]; }
+  function execSummary(state, me, an, opts) {
+    opts = opts || {};
+    var cur = an.currency, L = lists(an), d = dashboard(state, { today: opts.today, sp: me }), out = { headline: '', points: [] };
+    out.headline = d.hasPrev
+      ? 'You are at ' + money(d.ytd.cur, cur) + ' this year, ' + money(Math.abs(d.ytd.inc), cur) + (d.ytd.inc >= 0 ? ' ahead of' : ' behind') + ' the same time last year (' + pct(d.ytd.pct) + ').'
+      : 'You are at ' + money(d.ytd.cur, cur) + ' this year.';
+    if (L.churn.length) {
+      var atRisk = sum(L.churn, function (c) { return c.rev12; });
+      out.points.push({ kind: 'risk', label: 'At risk', text: L.churn.length + (L.churn.length === 1 ? ' customer' : ' customers') + ' worth ' + money(atRisk, cur) + ' a year ' + (L.churn.length === 1 ? 'is' : 'are') + ' showing signs of leaving: ' + joinNames(L.churn.slice(0, 3).map(function (c) { return c.name; })) + (L.churn.length > 3 ? ' and others' : '') + '.',
+        tech: 'sum of 12-month revenue of customers with churn score ≥ ' + RULES.listThreshold });
+    } else out.points.push({ kind: 'risk', label: 'At risk', text: 'None of your customers shows a strong sign of leaving today.', tech: 'no churn score ≥ ' + RULES.listThreshold });
+    if (L.top3.length) {
+      var v = sum(L.top3, function (c) { return c.avgOrder; });
+      out.points.push({ kind: 'value', label: 'Today\'s potential', text: 'Your ' + L.top3.length + ' visits could bring in about ' + money(v, cur) + ', going by what these customers usually order.', tech: 'sum of average order value of the top ' + L.top3.length + ' by visit priority' });
+    }
+    if (L.close.length) out.points.push({ kind: 'close', label: 'Ready to buy', text: L.close.length + (L.close.length === 1 ? ' customer is' : ' customers are') + ' likely to place an order now, led by ' + L.close[0].name + '.', tech: 'customers with close score ≥ ' + RULES.listThreshold });
+    var offers = [];
+    L.top3.forEach(function (c) {
+      var s = c.docs.concat(c.segDocs).filter(function (x) { return x.tags.indexOf('renewal') >= 0 || x.tags.indexOf('campaign') >= 0; })[0];
+      if (s) offers.push({ name: c.name, renewal: s.tags.indexOf('renewal') >= 0, text: shorten(s.text, 120), doc: s.doc });
+    });
+    out.offers = offers;
+    return out;
+  }
+
   // An app-logged deal is "confirmed" (and no longer counted separately) once an uploaded
   // transaction for the same customer exists on or after the deal date.
   function confirmDeals(state, newTx) {
@@ -615,7 +643,7 @@
 
   var api = {
     parseDate: parseDate, normalizeRows: normalizeRows, mergeTx: mergeTx, analyze: analyze, lists: lists, topReasons: topReasons,
-    buildPitch: buildPitch, customerMarkdown: customerMarkdown, fileName: fileName, dashboard: dashboard, confirmDeals: confirmDeals,
+    execSummary: execSummary, buildPitch: buildPitch, customerMarkdown: customerMarkdown, fileName: fileName, dashboard: dashboard, confirmDeals: confirmDeals,
     extractKeywords: extractKeywords, linkDocs: linkDocs, salespeople: salespeople, asOfDate: asOfDate,
     KEYWORDS: KEYWORDS, KW: KW, RULES: RULES, money: money, pct: pct, niceDate: niceDate, todayISO: todayISO, addDays: addDays, dayNum: dayNum, MONTHS: MONTHS
   };

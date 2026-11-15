@@ -27,8 +27,8 @@ Status: Done = built and tested. Pilot limit = works within the limit described.
 | P2 | Code is stored in the connected GitHub repository. | Done |
 | P3 | No LLM or AI service anywhere. All analysis is fixed rules and arithmetic. | Done |
 | P4 | Data stays confidential. Uploaded files, notes and deals are read and stored on the phone only (browser storage). Nothing is sent to a server. The page loads no outside scripts or fonts. | Done |
-| P5 | No login for the pilot. The salesperson picks their name from a list once. | Done |
-| P6 | Each salesperson sees only their own customers in the brief. | Pilot limit: with no login, anyone holding the file can pick another name. |
+| P5 | No login for the pilot. A row of salesperson tabs at the top switches between salespeople. The chat never asks "who are you". The first salesperson is selected by default and the choice is remembered. | Done |
+| P6 | Each salesperson sees only their own customers in the brief. | Pilot limit: with no login, anyone holding the file can tap another salesperson's tab. |
 
 ### 3.2 Uploading data
 
@@ -44,7 +44,10 @@ Status: Done = built and tested. Pilot limit = works within the limit described.
 
 | ID | Requirement | Status |
 |---|---|---|
-| B1 | Simple, professional chat interface. Daily morning brief style. | Done |
+| B1 | Simple, professional chat interface in the look of the reference screenshot (soft sky background, glass cards, dark pill buttons, floating bottom bar, assistant orb). | Done |
+| B8 | The brief opens with an executive summary: my revenue against last year, revenue at risk, the value of today's visits, customers ready to buy, and offers and renewals from the uploaded documents. | Done |
+| B9 | Replies do not appear instantly: thinking dots show first, then the words type out. Tapping the chat skips to the full text. People who switch off motion on their phone get instant text. | Done |
+| B10 | The bottom bar has no typing box: a scrolling row of suggestions, a "Record a visit note" button, upload and customer list buttons. | Done |
 | B2 | No free typing by the user. Everything is done with buttons. | Done (the only keyed entry is an optional exact deal amount on a number pad) |
 | B3 | Suggest the top 3 customers to visit each day, with reasons in plain English. | Done |
 | B4 | Show which customers are likely to close a deal. | Done |
@@ -67,7 +70,7 @@ Status: Done = built and tested. Pilot limit = works within the limit described.
 |---|---|---|
 | D1 | A salesperson can record a closed deal from the chat. | Done |
 | D2 | Deals also come from newly uploaded sales files. A deal logged in the app stops being counted separately once an uploaded file covers it, so it is never counted twice. | Done |
-| D3 | Revenue dashboard is a separate tab, for management. | Done |
+| D3 | Revenue dashboard is a separate tab, for management. The salesperson tabs filter it, with "All team" as the default. | Done |
 | D4 | Incremental revenue = this year to date compared with the same dates last year. Shown in total, for the current month, by month and by salesperson. | Done |
 | D5 | The dashboard updates with every closed deal. | Done on the phone where the deal was logged (see R2). |
 
@@ -100,13 +103,16 @@ Lists: "Likely to close" and "May churn" show customers scoring 50 or more. A cu
 
 **Pitch**: fixed sentence templates filled with the customer's numbers, the latest note keywords and quoted document excerpts. At most 4 points and one ask, with sources listed.
 
+**Executive summary**: "At risk" is the sum of 12-month revenue of customers with a churn score of 50 or more. "Today's potential" is the sum of the usual order size of the top 3 visits. Offers and renewals are the first document paragraph with campaign or renewal wording linked to each of the top 3 customers.
+
 ## 5. Known limits and risks
 
 | ID | Item |
 |---|---|
 | R1 | Voice notes use the phone's built-in speech recognition. On some phones (for example Chrome on Android) the audio is processed by Google or Apple servers, which is outside the "nothing leaves the phone" rule. The app says so on the note screen, voice can be switched off under More, and keywords can always be tapped instead. |
 | R2 | Because data lives on each phone, notes and deals logged on one phone do not appear on another. Management sees deals logged on their own device plus whatever is in the uploaded sales file. A shared view needs a server (future decision). |
-| R3 | No login in the pilot, so the salesperson filter and the management tab are not access controlled. |
+| R3 | No login in the pilot, so the salesperson tabs and the management tab are not access controlled. |
+| R7 | The assistant look and typing animation are presentation only. The text is produced instantly by fixed rules; no AI model is involved. The header says "Private, runs on this phone". |
 | R4 | Clearing browser data erases notes and deals. Customer files can be downloaded as a backup. |
 | R5 | The site code on GitHub Pages is public (including the invented sample data). Real business data is never part of the site. |
 | R6 | If the newest sale in the data is more than 14 days old, the brief is calculated as of the day after that sale and says so. |
@@ -122,3 +128,4 @@ Lists: "Likely to close" and "May churn" show customers scoring 50 or more. A cu
 | Date | Change |
 |---|---|
 | 15 Nov 2026 | First version: upload, morning brief with top 3 visits, likely to close and may churn lists, auditable reasons, keyword and voice notes, tailored pitch, per-customer .md files, deal logging, management revenue dashboard, sample data. Decisions confirmed: data on the phone only; generic industry; incremental measured against the same period last year; deals from both app and uploads. |
+| 15 Nov 2026 | Redesign to the reference screenshot. Salesperson tabs replace the "who are you" question. Executive summary added to the morning brief. Thinking dots and typed-out replies with tap to skip. Typing box replaced by suggestion chips and a voice note button. Dashboard gets a hero card and can be filtered by salesperson. |
