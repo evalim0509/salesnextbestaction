@@ -5,7 +5,7 @@
   var $ = function (s, r) { return (r || document).querySelector(s); };
   var chat = $('#chat'), dock = $('#dock'), sheet = $('#sheet'), fileInput = $('#file');
   var state = blank(), an = null, dashSp = null, view = 'brief';
-  function blank() { return { me: null, tx: [], docs: [], notes: [], deals: [], files: [], settings: { currency: '$', voice: true } }; }
+  function blank() { return { me: null, tx: [], docs: [], notes: [], deals: [], visits: [], plans: {}, files: [], settings: { currency: '$', voice: true } }; }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
   function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
   function cur() { return state.settings.currency; }
@@ -139,19 +139,48 @@
   }
   function greeting() { var h = new Date().getHours(); return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening'; }
 
+  // ---- today's plan: fixed once made, so ticking off visits does not reshuffle the list
+  function plan() {
+    var key = state.me + '|' + an.asOf;
+    if (!state.plans[key]) { state.plans[key] = NBA.lists(an).top3.map(function (c) { return c.cid; }); save(); }
+    return state.plans[key].map(cust).filter(Boolean);
+  }
+  function visitOf(cid) { return state.visits.filter(function (v) { return v.cid === cid && v.sp === state.me && v.date === an.asOf; })[0]; }
+  function footHTML(cid) {
+    var v = visitOf(cid);
+    if (!v) return '<button data-v="done">Mark visited</button><button data-v="skip">Skip today</button>';
+    return '<span class="vstate ' + v.status + '">' + (v.status === 'done' ? '✓ Visited' : 'Skipped: ' + esc(v.reason)) + '</span><button data-v="undo">Undo</button>';
+  }
+  function refreshFoots(cid) { [].forEach.call(chat.querySelectorAll('.vfoot'), function (f) { if (f.dataset.visit === cid) f.innerHTML = footHTML(cid); }); }
+  function markVisit(cid, status, reason, quiet) {
+    state.visits = state.visits.filter(function (v) { return !(v.cid === cid && v.sp === state.me && v.date === an.asOf); });
+    if (status) state.visits.push({ cid: cid, sp: state.me, date: an.asOf, status: status, reason: reason || '' });
+    save(); refreshFoots(cid);
+    var p = plan(), left = p.filter(function (c) { return !visitOf(c.cid); }).length;
+    if (status && !quiet && p.length && !left) bot('<p>That is all ' + p.length + ' of today\'s visits accounted for.</p>' + acts([['wrap', 'Wrap up my day', 'pri full']]));
+  }
+  function autoVisited(cid) { if (plan().some(function (c) { return c.cid === cid; }) && !visitOf(cid)) markVisit(cid, 'done', '', true); }
+  function skipSheet(cid) {
+    var c = cust(cid); if (!c) return;
+    var reasons = ['Customer not available', 'Ran out of time', 'Moved to another day', 'Not needed today'];
+    openSheet('Skip ' + c.name + ' today?', '<div class="group">Why?</div><div class="rowlist" style="margin:0">' + reasons.map(function (r) { return '<button data-r="' + r + '">' + r + '</button>'; }).join('') + '</div>');
+    $('#sheet-body').onclick = function (e) { var b = e.target.closest('[data-r]'); if (b) { closeSheet(); markVisit(cid, 'skipped', b.dataset.r); } };
+  }
   function visitCard(c, i) {
     var r = NBA.topReasons(c, 1)[0];
-    var b = document.createElement('button'); b.className = 'visit fade'; b.dataset.cid = c.cid;
-    b.innerHTML = '<span class="n">' + (i + 1) + '</span><span><span class="name">' + esc(c.name) + '</span>' + tag(c) +
+    var b = document.createElement('div'); b.className = 'visit fade';
+    b.innerHTML = '<button class="vmain" data-cid="' + esc(c.cid) + '"><span class="n">' + (i + 1) + '</span><span><span class="name">' + esc(c.name) + '</span>' + tag(c) +
       '<span class="why">' + esc(r ? r.plain : 'Worth a regular check-in.') + '</span></span>' +
-      '<span class="arrow"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-6-6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>';
+      '<span class="arrow"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-6-6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button>' +
+      '<div class="vfoot" data-visit="' + esc(c.cid) + '">' + footHTML(c.cid) + '</div>';
     enqueue(function () { return pause(260).then(function () { chat.appendChild(b); follow(); }); });
     return b;
   }
   // Executive summary: fixed sentence templates filled with today's numbers.
   function brief() {
     refresh(); if (!an) return;
-    var L = NBA.lists(an), first = state.me.split(' ')[0], ex = NBA.execSummary(state, state.me, an);
+    var P = plan(), L = { top3: P }, first = state.me.split(' ')[0], ex = NBA.execSummary(state, state.me, an, { plan: P });
+    var doneN = P.filter(function (c) { return visitOf(c.cid); }).length;
     var d = new Date(), dayName = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][d.getDay()];
     bot('<h3>' + greeting() + ', ' + esc(first) + '</h3><p class="small">' + (an.stale ? 'Based on sales up to ' + NBA.niceDate(an.dataTo) : dayName + ', ' + NBA.niceDate(an.asOf)) + '. I went through ' +
       an.customers.length + ' customers, ' + state.notes.length + ' visit notes and ' + state.docs.length + ' documents.</p>' +
@@ -159,9 +188,51 @@
     if (an.stale) bot('Your sales data stops on ' + NBA.niceDate(an.dataTo) + '. Upload a newer sales file for an up-to-date brief.', 'notice');
     if (ex.offers.length) bot('<p><b>Offers and renewals to use today</b></p><ul>' + ex.offers.map(function (o) { return '<li><b>' + esc(o.name) + '</b>' + (o.renewal ? ' (renewal)' : '') + ': ' + esc(o.text) + '</li>'; }).join('') + '</ul>', 'wide');
     if (!L.top3.length) { bot('<p>You have no active customers in the uploaded data.</p>'); return; }
-    bot('<p>My recommendation: visit these ' + L.top3.length + ' customers today, in this order. Tap one for the pitch.</p>');
+    bot('<p>' + (doneN ? 'Your plan for today: ' + doneN + ' of ' + P.length + ' visits accounted for.' : 'My recommendation: visit these ' + P.length + ' customers today, in this order.') + ' Tap one for the pitch.</p>');
     L.top3.forEach(visitCard);
   }
+  function wrapUpDay() {
+    refresh(); if (!an) return;
+    var P = plan(), w = NBA.wrapUp(state, state.me, an, P.map(function (c) { return c.cid; })), li = [];
+    function names(a) { return a.length <= 1 ? a.join('') : a.slice(0, -1).join(', ') + ' and ' + a[a.length - 1]; }
+    li.push('<li><b>Visits</b>' + (w.planned ? 'You visited ' + w.visited.length + ' of your ' + w.planned + ' planned customers' + (w.visited.length ? ': ' + esc(names(w.visited)) : '') + '.' : 'No visits were planned today.') +
+      w.skipped.map(function (x) { return ' Skipped ' + esc(x.name) + ' (' + esc(x.reason.toLowerCase()) + ').'; }).join('') +
+      (w.open.length ? ' Not marked yet: ' + esc(names(w.open.map(function (x) { return x.name; }))) + '.' : '') + '</li>');
+    li.push('<li><b>Deals</b>' + (w.deals.n ? 'You closed ' + w.deals.n + (w.deals.n === 1 ? ' deal' : ' deals') + ' worth ' + $$(w.deals.total) + ' today.' : 'No deals logged today.') + '</li>');
+    li.push('<li><b>Notes</b>' + (w.noted.length ? 'Saved for ' + esc(names(w.noted)) + '.' : 'No visit notes saved today.') +
+      (w.missingNotes.length ? ' Still missing for ' + esc(names(w.missingNotes.map(function (x) { return x.name; }))) + '. Add it while the visit is fresh.' : '') + '</li>');
+    var tm = NBA.lists(NBA.analyze(state, state.me, { asOf: NBA.addDays(an.asOf, 1) })).top3;
+    if (tm.length) li.push('<li><b>Tomorrow</b>Likely visits: ' + esc(names(tm.map(function (c) { return c.name; }))) + '.</li>');
+    bot('<h3>Your day, ' + esc(state.me.split(' ')[0]) + '</h3><ul class="facts">' + li.join('') + '</ul>' +
+      (w.missingNotes.length ? '<div class="acts">' + w.missingNotes.slice(0, 3).map(function (x) { return '<button class="full" data-do="note" data-for="' + esc(x.cid) + '">Add note for ' + esc(x.name) + '</button>'; }).join('') + '</div>' : ''), 'wide');
+  }
+  function celebrate() {
+    var orb = document.querySelector('.top .orb'); orb.classList.add('win'); setTimeout(function () { orb.classList.remove('win'); }, 2600);
+    if (reduced) return;
+    var box = document.createElement('div'); box.className = 'confetti'; var colors = ['#9be22d', '#2a78d6', '#ff8fb4', '#ffd166', '#10151f', '#8f7bff'];
+    for (var i = 0; i < 46; i++) {
+      var c = document.createElement('i'), ang = Math.random() * Math.PI * 2, dist = 90 + Math.random() * 220;
+      c.style.cssText = 'background:' + colors[i % colors.length] + ';--x:' + Math.round(Math.cos(ang) * dist) + 'px;--y:' + Math.round(Math.sin(ang) * dist - 120) + 'px;--r:' + Math.round(Math.random() * 720 - 360) + 'deg;animation-delay:' + Math.round(Math.random() * 120) + 'ms;' + (i % 3 ? '' : 'border-radius:50%;');
+      box.appendChild(c);
+    }
+    document.body.appendChild(box); setTimeout(function () { box.remove(); }, 2200);
+  }
+  // ---- manager brief on the Revenue tab: same typed style as the chat
+  var dashRun = 0;
+  function showDash() {
+    var el = $('#view-dash'), run = ++dashRun; window.NBADash.render(el, state, dashSp);
+    if (!state.tx.length) return;
+    var m = NBA.managerSummary(state, dashSp), card = document.createElement('div'); card.className = 'panel mbrief';
+    card.innerHTML = '<div class="typing"><span class="orb xs"></span><span class="dots"><i></i><i></i><i></i></span></div>';
+    el.insertBefore(card, el.firstChild);
+    card.addEventListener('pointerdown', function () { fast = true; skippers.splice(0).forEach(function (f) { f(); }); });
+    pause(900).then(function () {
+      if (run !== dashRun) return;
+      card.innerHTML = '<p class="small">Manager brief</p><p class="lead">' + esc(m.headline) + '</p><ul class="facts">' + m.points.map(function (x) { return '<li><b>' + esc(x.label) + '</b>' + esc(x.text) + '</li>'; }).join('') + '</ul>';
+      return typeOut(card);
+    }).then(function () { if (!pending) fast = false; });
+  }
+
   function showList(kind) {
     refresh(); if (!an) return;
     var L = NBA.lists(an), list = L[kind], close = kind === 'close';
@@ -265,7 +336,7 @@
     saveBtn.onclick = function () {
       var before = { close: c.close, churn: c.churn };
       var note = { id: uid(), cid: c.cid, ts: stamp(), keywords: sel('data-kw'), cats: sel('data-cat'), transcript: transcript };
-      state.notes.push(note); save(); closeSheet(); refresh();
+      state.notes.push(note); save(); closeSheet(); refresh(); autoVisited(c.cid);
       var n = cust(c.cid);
       said('Note for ' + c.name + ': ' + (note.keywords.map(function (id) { return NBA.KW[id].label; }).concat(note.cats).join(', ') || 'spoken note'));
       var ch = [];
@@ -302,7 +373,7 @@
     btn.onclick = function () {
       var catBtn = document.querySelector('#dcat .chip[aria-pressed="true"]'), ts = stamp();
       var deal = { id: uid(), cid: c.cid, cname: c.name, sp: c.sp, seg: c.seg, date: ts.slice(0, 10), ts: ts, amt: val(), cat: catBtn ? catBtn.dataset.k : 'General', confirmed: false };
-      state.deals.push(deal); save(); closeSheet(); refresh();
+      state.deals.push(deal); save(); closeSheet(); refresh(); autoVisited(c.cid); celebrate();
       said('Deal closed with ' + c.name + ': ' + $$(deal.amt));
       var d = NBA.dashboard(state), me = d.people.filter(function (p) { return p.name === state.me; })[0], cc = d.customers.filter(function (x) { return x.cid === c.cid; })[0];
       var line = d.hasPrev && me ? 'Your sales this year are now ' + $$(me.cur) + ', which is ' + $$(Math.abs(me.inc)) + (me.inc >= 0 ? ' ahead of' : ' behind') + ' the same time last year.' : 'Your sales this year are now ' + $$(me ? me.cur : deal.amt) + '.';
@@ -394,6 +465,7 @@
         if (opts && opts.replace) state.tx = [];
         var mg = NBA.mergeTx(state.tx, r.tx); state.tx = mg.tx; gotTx = true;
         var confirmed = NBA.confirmDeals(state, r.tx);
+        Object.keys(state.plans).forEach(function (k) { var i = k.lastIndexOf('|'), sp = k.slice(0, i), d = k.slice(i + 1); if (!state.visits.some(function (v) { return v.sp === sp && v.date === d; })) delete state.plans[k]; });
         var ids = {}, min = r.tx[0].d, max = r.tx[0].d; r.tx.forEach(function (t) { ids[t.cid] = 1; if (t.d < min) min = t.d; if (t.d > max) max = t.d; });
         lines.push('<li><b>' + esc(r.name) + '</b>: ' + mg.added.toLocaleString() + ' new sales rows for ' + Object.keys(ids).length + ' customers, ' + NBA.niceDate(min) + ' to ' + NBA.niceDate(max) + '.' +
           (mg.duplicates ? ' ' + mg.duplicates.toLocaleString() + ' rows were already loaded and were skipped.' : '') + (r.skipped ? ' ' + r.skipped + ' rows had no date or amount and were left out.' : '') +
@@ -446,6 +518,7 @@
     else if (name === 'customers') customersSheet();
     else if (name === 'more') moreSheet();
     else if (name === 'dash') tab('dash');
+    else if (name === 'wrap') { said('Wrap up my day'); wrapUpDay(); }
     else if (name === 'pitch') showPitch(cid);
     else if (name === 'why') showWhy(cid);
     else if (name === 'note') { if (cid) noteSheet(cid); else customersSheet('Visit note for which customer?', noteSheet); }
@@ -453,15 +526,17 @@
     else if (name === 'file') fileSheet(cid);
   }
   chat.addEventListener('click', function (e) {
+    var v = e.target.closest('[data-v]');
+    if (v) { var id = v.closest('.vfoot').dataset.visit; if (v.dataset.v === 'skip') skipSheet(id); else markVisit(id, v.dataset.v === 'done' ? 'done' : null); return; }
     var d = e.target.closest('[data-do]');
-    if (d) { var holder = d.closest('[data-cid]'); act(d.dataset.do, holder && holder.dataset.cid); return; }
+    if (d) { var holder = d.closest('[data-cid]'); act(d.dataset.do, d.dataset.for || (holder && holder.dataset.cid)); return; }
     var c = e.target.closest('[data-cid]'); if (c && c.tagName === 'BUTTON') showCustomer(c.dataset.cid);
   });
   chat.addEventListener('pointerdown', hurry);
   document.addEventListener('click', function (e) { var b = e.target.closest('[data-act]'); if (b) act(b.dataset.act); });
   $('#people').addEventListener('click', function (e) {
     var b = e.target.closest('[data-sp]'); if (!b) return;
-    if (view === 'dash') { dashSp = b.dataset.sp || null; renderPeople(); window.NBADash.render($('#view-dash'), state, dashSp); }
+    if (view === 'dash') { dashSp = b.dataset.sp || null; renderPeople(); showDash(); }
     else if (b.dataset.sp !== state.me) setMe(b.dataset.sp);
   });
   function tab(name) {
@@ -469,13 +544,13 @@
     $('#view-brief').hidden = dash; $('#view-dash').hidden = !dash;
     $('#tab-brief').setAttribute('aria-selected', !dash); $('#tab-dash').setAttribute('aria-selected', dash);
     renderPeople();
-    if (dash) window.NBADash.render($('#view-dash'), state, dashSp);
+    if (dash) showDash();
   }
   document.querySelector('.tabs').addEventListener('click', function (e) { var b = e.target.closest('[data-tab]'); if (b) tab(b.dataset.tab); });
 
   // ------------------------------------------------------------ start
   DB.get().then(function (s) {
-    if (s && s.tx) { state = s; state.settings = state.settings || { currency: '$', voice: true }; }
+    if (s && s.tx) { state = s; state.settings = state.settings || { currency: '$', voice: true }; state.visits = state.visits || []; state.plans = state.plans || {}; }
     if (!state.tx.length) welcome();
     else if (!state.me) askWho();
     else { dock.hidden = false; renderPeople(); brief(); }

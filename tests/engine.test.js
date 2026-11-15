@@ -31,6 +31,14 @@ const ab = b => b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength);
     assert(/behind|ahead/.test(ex.headline)); assert(ex.points.some(x => x.kind === 'risk' && /Blue Harbor/.test(x.text))); assert(ex.offers.length >= 1);
     const all = NBA.dashboard(state, { today }), one = NBA.dashboard(state, { today, sp: 'Aisha Rahman' });
     assert(one.ytd.cur < all.ytd.cur && one.people.length === 1); console.log(ex); }
+  // visit plan, wrap-up and manager brief
+  { const a = NBA.analyze(state, 'Aisha Rahman', { today }), plan = NBA.lists(a).top3.map(c => c.cid);
+    const st = Object.assign({}, state, { plans: { ['Aisha Rahman|' + today]: plan }, visits: [{ cid: plan[0], sp: 'Aisha Rahman', date: today, status: 'done' }, { cid: plan[1], sp: 'Aisha Rahman', date: today, status: 'skipped', reason: 'Ran out of time' }] });
+    const vs = NBA.visitStats(st, today); assert.deepStrictEqual(vs.today, { planned: 3, done: 1, skipped: 1 });
+    const w = NBA.wrapUp(st, 'Aisha Rahman', a, plan); assert.strictEqual(w.visited.length, 1); assert.strictEqual(w.open.length, 1); assert.strictEqual(w.missingNotes.length, 1); assert.strictEqual(w.skipped[0].reason, 'Ran out of time');
+    const m = NBA.managerSummary(st, null, { today }); assert(/The team is at/.test(m.headline)); assert(m.points.some(x => x.kind === 'people' && /Aisha Rahman is furthest behind/.test(x.text))); assert(m.points.some(x => x.kind === 'visits' && /1 of 3/.test(x.text)));
+    assert(/^Chloe is at/.test(NBA.managerSummary(st, 'Chloe Tan', { today }).headline));
+    const tomorrow = NBA.analyze(state, 'Aisha Rahman', { today, asOf: NBA.addDays(today, 1) }); assert.strictEqual(tomorrow.asOf, '2026-11-16'); console.log(m); }
   // documents link to the right customer
   let an = NBA.analyze(state, 'Aisha Rahman', { today });
   const bh = an.customers.find(c => c.name === 'Blue Harbor Stores');

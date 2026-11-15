@@ -13,6 +13,18 @@
     return '<span class="delta ' + (up ? 'up' : 'down') + '">' + (up ? '▲ ' : '▼ ') + signed(inc, cur) + (pct == null ? '' : ' (' + NBA.pct(pct) + ')') + '</span>';
   }
 
+  // drawn sky and hills for the hero card (no outside image)
+  var SCENE = '<svg class="scene" viewBox="0 0 400 240" preserveAspectRatio="xMidYMax slice" aria-hidden="true"><defs>' +
+    '<linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1557b8"/><stop offset=".55" stop-color="#3f8fe2"/><stop offset="1" stop-color="#a9d4f5"/></linearGradient>' +
+    '<linearGradient id="h1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8fcf5a"/><stop offset="1" stop-color="#4f9a3a"/></linearGradient>' +
+    '<linearGradient id="h2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b7e07a"/><stop offset="1" stop-color="#6fb548"/></linearGradient>' +
+    '<filter id="soft" x="-20%" y="-50%" width="140%" height="200%"><feGaussianBlur stdDeviation="5"/></filter></defs>' +
+    '<rect width="400" height="240" fill="url(#sky)"/>' +
+    '<g fill="#fff" filter="url(#soft)" opacity=".85"><ellipse cx="318" cy="46" rx="44" ry="13"/><ellipse cx="346" cy="36" rx="26" ry="12"/><ellipse cx="292" cy="40" rx="22" ry="9"/></g>' +
+    '<g fill="#fff" filter="url(#soft)" opacity=".5"><ellipse cx="150" cy="132" rx="50" ry="9"/><ellipse cx="360" cy="150" rx="46" ry="10"/></g>' +
+    '<path d="M0 204 C70 176 140 190 210 198 C280 206 340 178 400 188 V240 H0z" fill="url(#h1)"/>' +
+    '<path d="M0 222 C90 198 170 214 250 220 C320 225 360 208 400 214 V240 H0z" fill="url(#h2)"/></svg>';
+
   function monthChart(d, cur) {
     var W = 340, H = 190, L = 38, B = 22, T = 8, pw = (W - L) / 12, ph = H - B - T;
     var max = Math.max.apply(null, d.months.map(function (m) { return Math.max(m.cur, m.prev); })) || 1;
@@ -42,7 +54,7 @@
       return;
     }
     var cur = (state.settings && state.settings.currency) || '$', d = NBA.dashboard(state, { sp: sp || null }), h = '';
-    h += '<div class="panel hero"><div class="small">' + (sp ? esc(sp) : 'All salespeople') + ', ' + d.year + ' up to ' + NBA.niceDate(d.asOf) + '</div>';
+    h += '<div class="panel hero">' + SCENE + '<div class="small">' + (sp ? esc(sp) : 'All salespeople') + ', ' + d.year + ' up to ' + NBA.niceDate(d.asOf) + '</div>';
     if (d.hasPrev) h += '<div>Incremental revenue</div><div class="hero-num">' + signed(d.ytd.inc, cur) + '</div><span class="pill">' + (d.ytd.inc >= 0 ? '▲ ' : '▼ ') + NBA.pct(d.ytd.pct) + ' against the same dates in ' + d.prevYear + '</span>';
     else h += '<div>Revenue this year</div><div class="hero-num">' + NBA.money(d.ytd.cur, cur) + '</div><span class="pill">No ' + d.prevYear + ' sales uploaded to compare with</span>';
     h += '</div><div class="kpis">' +
@@ -62,6 +74,13 @@
           '<div class="small">' + NBA.money(p.cur, cur) + ' this year, ' + NBA.money(p.prev, cur) + ' last year</div></div>';
       }).join('') + '</div>';
 
+    var vs = NBA.visitStats(state, d.asOf, sp || null);
+    if (vs.people.length) h += '<div class="panel"><h3>Visit plans</h3><p class="small">Planned visits marked as done on this device.</p>' + vs.people.map(function (p) {
+      var rate = p.week.planned ? Math.round(100 * p.week.done / p.week.planned) : 0;
+      return '<div class="person"><div class="row"><span>' + esc(p.name) + '</span><span>' + p.today.done + ' of ' + p.today.planned + ' today</span></div>' +
+        '<div class="meter"><span style="width:' + rate + '%"></span></div><div class="small">Last 7 days: ' + p.week.done + ' of ' + p.week.planned + ' visits done (' + rate + '%)' + (p.week.skipped ? ', ' + p.week.skipped + ' skipped' : '') +
+        (p.skips.length ? '. Skipped today: ' + esc(p.skips.join(', ').toLowerCase()) : '') + '</div></div>';
+    }).join('') + '</div>';
     h += '<div class="panel"><h3>Deals closed in the app</h3>';
     if (!d.deals.length) h += '<p class="small">When a salesperson taps “Deal closed”, the deal shows up here and in the totals above straight away.</p>';
     else h += '<p class="small">Each deal is added to the totals above. “Customer vs last year” is that customer\'s revenue this year against the same period last year, including the deal.</p>' + d.deals.map(function (x) {

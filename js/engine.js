@@ -262,7 +262,8 @@
   function analyze(state, me, opts) {
     opts = opts || {};
     var cur = (state.settings && state.settings.currency) || '$';
-    var when = asOfDate(state, opts.today), asOf = when.asOf, A = dayNum(asOf);
+    var when = asOfDate(state, opts.today); if (opts.asOf) when = { asOf: opts.asOf, stale: when.stale, dataTo: when.dataTo };
+    var asOf = when.asOf, A = dayNum(asOf);
     var tx = allTx(state).filter(function (t) { return t.d <= asOf; });
     var by = {}, catSet = {};
     tx.forEach(function (t) { (by[t.cid] = by[t.cid] || []).push(t); catSet[t.cat] = 1; });
@@ -377,6 +378,7 @@
         });
       });
       c.deals.forEach(function (d) { var age = A - dayNum(d.date); if (lastVisit === null || age < lastVisit) lastVisit = age; });
+      (state.visits || []).forEach(function (v) { if (v.cid !== c.cid || v.status !== 'done') return; var age = A - dayNum(v.date); if (age >= 0 && (lastVisit === null || age < lastVisit)) lastVisit = age; });
       c.lastVisit = lastVisit; c.noteNeg = Object.keys(neg); c.notePos = Object.keys(pos);
       function noteFactor(bucket, map, field, cap, days) {
         var ids = Object.keys(map); if (!ids.length) return;
@@ -417,7 +419,7 @@
       if (dPri.length) add('priority', RULES.docPriority, 'Your account plan marks them as a priority account (' + dPri[0].doc + ').',
         'document paragraph with priority wording: “' + shorten(dPri[0].text, 90) + '” → +' + RULES.docPriority + ' priority', 'Documents');
       if (lastVisit !== null && lastVisit <= RULES.visitedDays) add('priority', -RULES.visitedPenalty, 'You were in touch ' + (lastVisit <= 0 ? 'today' : lastVisit === 1 ? 'yesterday' : lastVisit + ' days ago') + ', so they can wait.',
-        'last logged visit or deal ' + lastVisit + 'd ago ≤ ' + RULES.visitedDays + 'd → −' + RULES.visitedPenalty + ' priority', 'Visit notes');
+        'last logged visit, note or deal ' + lastVisit + 'd ago ≤ ' + RULES.visitedDays + 'd → −' + RULES.visitedPenalty + ' priority', 'Visit notes');
       if (c.lost) add('priority', -30, 'They have not ordered for ' + c.recency + ' days, so they are treated as inactive.',
         'recency ' + c.recency + 'd > max(' + RULES.lostDays + 'd, ' + RULES.lostRatio + ' × gap ' + Math.round(gap) + 'd) → inactive: churn and close set to 0, −30 priority');
       c.priority = Math.max(0, Math.min(100, sum(F.filter(function (f) { return f.bucket === 'priority'; }), function (f) { return f.pts; })));
@@ -608,6 +610,7 @@
   function execSummary(state, me, an, opts) {
     opts = opts || {};
     var cur = an.currency, L = lists(an), d = dashboard(state, { today: opts.today, sp: me }), out = { headline: '', points: [] };
+    if (opts.plan && opts.plan.length) L.top3 = opts.plan;
     out.headline = d.hasPrev
       ? 'You are at ' + money(d.ytd.cur, cur) + ' this year, ' + money(Math.abs(d.ytd.inc), cur) + (d.ytd.inc >= 0 ? ' ahead of' : ' behind') + ' the same time last year (' + pct(d.ytd.pct) + ').'
       : 'You are at ' + money(d.ytd.cur, cur) + ' this year.';
@@ -630,6 +633,66 @@
     return out;
   }
 
+  // ---------------------------------------------------------------- visit plan, wrap-up, manager brief
+  // state.plans: { 'salesperson|date': [customer ids] }   state.visits: [{cid, sp, date, status:'done'|'skipped', reason}]
+  function visitStats(state, asOf, sp) {
+    var by = {}, A = dayNum(asOf);
+    function slot(name) { return by[name] = by[name] || { name: name, today: { planned: 0, done: 0, skipped: 0 }, week: { planned: 0, done: 0, skipped: 0 }, skips: [] }; }
+    Object.keys(state.plans || {}).forEach(function (k) {
+      var i = k.lastIndexOf('|'), name = k.slice(0, i), date = k.slice(i + 1), age = A - dayNum(date);
+      if ((sp && name !== sp) || age < 0 || age >= 7) return;
+      var p = slot(name);
+      state.plans[k].forEach(function (cid) {
+        var v = (state.visits || []).filter(function (x) { return x.cid === cid && x.sp === name && x.date === date; })[0];
+        [p.week].concat(age === 0 ? [p.today] : []).forEach(function (b) { b.planned++; if (v) b[v.status === 'done' ? 'done' : 'skipped']++; });
+        if (v && v.status === 'skipped' && age === 0) p.skips.push(v.reason);
+      });
+    });
+    var people = Object.keys(by).sort().map(function (k) { return by[k]; }), tot = { today: { planned: 0, done: 0, skipped: 0 }, week: { planned: 0, done: 0, skipped: 0 } };
+    people.forEach(function (p) { ['today', 'week'].forEach(function (w) { ['planned', 'done', 'skipped'].forEach(function (f) { tot[w][f] += p[w][f]; }); }); });
+    return { people: people, today: tot.today, week: tot.week };
+  }
+  function wrapUp(state, me, an, planCids) {
+    var day = an.asOf, name = {}; an.customers.forEach(function (c) { name[c.cid] = c.name; });
+    var vis = (state.visits || []).filter(function (v) { return v.sp === me && v.date === day; });
+    function st(cid) { return vis.filter(function (v) { return v.cid === cid; })[0]; }
+    var deals = (state.deals || []).filter(function (d) { return d.sp === me && d.date === day; });
+    var noted = {}; (state.notes || []).forEach(function (n) { if (n.ts.slice(0, 10) === day && name[n.cid]) noted[n.cid] = 1; });
+    var seen = {}; planCids.forEach(function (c) { var v = st(c); if (v && v.status === 'done') seen[c] = 1; }); deals.forEach(function (d) { seen[d.cid] = 1; });
+    return {
+      planned: planCids.length,
+      visited: planCids.filter(function (c) { var v = st(c); return v && v.status === 'done'; }).map(function (c) { return name[c]; }),
+      skipped: planCids.filter(function (c) { var v = st(c); return v && v.status === 'skipped'; }).map(function (c) { return { name: name[c], reason: st(c).reason }; }),
+      open: planCids.filter(function (c) { return !st(c); }).map(function (c) { return { cid: c, name: name[c] }; }),
+      deals: { n: deals.length, total: sum(deals, function (d) { return d.amt; }) },
+      noted: Object.keys(noted).map(function (c) { return name[c]; }),
+      missingNotes: Object.keys(seen).filter(function (c) { return !noted[c] && name[c]; }).map(function (c) { return { cid: c, name: name[c] }; })
+    };
+  }
+  function managerSummary(state, sp, opts) {
+    opts = opts || {};
+    var d = dashboard(state, { today: opts.today, sp: sp }), an = analyze(state, sp || null, { today: opts.today }), cur = an.currency, out = { headline: '', points: [] };
+    var who = sp ? sp.split(' ')[0] + ' is' : 'The team is';
+    out.headline = d.hasPrev ? who + ' at ' + money(d.ytd.cur, cur) + ' this year, ' + money(Math.abs(d.ytd.inc), cur) + (d.ytd.inc >= 0 ? ' ahead of' : ' behind') + ' the same dates last year (' + pct(d.ytd.pct) + ').'
+      : who + ' at ' + money(d.ytd.cur, cur) + ' this year.';
+    if (!sp && d.people.length > 1 && d.hasPrev) {
+      var best = d.people[0], worst = d.people[d.people.length - 1], t = [];
+      if (worst.inc < 0) t.push(worst.name + ' is furthest behind last year (' + money(worst.inc, cur) + ').');
+      if (best.inc > 0) t.push(best.name + ' is furthest ahead (+' + money(best.inc, cur) + ').');
+      if (t.length) out.points.push({ kind: 'people', label: 'Who needs help', text: t.join(' ') });
+    }
+    var risks = an.customers.filter(function (c) { return !c.lost && c.churn >= RULES.listThreshold; }).sort(function (a, b) { return b.rev12 - a.rev12; });
+    out.points.push({ kind: 'risk', label: 'Accounts at risk', text: risks.length
+      ? risks.length + (risks.length === 1 ? ' account' : ' accounts') + ' worth ' + money(sum(risks, function (c) { return c.rev12; }), cur) + ' a year ' + (risks.length === 1 ? 'shows' : 'show') + ' signs of leaving. The biggest: ' +
+        joinNames(risks.slice(0, 3).map(function (c) { return c.name + ' (' + money(c.rev12, cur) + (sp ? '' : ', ' + c.sp.split(' ')[0]) + ')'; })) + '.'
+      : 'No account shows a strong sign of leaving.' });
+    var wk = d.deals.filter(function (x) { return dayNum(d.asOf) - dayNum(x.date) < 7; });
+    out.points.push({ kind: 'deals', label: 'Deals this week', text: wk.length ? wk.length + (wk.length === 1 ? ' deal' : ' deals') + ' worth ' + money(sum(wk, function (x) { return x.amt; }), cur) + (wk.length === 1 ? ' was' : ' were') + ' logged in the app in the last 7 days.' : 'No deals were logged in the app in the last 7 days.' });
+    var vs = visitStats(state, d.asOf, sp);
+    if (vs.week.planned) out.points.push({ kind: 'visits', label: 'Visit plans', text: 'Today ' + vs.today.done + ' of ' + vs.today.planned + ' planned visits are done' + (vs.today.skipped ? ' and ' + vs.today.skipped + ' skipped' : '') + '. Over the last 7 days: ' + vs.week.done + ' of ' + vs.week.planned + ' (' + Math.round(100 * vs.week.done / vs.week.planned) + '%).' });
+    return out;
+  }
+
   // An app-logged deal is "confirmed" (and no longer counted separately) once an uploaded
   // transaction for the same customer exists on or after the deal date.
   function confirmDeals(state, newTx) {
@@ -643,7 +706,7 @@
 
   var api = {
     parseDate: parseDate, normalizeRows: normalizeRows, mergeTx: mergeTx, analyze: analyze, lists: lists, topReasons: topReasons,
-    execSummary: execSummary, buildPitch: buildPitch, customerMarkdown: customerMarkdown, fileName: fileName, dashboard: dashboard, confirmDeals: confirmDeals,
+    execSummary: execSummary, visitStats: visitStats, wrapUp: wrapUp, managerSummary: managerSummary, buildPitch: buildPitch, customerMarkdown: customerMarkdown, fileName: fileName, dashboard: dashboard, confirmDeals: confirmDeals,
     extractKeywords: extractKeywords, linkDocs: linkDocs, salespeople: salespeople, asOfDate: asOfDate,
     KEYWORDS: KEYWORDS, KW: KW, RULES: RULES, money: money, pct: pct, niceDate: niceDate, todayISO: todayISO, addDays: addDays, dayNum: dayNum, MONTHS: MONTHS
   };

@@ -55,6 +55,9 @@ Status: Done = built and tested. Pilot limit = works within the limit described.
 | B6 | Every reason is auditable in plain English and in technical terms (data used, rule, points). | Done: "Why this customer" then "Show the calculation"; the same working is in the customer file. |
 | B7 | No complicated report layouts for the salesperson. | Done |
 
+| B11 | Today's 3 visits are a fixed plan for the day. Each can be marked visited, or skipped with a reason picked from a list. Saving a note or deal for a planned customer marks it visited. A new sales upload refreshes a plan nobody has started. | Done |
+| B12 | End-of-day wrap-up ("Wrap up my day"): visits done, skipped and still open, deals closed today, notes saved and notes still missing, and tomorrow's likely visits. | Done |
+
 ### 3.4 Customer notes and pitch
 
 | ID | Requirement | Status |
@@ -72,6 +75,9 @@ Status: Done = built and tested. Pilot limit = works within the limit described.
 | D2 | Deals also come from newly uploaded sales files. A deal logged in the app stops being counted separately once an uploaded file covers it, so it is never counted twice. | Done |
 | D3 | Revenue dashboard is a separate tab, for management. The salesperson tabs filter it, with "All team" as the default. | Done |
 | D4 | Incremental revenue = this year to date compared with the same dates last year. Shown in total, for the current month, by month and by salesperson. | Done |
+| D6 | The Revenue tab opens with a typed manager brief: team revenue against last year, who needs help, biggest accounts at risk, deals logged in the last 7 days, and visit plan completion. It follows the salesperson filter. | Done |
+| D7 | Visit plan completion per salesperson (today and last 7 days) is shown on the Revenue tab. | Pilot limit: counts visits marked on this device only (see R2). |
+| D8 | Saving a deal plays a short celebration (confetti, the orb turns green). The revenue card uses a drawn sky-and-hills picture; no outside image is loaded. | Done |
 | D5 | The dashboard updates with every closed deal. | Done on the phone where the deal was logged (see R2). |
 
 ## 4. How the model works
@@ -97,7 +103,7 @@ All thresholds live in one place: `RULES` in `js/engine.js`. Each score is 0 to 
 | Note keywords (last 45 days) | Asked for a quote +25, Budget approved +25, Interested +15, Wants a bigger order +15, Wants a sample +12, Expanding +12, Wants a follow-up +12, Met the decision maker +10, Happy +5, Budget cut -10, Not interested -20 | capped at ±40 |
 | Documents | renewal +15, campaign or offer +10, growth opportunity +8 | capped at +20 |
 
-**Visit priority** = 0.6 × the higher of the two scores + 0.1 × the lower + 0.3 × customer value (percentile of 12-month revenue among the salesperson's customers); +8 if documents mark a priority account; -40 if a note or deal was logged in the last 2 days. The top 3 by priority are today's visits.
+**Visit priority** = 0.6 × the higher of the two scores + 0.1 × the lower + 0.3 × customer value (percentile of 12-month revenue among the salesperson's customers); +8 if documents mark a priority account; -40 if a visit was marked done, or a note or deal logged, in the last 2 days. The top 3 by priority are today's visits.
 
 Lists: "Likely to close" and "May churn" show customers scoring 50 or more. A customer silent for more than 180 days and more than 6 times their usual gap is "Inactive" and left out of the brief.
 
@@ -129,3 +135,4 @@ Lists: "Likely to close" and "May churn" show customers scoring 50 or more. A cu
 |---|---|
 | 15 Nov 2026 | First version: upload, morning brief with top 3 visits, likely to close and may churn lists, auditable reasons, keyword and voice notes, tailored pitch, per-customer .md files, deal logging, management revenue dashboard, sample data. Decisions confirmed: data on the phone only; generic industry; incremental measured against the same period last year; deals from both app and uploads. |
 | 15 Nov 2026 | Redesign to the reference screenshot. Salesperson tabs replace the "who are you" question. Executive summary added to the morning brief. Thinking dots and typed-out replies with tap to skip. Typing box replaced by suggestion chips and a voice note button. Dashboard gets a hero card and can be filtered by salesperson. |
+| 15 Nov 2026 | Added: fixed daily visit plan with mark visited / skip with reason, end-of-day wrap-up, typed manager brief and visit plan completion on the Revenue tab, illustrated revenue card, deal celebration. Decisions confirmed: animation plays every time; salesperson tabs stay open to everyone in the pilot. |
