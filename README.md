@@ -41,9 +41,9 @@ Two optional extra sheets in the same file:
 | `js/engine.js` | The scoring rules, pitch builder and customer file writer |
 | `js/parsers.js` | Reads Excel, Word and PowerPoint inside the browser |
 | `js/dashboard.js` | Management revenue dashboard |
-| `js/export.js` | Builds the Word, PowerPoint and Excel exports in the browser |
+| `js/export.js` | Builds the Word, PDF, PowerPoint and Excel exports in the browser |
 | `sw.js`, `manifest.webmanifest`, `icons/` | Lets the site be installed as an app and work offline |
-| `vendor/` | SheetJS, JSZip and PptxGenJS, bundled so the page loads nothing from outside |
+| `vendor/` | SheetJS, JSZip, PptxGenJS and jsPDF, bundled so the page loads nothing from outside |
 | `sample-data/` | Sample sales file, Word account plans, PowerPoint deck and example customer .md files |
 | `tools/` | Scripts that rebuild the sample files |
 | `tests/engine.test.js` | Checks the rules against the sample data: `node tests/engine.test.js` |

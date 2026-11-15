@@ -235,25 +235,46 @@
       g.picks.map(function (p) { return '<code>' + esc(p.name) + ': close ' + p.close + ' × ' + $$(p.amount) + '</code>'; }).join('') + '</span></div></details>', 'wide');
   }
   // ---- step 3: export
+  var ready = {};
+  function fileOf(f) { try { return new File([f.blob], f.name, { type: f.blob.type || 'application/octet-stream' }); } catch (e) { return null; } }
+  function canShare(f) { var file = fileOf(f); return !!(file && navigator.canShare && navigator.canShare({ files: [file] })); }
   function deliver(promise, label) {
     var w = bot('<p>Preparing ' + esc(label) + '…</p>', '', { instant: true });
-    promise.then(function (f) { w.remove(); download(f.name, f.blob); bot('<p>' + esc(f.name) + ' is saved to your downloads.</p>' + trail([['Built from', 'the same figures shown in the app on ' + an.asOf + ', laid out by a fixed template in this browser; nothing was uploaded']])); })
-      .catch(function () { w.innerHTML = '<p>I could not build that file. Please try again.</p>'; });
+    promise.then(function (f) {
+      w.remove(); var id = uid(), share = canShare(f); ready[id] = f;
+      if (!share) download(f.name, f.blob); // no share sheet on this device: save straight away
+      bot('<p><b>' + esc(f.name) + '</b> is ready' + (share ? '.' : ' and saved to your downloads.') + '</p>' +
+        '<div class="acts">' + (share ? '<button class="pri" data-do="share" data-for="' + id + '">Share</button><button data-do="save" data-for="' + id + '">Save to phone</button>' : '<button class="full" data-do="save" data-for="' + id + '">Save again</button>') + '</div>' +
+        trail([['Built from', 'the same figures shown in the app on ' + an.asOf + ', laid out by a fixed template in this browser; nothing was uploaded'], ['Sharing', share ? 'Share hands the file to the app you pick (email, WhatsApp and so on); from there it leaves the phone' : 'this browser has no share sheet, so the file was saved to downloads']]));
+    }).catch(function () { w.innerHTML = '<p>I could not build that file. Please try again.</p>'; });
   }
+  function shareFile(id) {
+    var f = ready[id]; if (!f) return;
+    navigator.share({ files: [fileOf(f)], title: f.name }).catch(function (e) { if (e && e.name !== 'AbortError') download(f.name, f.blob); });
+  }
+  function formatSheet(title, extra, formats, cb) {
+    openSheet(title, extra + '<div class="group">Format</div><div id="fmt">' + chipsHTML(formats, [formats[0][0]]) + '</div>', '<button class="btn pri" id="go-export">Export</button>');
+    $('#sheet-body').onclick = function (e) { var ch = e.target.closest('.chip'); if (!ch) return; [].forEach.call(ch.parentNode.children, function (b) { b.setAttribute('aria-pressed', 'false'); }); ch.setAttribute('aria-pressed', 'true'); var n = $('#ver-note'); if (n && n.dataset.fn) verNote(); };
+    $('#go-export').onclick = function () { var v = document.querySelector('#ver .chip[aria-pressed="true"]'), f = document.querySelector('#fmt .chip[aria-pressed="true"]').dataset.k; closeSheet(); if (view !== 'brief') tab('brief'); cb(f, v && v.dataset.k); };
+  }
+  function verNote() { var v = document.querySelector('#ver .chip[aria-pressed="true"]').dataset.k; $('#ver-note').textContent = v === 'customer' ? 'Shows their purchases, the offers that apply with savings, ideas and a proposed next order. No scores, risk labels or visit notes.' : 'Shows status, scores, what to say, campaigns, recent notes and how each score was worked out. Not for the customer.'; }
+  function versionHTML(def) { return '<div class="group">Who is it for?</div><div id="ver">' + chipsHTML([['customer', 'To hand to the customer'], ['internal', 'Internal prep']], [def]) + '</div><p class="small" id="ver-note" data-fn="1" style="margin-top:8px"></p>'; }
   function exportSheet() {
     refresh(); if (!an) return;
     var team = view === 'dash';
     openSheet('Export', '<p class="small" style="margin:0 0 10px">Files are built on this phone and saved to your downloads.</p><div class="rowlist" style="margin:0">' +
-      '<button data-x="one"><span>Customer one-pager<span class="sub">Account review for one customer. Word or PowerPoint, internal or to hand over.</span></span></button>' +
-      '<button data-x="brief"><span>Today\'s brief<span class="sub">Word. The morning brief for ' + esc(state.me) + ' with how each figure was worked out.</span></span></button>' +
+      '<button data-x="one"><span>Customer one-pager<span class="sub">Account review for one customer. Word, PDF or PowerPoint, internal or to hand over.</span></span></button>' +
+      '<button data-x="pack"><span>Meeting pack<span class="sub">One-pagers for today\'s ' + plan().length + ' visits in a single file. Word, PDF or PowerPoint.</span></span></button>' +
+      '<button data-x="brief"><span>Today\'s brief<span class="sub">Word or PDF. The morning brief for ' + esc(state.me) + ' with how each figure was worked out.</span></span></button>' +
       '<button data-x="book"><span>Portfolio workbook<span class="sub">Excel. Every customer of ' + esc(state.me) + ' with status, scores, reasons, campaigns, notes and deals.</span></span></button>' +
       '<button data-x="deck"><span>Review deck<span class="sub">PowerPoint for a sales meeting: ' + esc(team && !dashSp ? 'whole team' : (team ? dashSp : state.me)) + '.</span></span></button>' +
       (NBA.salespeople(state).length > 1 && !(team && !dashSp) ? '<button data-x="deckall"><span>Review deck, whole team<span class="sub">PowerPoint covering all salespeople.</span></span></button>' : '') + '</div>');
     $('#sheet-body').onclick = function (e) {
       var b = e.target.closest('[data-x]'); if (!b) return; var k = b.dataset.x;
       if (k === 'one') { customersSheet('One-pager for which customer?', onePagerSheet); return; }
-      closeSheet(); if (view !== 'brief') tab('brief');
-      if (k === 'brief') { said('Export today\'s brief'); deliver(window.NBAExport.briefDoc(state, state.me, an, plan()), 'your brief'); }
+      if (k === 'brief' || k === 'pack') { /* opens a format sheet */ } else { closeSheet(); if (view !== 'brief') tab('brief'); }
+      if (k === 'brief') { formatSheet('Today\'s brief', '', [['docx', 'Word'], ['pdf', 'PDF']], function (f) { said('Export today\'s brief'); deliver(window.NBAExport.briefDoc(state, state.me, an, plan(), f), 'your brief'); }); return; }
+      if (k === 'pack') { formatSheet('Meeting pack', versionHTML('internal'), [['pdf', 'PDF'], ['docx', 'Word'], ['pptx', 'PowerPoint']], function (f, v) { said('Meeting pack for today\'s visits' + (v === 'customer' ? '' : ' (internal)')); deliver(window.NBAExport.pack(plan(), an, v, f, state.me), 'the meeting pack'); }); verNote(); return; }
       if (k === 'book') { said('Export my portfolio workbook'); deliver(window.NBAExport.workbook(state, state.me, an), 'your workbook'); }
       if (k === 'deck') { said('Export the review deck'); deliver(window.NBAExport.deck(state, team ? dashSp : state.me), 'the review deck'); }
       if (k === 'deckall') { said('Export the team review deck'); deliver(window.NBAExport.deck(state, null), 'the team review deck'); }
@@ -261,16 +282,10 @@
   }
   function onePagerSheet(cid) {
     var c = cust(cid); if (!c) return;
-    openSheet('One-pager: ' + c.name,
-      '<div class="group">Who is it for?</div><div id="ver">' + chipsHTML([['customer', 'To hand to the customer'], ['internal', 'Internal prep']], ['customer']) + '</div>' +
-      '<p class="small" id="ver-note" style="margin-top:8px"></p>' +
-      '<div class="group">Format</div><div id="fmt">' + chipsHTML([['docx', 'Word page'], ['pptx', 'PowerPoint slide']], ['docx']) + '</div>',
-      '<button class="btn pri" id="go-export">Export one-pager</button>');
-    function pick(id) { return document.querySelector('#' + id + ' .chip[aria-pressed="true"]').dataset.k; }
-    function note() { $('#ver-note').textContent = pick('ver') === 'customer' ? 'Shows their purchases, the offers that apply with savings, ideas and a proposed next order. No scores, risk labels or visit notes.' : 'Shows status, scores, what to say, campaigns, recent notes and how each score was worked out. Not for the customer.'; }
-    note();
-    $('#sheet-body').onclick = function (e) { var ch = e.target.closest('.chip'); if (!ch) return; [].forEach.call(ch.parentNode.children, function (b) { b.setAttribute('aria-pressed', 'false'); }); ch.setAttribute('aria-pressed', 'true'); note(); };
-    $('#go-export').onclick = function () { var v = pick('ver'), f = pick('fmt'); closeSheet(); said('One-pager for ' + c.name + (v === 'customer' ? '' : ' (internal)')); deliver(window.NBAExport.onePager(c, an, v, f), 'the one-pager'); };
+    formatSheet('One-pager: ' + c.name, versionHTML('customer'), [['pdf', 'PDF'], ['docx', 'Word page'], ['pptx', 'PowerPoint slide']], function (f, v) {
+      said('One-pager for ' + c.name + (v === 'customer' ? '' : ' (internal)')); deliver(window.NBAExport.onePager(c, an, v, f), 'the one-pager');
+    });
+    verNote();
   }
   function wrapUpDay() {
     refresh(); if (!an) return;
@@ -527,7 +542,7 @@
     var cs = ['$', '€', '£', 'RM', 'S$', '₹', 'Rp', '¥'];
     var when = NBA.asOfDate(state), nCust = {}; state.tx.forEach(function (t) { nCust[t.cid] = 1; });
     openSheet('Menu',
-      '<div class="rowlist" style="margin:0 0 6px"><button data-act="export"><span>Export to Word, PowerPoint or Excel</span></button><button data-act="tab-brief"><span>My brief</span>' + (view === 'brief' ? '<span class="tag">Open</span>' : '') + '</button><button data-act="tab-dash"><span>Revenue dashboard</span>' + (view === 'dash' ? '<span class="tag">Open</span>' : '') + '</button></div>' +
+      '<div class="rowlist" style="margin:0 0 6px"><button data-act="export"><span>Export to Word, PDF, PowerPoint or Excel</span></button><button data-act="tab-brief"><span>My brief</span>' + (view === 'brief' ? '<span class="tag">Open</span>' : '') + '</button><button data-act="tab-dash"><span>Revenue dashboard</span>' + (view === 'dash' ? '<span class="tag">Open</span>' : '') + '</button></div>' +
       '<div class="group">Use it like an app</div><p class="small" style="margin:0 0 8px">' + (installEvt ? '' : 'On iPhone: tap Share, then “Add to Home Screen”. On Android: browser menu, then “Install app”. ') + 'Once installed, Nudge opens full screen and works without signal.</p>' + (installEvt ? '<button class="btn pri" data-act="install" style="width:100%">Install Nudge</button>' : '') +
       '<div class="group">On this phone</div><p class="small" style="margin:0 0 8px">' + state.tx.length.toLocaleString() + ' sales rows for ' + Object.keys(nCust).length + ' customers, up to ' + (when.dataTo ? NBA.niceDate(when.dataTo) : 'n/a') + '. ' +
       state.targets.length + ' monthly targets. ' + state.campaigns.length + ' campaigns. ' + state.docs.length + ' document' + (state.docs.length === 1 ? '' : 's') + (state.docs.length ? ' (' + state.docs.map(function (d) { return esc(d.name); }).join(', ') + ')' : '') + '. ' + state.notes.length + ' visit notes. ' + state.deals.length + ' deals logged.</p>' +
@@ -625,6 +640,8 @@
     else if (name === 'home') home();
     else if (name === 'export') exportSheet();
     else if (name === 'export1') onePagerSheet(cid);
+    else if (name === 'share') shareFile(cid);
+    else if (name === 'save') { if (ready[cid]) download(ready[cid].name, ready[cid].blob); }
     else if (name === 'wrap') { said('Wrap up my day'); wrapUpDay(); }
     else if (name === 'gap') { said('How do I close my target gap?'); showGap(); }
     else if (name === 'tab-brief') { closeSheet(); tab('brief'); }

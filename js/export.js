@@ -7,43 +7,94 @@
   function slug(s) { return String(s).replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, ''); }
 
   // ------------------------------------------------------------ Word (.docx), written by hand with JSZip
-  function Doc() { this.b = []; }
+  // A document is a list of simple steps (paragraph, table, page break) that can be written as Word or as PDF.
+  function Doc() { this.ops = []; }
   function run(t, o) {
     o = o || {};
     return '<w:r><w:rPr><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/>' + (o.b ? '<w:b/>' : '') + (o.i ? '<w:i/>' : '') + '<w:color w:val="' + (o.color || INK) + '"/><w:sz w:val="' + (o.size || 21) + '"/></w:rPr><w:t xml:space="preserve">' + x(t) + '</w:t></w:r>';
   }
-  Doc.prototype.p = function (t, o) {
-    o = o || {};
-    this.b.push('<w:p><w:pPr><w:spacing w:before="' + (o.before || 0) + '" w:after="' + (o.after == null ? 100 : o.after) + '"/>' + (o.bullet ? '<w:ind w:left="340" w:hanging="220"/>' : '') + '</w:pPr>' + (o.bullet ? run('•  ', o) : '') + run(t, o) + '</w:p>');
-    return this;
-  };
+  Doc.prototype.p = function (t, o) { this.ops.push({ t: 'p', text: t, o: o || {} }); return this; };
   Doc.prototype.h = function (t) { return this.p(t, { b: true, size: 25, before: 220, after: 90 }); };
   Doc.prototype.bullets = function (a, o) { var d = this; a.forEach(function (t) { d.p(t, Object.assign({ bullet: true, after: 70 }, o || {})); }); return this; };
   Doc.prototype.table = function (head, rows, widths, o) {
-    o = o || {};
-    var total = 9700, n = (head || rows[0]).length, w = widths || Array.apply(null, Array(n)).map(function () { return 1 / n; });
-    function cell(t, i, isHead) {
-      return '<w:tc><w:tcPr><w:tcW w:w="' + Math.round(total * w[i]) + '" w:type="dxa"/>' + (isHead ? '<w:shd w:val="clear" w:color="auto" w:fill="' + SOFT + '"/>' : '') + '</w:tcPr><w:p><w:pPr><w:spacing w:before="40" w:after="40"/></w:pPr>' +
-        (Array.isArray(t) ? run(t[0], { size: 16, color: GREY }) + '<w:r><w:br/></w:r>' + run(t[1], { b: true, size: 22 }) : run(t, { b: isHead, size: o.size || 19 })) + '</w:p></w:tc>';
-    }
-    var bd = '<w:top w:val="single" w:sz="4" w:color="' + LINE + '"/><w:left w:val="single" w:sz="4" w:color="' + LINE + '"/><w:bottom w:val="single" w:sz="4" w:color="' + LINE + '"/><w:right w:val="single" w:sz="4" w:color="' + LINE + '"/><w:insideH w:val="single" w:sz="4" w:color="' + LINE + '"/><w:insideV w:val="single" w:sz="4" w:color="' + LINE + '"/>';
-    this.b.push('<w:tbl><w:tblPr><w:tblW w:w="' + total + '" w:type="dxa"/><w:tblBorders>' + bd + '</w:tblBorders><w:tblCellMar><w:left w:w="100" w:type="dxa"/><w:right w:w="100" w:type="dxa"/></w:tblCellMar></w:tblPr>' +
-      (head ? '<w:tr>' + head.map(function (t, i) { return cell(t, i, true); }).join('') + '</w:tr>' : '') +
-      rows.map(function (r) { return '<w:tr>' + r.map(function (t, i) { return cell(t, i, false); }).join('') + '</w:tr>'; }).join('') + '</w:tbl>');
+    var n = (head || rows[0]).length;
+    this.ops.push({ t: 'table', head: head, rows: rows, w: widths || Array.apply(null, Array(n)).map(function () { return 1 / n; }), o: o || {} });
     return this.p('', { after: 40, size: 8 });
   };
+  Doc.prototype.pageBreak = function () { this.ops.push({ t: 'break' }); return this; };
+  Doc.prototype.out = function (fmt) { return fmt === 'pdf' ? this.pdf() : this.blob(); };
+
   Doc.prototype.blob = function () {
+    var total = 9700;
+    var bd = '<w:top w:val="single" w:sz="4" w:color="' + LINE + '"/><w:left w:val="single" w:sz="4" w:color="' + LINE + '"/><w:bottom w:val="single" w:sz="4" w:color="' + LINE + '"/><w:right w:val="single" w:sz="4" w:color="' + LINE + '"/><w:insideH w:val="single" w:sz="4" w:color="' + LINE + '"/><w:insideV w:val="single" w:sz="4" w:color="' + LINE + '"/>';
+    var body = this.ops.map(function (op) {
+      if (op.t === 'break') return '<w:p><w:r><w:br w:type="page"/></w:r></w:p>';
+      var o = op.o;
+      if (op.t === 'p') return '<w:p><w:pPr><w:spacing w:before="' + (o.before || 0) + '" w:after="' + (o.after == null ? 100 : o.after) + '"/>' + (o.bullet ? '<w:ind w:left="340" w:hanging="220"/>' : '') + '</w:pPr>' + (o.bullet ? run('•  ', o) : '') + run(op.text, o) + '</w:p>';
+      function cell(t, i, isHead) {
+        return '<w:tc><w:tcPr><w:tcW w:w="' + Math.round(total * op.w[i]) + '" w:type="dxa"/>' + (isHead ? '<w:shd w:val="clear" w:color="auto" w:fill="' + SOFT + '"/>' : '') + '</w:tcPr><w:p><w:pPr><w:spacing w:before="40" w:after="40"/></w:pPr>' +
+          (Array.isArray(t) ? run(t[0], { size: 16, color: GREY }) + '<w:r><w:br/></w:r>' + run(t[1], { b: true, size: 22 }) : run(t, { b: isHead, size: o.size || 19 })) + '</w:p></w:tc>';
+      }
+      return '<w:tbl><w:tblPr><w:tblW w:w="' + total + '" w:type="dxa"/><w:tblBorders>' + bd + '</w:tblBorders><w:tblCellMar><w:left w:w="100" w:type="dxa"/><w:right w:w="100" w:type="dxa"/></w:tblCellMar></w:tblPr>' +
+        (op.head ? '<w:tr>' + op.head.map(function (t, i) { return cell(t, i, true); }).join('') + '</w:tr>' : '') +
+        op.rows.map(function (r) { return '<w:tr>' + r.map(function (t, i) { return cell(t, i, false); }).join('') + '</w:tr>'; }).join('') + '</w:tbl>';
+    }).join('');
     var zip = new root.JSZip();
     zip.file('[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>');
     zip.file('_rels/.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>');
-    zip.file('word/document.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>' + this.b.join('') +
+    zip.file('word/document.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>' + body +
       '<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="900" w:right="1100" w:bottom="900" w:left="1100" w:header="500" w:footer="500" w:gutter="0"/></w:sectPr></w:body></w:document>');
     return zip.generateAsync({ type: 'blob', compression: 'DEFLATE', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
   };
 
+  // PDF uses the built-in Helvetica font, so a few symbols are swapped for plain ones.
+  function plain(t) {
+    return String(t == null ? '' : t).replace(/[“”]/g, '"').replace(/[‘’]/g, "'").replace(/→/g, '->').replace(/≥/g, '>=').replace(/≤/g, '<=').replace(/[−–—]/g, '-').replace(/×/g, 'x').replace(/÷/g, '/').replace(/…/g, '...').replace(/₹/g, 'Rs ').replace(/›/g, '>').replace(/±/g, '+/-').replace(/[^\x20-\x7e\xa0-\xff€]/g, '');
+  }
+  Doc.prototype.pdf = function () {
+    var pdf = new root.jspdf.jsPDF({ unit: 'pt', format: 'a4' }), W = 595.28, H = 841.89, M = 56, y = M, maxW = W - 2 * M;
+    function font(o, size) { pdf.setFont('helvetica', o.b && o.i ? 'bolditalic' : o.b ? 'bold' : o.i ? 'italic' : 'normal'); pdf.setFontSize(size); pdf.setTextColor('#' + (o.color || INK)); }
+    function need(h) { if (y + h > H - M) { pdf.addPage(); y = M; } }
+    this.ops.forEach(function (op) {
+      if (op.t === 'break') { pdf.addPage(); y = M; return; }
+      var o = op.o;
+      if (op.t === 'p') {
+        var fs = (o.size || 21) / 2, lh = fs * 1.34, ind = o.bullet ? 15 : 0; y += (o.before || 0) / 20;
+        if (op.text !== '') {
+          font(o, fs);
+          pdf.splitTextToSize(plain(op.text), maxW - ind).forEach(function (ln, i) {
+            need(lh); font(o, fs);
+            if (i === 0 && o.bullet) { pdf.setFillColor('#' + (o.color || INK)); pdf.circle(M + 4, y + lh * 0.52, 1.5, 'F'); }
+            pdf.text(ln, M + ind, y + fs); y += lh;
+          });
+        } else y += lh * 0.5;
+        y += (o.after == null ? 100 : o.after) / 20; return;
+      }
+      var pad = 5, fsT = (o.size || 19) / 2, lhT = fsT * 1.3, rows = (op.head ? [{ cells: op.head, head: true }] : []).concat(op.rows.map(function (r) { return { cells: r }; }));
+      pdf.setDrawColor('#' + LINE); pdf.setLineWidth(0.5);
+      rows.forEach(function (row) {
+        var cells = row.cells.map(function (t, i) {
+          var w = maxW * op.w[i];
+          if (Array.isArray(t)) { font({ b: true }, 11); return { kpi: true, w: w, label: plain(t[0]), lines: pdf.splitTextToSize(plain(t[1]), w - 2 * pad) }; }
+          font({ b: row.head }, fsT); return { w: w, lines: pdf.splitTextToSize(plain(t), w - 2 * pad) };
+        });
+        var h = Math.max.apply(null, cells.map(function (c) { return c.kpi ? 12 + c.lines.length * 14 : c.lines.length * lhT; })) + 2 * pad;
+        need(h); var xx = M;
+        cells.forEach(function (c) {
+          if (row.head) { pdf.setFillColor('#' + SOFT); pdf.rect(xx, y, c.w, h, 'FD'); } else pdf.rect(xx, y, c.w, h, 'S');
+          if (c.kpi) { font({ color: GREY }, 8); pdf.text(c.label, xx + pad, y + pad + 8); font({ b: true }, 11); c.lines.forEach(function (ln, k) { pdf.text(ln, xx + pad, y + pad + 22 + k * 14); }); }
+          else { font({ b: row.head }, fsT); c.lines.forEach(function (ln, k) { pdf.text(ln, xx + pad, y + pad + fsT + k * lhT - 1); }); }
+          xx += c.w;
+        });
+        y += h;
+      });
+    });
+    return Promise.resolve(pdf.output('blob'));
+  };
+
   // ------------------------------------------------------------ customer account review one-pager
-  function reviewDoc(R) {
-    var d = new Doc();
+  function reviewDoc(R, d) {
+    d = d || new Doc();
     d.p(R.title, { b: true, size: 40, after: 40 }).p(R.subtitle, { color: GREY, size: 19, after: 160 });
     d.table(null, [R.kpis], null);
     R.sections.forEach(function (s) { d.h(s.heading); d.bullets(s.bullets); });
@@ -79,11 +130,19 @@
   function onePager(c, an, version, fmt) {
     var R = NBA.accountReview(c, an, version), base = slug(c.name) + '-account-review' + (version === 'customer' ? '' : '-internal');
     if (fmt === 'pptx') { var p = newDeck(); reviewSlide(p, R); return p.write({ outputType: 'blob' }).then(function (b) { return { name: base + '.pptx', blob: b }; }); }
-    return reviewDoc(R).blob().then(function (b) { return { name: base + '.docx', blob: b }; });
+    return reviewDoc(R).out(fmt).then(function (b) { return { name: base + '.' + fmt, blob: b }; });
+  }
+  // Meeting pack: the one-pagers for today's visits in a single file
+  function pack(customers, an, version, fmt, who) {
+    var base = 'Meeting-pack-' + slug(who) + '-' + an.asOf + (version === 'customer' ? '' : '-internal');
+    if (fmt === 'pptx') { var p = newDeck(); customers.forEach(function (c) { reviewSlide(p, NBA.accountReview(c, an, version)); }); return p.write({ outputType: 'blob' }).then(function (b) { return { name: base + '.pptx', blob: b }; }); }
+    var d = new Doc(); customers.forEach(function (c, i) { if (i) d.pageBreak(); reviewDoc(NBA.accountReview(c, an, version), d); });
+    return d.out(fmt).then(function (b) { return { name: base + '.' + fmt, blob: b }; });
   }
 
   // ------------------------------------------------------------ today's brief (Word)
-  function briefDoc(state, me, an, plan) {
+  function briefDoc(state, me, an, plan, fmt) {
+    fmt = fmt || 'docx';
     var ex = NBA.execSummary(state, me, an, { plan: plan }), d = new Doc(), cur = an.currency;
     d.p('Morning brief: ' + me, { b: true, size: 40, after: 40 }).p(NBA.niceDate(an.asOf) + '. Sales data up to ' + NBA.niceDate(an.dataTo || an.asOf) + '.', { color: GREY, size: 19, after: 160 });
     d.p(ex.headline, { b: true, size: 26, after: 140 });
@@ -101,7 +160,7 @@
     plan.forEach(function (c) { c.factors.forEach(function (f) { audit.push([c.name + ' (' + f.bucket + ' ' + (f.pts > 0 ? '+' : '') + f.pts + ')', f.tech, f.src]); }); });
     d.table(['Item', 'Calculation', 'Source'], audit, [0.26, 0.58, 0.16], { size: 15 });
     d.p('Produced by Nudge from fixed rules. No AI model was used. Amounts in ' + cur + '.', { color: GREY, size: 16, i: true, before: 160 });
-    return d.blob().then(function (b) { return { name: 'Morning-brief-' + slug(me) + '-' + an.asOf + '.docx', blob: b }; });
+    return d.out(fmt).then(function (b) { return { name: 'Morning-brief-' + slug(me) + '-' + an.asOf + '.' + fmt, blob: b }; });
   }
 
   // ------------------------------------------------------------ portfolio workbook (Excel)
@@ -176,5 +235,5 @@
     return pptx.write({ outputType: 'blob' }).then(function (b) { return { name: 'Sales-review-' + slug(who) + '-' + an.asOf + '.pptx', blob: b }; });
   }
 
-  root.NBAExport = { onePager: onePager, briefDoc: briefDoc, workbook: workbook, deck: deck };
+  root.NBAExport = { pack: pack, onePager: onePager, briefDoc: briefDoc, workbook: workbook, deck: deck };
 })(window);

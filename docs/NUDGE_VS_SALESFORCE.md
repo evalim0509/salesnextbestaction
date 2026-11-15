@@ -16,7 +16,7 @@ Nudge is not a CRM and does not try to be one. It does one job: **upload → ins
 | Scoring | Lead and opportunity scoring, which needs opportunity records and enough history to train on. | Customer-level scores (chance to close, risk of leaving) from invoices alone. No pipeline data needed. |
 | Campaigns | Managed as campaign records and members; linking an offer to a saving for one customer takes configuration. | Reads the campaign terms and tells the salesperson which customers have not used an offer, what they would save, and when it ends. |
 | Visit notes | Typed into the CRM; call and email capture and conversation analysis are separate features. | Tap keywords, speak or type. The note changes the scores and the pitch immediately. |
-| Output for meetings | Dashboards and reports inside Salesforce; exporting a polished one-pager usually means building it. | One tap: customer one-pager (internal and customer-facing), morning brief in Word, portfolio in Excel, review deck in PowerPoint. |
+| Output for meetings | Dashboards and reports inside Salesforce; exporting a polished one-pager usually means building it. | One tap: customer one-pager (internal and customer-facing) or a meeting pack for the day's visits in PDF, Word or PowerPoint; morning brief; portfolio in Excel; review deck in PowerPoint. Share straight from the phone. |
 | Cost | Per user per month. Salesforce's own pricing pages list its AI-inclusive sales editions at several hundred US dollars per user per month, with usage-based Data Cloud credits on top according to third-party sources. | No licence in the pilot. A static website with no server to run. |
 | Interface | A full CRM with many objects, tabs and settings. | One chat screen, one revenue screen, one export menu. |
 

@@ -39,12 +39,22 @@ svg { width: 22px; height: 22px; fill: currentColor; }
 .orb { position: relative; display: inline-block; flex: none; width: 132px; height: 132px; border-radius: 50%; overflow: hidden; isolation: isolate; font-size: 132px;
   background: radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--o2) 35%, #fff) 0, color-mix(in srgb, var(--o1) 55%, #fff) 100%);
   box-shadow: 0 .14em .3em color-mix(in srgb, var(--o1) 32%, transparent); }
-.orb::before { content: ""; position: absolute; inset: -30%; border-radius: 50%; opacity: .9; filter: blur(.09em);
-  background: radial-gradient(circle at 28% 34%, var(--o2) 0, transparent 34%), radial-gradient(circle at 72% 30%, var(--o4) 0, transparent 30%), radial-gradient(circle at 66% 72%, var(--o3) 0, transparent 36%), radial-gradient(circle at 30% 74%, var(--o5) 0, transparent 34%), conic-gradient(from 40deg, var(--o1), var(--o3), var(--o2), var(--o5), var(--o1));
-  animation: drift 16s linear infinite; }
+/* four colour blobs wander on their own paths while the whole field turns, so the surface never repeats exactly */
+@property --bx1 { syntax: "<percentage>"; inherits: false; initial-value: 28%; } @property --by1 { syntax: "<percentage>"; inherits: false; initial-value: 34%; }
+@property --bx2 { syntax: "<percentage>"; inherits: false; initial-value: 72%; } @property --by2 { syntax: "<percentage>"; inherits: false; initial-value: 30%; }
+@property --bx3 { syntax: "<percentage>"; inherits: false; initial-value: 66%; } @property --by3 { syntax: "<percentage>"; inherits: false; initial-value: 72%; }
+@property --bx4 { syntax: "<percentage>"; inherits: false; initial-value: 30%; } @property --by4 { syntax: "<percentage>"; inherits: false; initial-value: 74%; }
+.orb::before { content: ""; position: absolute; inset: -30%; border-radius: 50%; opacity: .92; filter: blur(.085em);
+  background: radial-gradient(circle at var(--bx1) var(--by1), var(--o2) 0, transparent 34%), radial-gradient(circle at var(--bx2) var(--by2), var(--o4) 0, transparent 30%), radial-gradient(circle at var(--bx3) var(--by3), var(--o3) 0, transparent 36%), radial-gradient(circle at var(--bx4) var(--by4), var(--o5) 0, transparent 34%), conic-gradient(from 40deg, var(--o1), var(--o3), var(--o2), var(--o5), var(--o1));
+  animation: drift 11s linear infinite, wander1 5.5s ease-in-out infinite alternate, wander2 7s ease-in-out infinite alternate, wander3 6.2s ease-in-out infinite alternate, wander4 8.3s ease-in-out infinite alternate; }
 .orb::after { content: ""; position: absolute; inset: 0; border-radius: 50%;
   background: radial-gradient(circle at 30% 24%, rgba(255,255,255,.85) 0, rgba(255,255,255,0) 30%), radial-gradient(circle at 74% 82%, rgba(255,255,255,.35) 0, rgba(255,255,255,0) 40%);
-  box-shadow: inset 0 0 .16em rgba(255,255,255,.6), inset 0 -.1em .2em rgba(0,0,0,.12); }
+  box-shadow: inset 0 0 .16em rgba(255,255,255,.6), inset 0 -.1em .2em rgba(0,0,0,.12); animation: glint 6s ease-in-out infinite alternate; }
+.orb { animation: pulse-orb 4.2s ease-in-out infinite; }
+@keyframes wander1 { to { --bx1: 58%; --by1: 22%; } } @keyframes wander2 { to { --bx2: 40%; --by2: 60%; } }
+@keyframes wander3 { to { --bx3: 34%; --by3: 46%; } } @keyframes wander4 { to { --bx4: 64%; --by4: 58%; } }
+@keyframes glint { to { transform: translate(6%, 5%) scale(1.06); } }
+@keyframes pulse-orb { 50% { transform: scale(1.03); } }
 .orb.sm { width: 36px; height: 36px; font-size: 36px; }
 .orb.xs { width: 26px; height: 26px; font-size: 26px; }
 @keyframes drift { to { transform: rotate(360deg); } }
@@ -91,7 +101,7 @@ svg { width: 22px; height: 22px; fill: currentColor; }
 
 /* thinking and typing */
 .typing { display: flex; align-items: center; gap: 8px; align-self: flex-start; }
-.typing .orb { animation: breathe 1.2s ease-in-out infinite; }
+.typing .orb { animation: breathe 1.2s ease-in-out infinite; } .typing .orb::before { animation-duration: 3s, 1.6s, 2s, 1.8s, 2.3s; }
 .dots { background: var(--glass); border-radius: 999px; padding: 12px 14px; display: flex; gap: 5px; box-shadow: var(--shadow); }
 .dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--ink); animation: dot 1s infinite; }
 .dots i:nth-child(2) { animation-delay: .15s; } .dots i:nth-child(3) { animation-delay: .3s; }
@@ -144,7 +154,8 @@ details.audit summary { font-weight: 600; font-size: .8rem; color: var(--ink-3);
 /* welcome */
 .hello { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 10px 14px; gap: 6px; }
 .hello .orb { width: 112px; height: 112px; font-size: 112px; }
-.hello > .orb, .hello > .ring { animation: float 5s ease-in-out infinite; margin-bottom: 16px; }
+.hello > .orb, .hello > .ring { margin-bottom: 16px; }
+.hello > .ring { animation: float 5s ease-in-out infinite; } .hello > .orb { animation: float 5s ease-in-out infinite; }
 .steps { display: flex; align-items: center; justify-content: center; gap: 6px; margin: 4px 0 6px; width: 100%; max-width: 340px; }
 .steps button { flex: 1; border: 0; border-radius: 16px; background: var(--glass); padding: 10px 4px; font-size: .82rem; font-weight: 650; display: flex; flex-direction: column; align-items: center; gap: 4px; min-height: 62px; }
 .steps button b { width: 22px; height: 22px; border-radius: 50%; background: var(--ink); color: #fff; font-size: .72rem; display: grid; place-items: center; }

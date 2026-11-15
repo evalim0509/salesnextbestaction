@@ -60,7 +60,7 @@ Status: Done = built and tested. Pilot limit = works within the limit described.
 | B14 | The orb shows the day's mood: green when month-to-date sales are at or above target pace, amber when behind. With no target it compares with last year. | Done |
 | B15 | Monthly target in the brief: how much is closed, how much more is needed and the days left, plus which customers to approach to close the gap, each with their usual order size and any offer that applies. Also available as "Close my gap". | Done |
 | B17 | Campaign expiry nudges: when a campaign ends within 7 days, the brief and manager brief say so, list the eligible customers who have not used it and the total they could save. | Done |
-| B18 | A thin ring around the orb fills as the month's target is reached. The orb itself is abstract and multi-shaded (drifting layers), not one flat colour; its hues still follow the day's mood. | Done |
+| B18 | A thin ring around the orb fills as the month's target is reached. The orb itself is abstract and multi-shaded (drifting layers), not one flat colour; its hues still follow the day's mood. It is animated: colour blobs wander on separate paths while the field turns and the orb gently pulses. Motion stops for people who switch off animation on their phone. | Done |
 | B16 | "My brief" and "Revenue dashboard" are reached from the three-dots menu; there is no bottom tab bar. | Done |
 | B2 | Everything is done with buttons. Typing is allowed in two places only: a visit note (owner decision, 15 Nov 2026) and an optional exact deal amount. | Done |
 | B3 | Suggest the top 3 customers to visit each day, with reasons in plain English. | Done |
@@ -91,6 +91,9 @@ Status: Done = built and tested. Pilot limit = works within the limit described.
 | E3 | Portfolio workbook in Excel: customers with status, scores and reasons; target; campaigns; "How I got this"; visit notes; deals; visits. | Done |
 | E4 | Review deck in PowerPoint for one salesperson or the whole team: summary, monthly target, accounts at risk, best opportunities, campaigns, the top 3 accounts, and how it was produced. | Done |
 | E5 | All files are built on the phone. Nothing is uploaded to create them. | Done |
+| E6 | PDF export for the customer one-pager, the meeting pack and today's brief, alongside Word. | Done |
+| E7 | Meeting pack: one tap exports the one-pagers for all of today's visits as a single file (PDF, Word or PowerPoint; internal or customer-facing). | Done |
+| E8 | Share button: after an export, the file can be sent through the phone's share sheet (email, WhatsApp and so on) or saved. Where the browser has no share sheet, the file is saved to downloads. | Done (share tested with a simulated share sheet, not on a real phone) |
 
 ### 3.5 Deals and management dashboard (second tab)
 
@@ -156,6 +159,8 @@ Lists: "Likely to close" and "May churn" show customers scoring 50 or more. A cu
 | R9 | A typed note is stored as written in the customer file on the phone. Only the fixed keywords found in it affect scores. |
 | R10 | The customer-facing one-pager contains that customer's purchase figures and estimated savings. The salesperson should read it before handing it over. |
 | R11 | After an update to the site, an installed copy picks up the new version the next time it is opened with a connection. |
+| R12 | Sharing a file hands it to another app chosen by the salesperson, so from that point it leaves the phone. Nudge itself still sends nothing. |
+| R13 | PDFs use a built-in font, so a few symbols are replaced with plain ones (for example the rupee sign becomes "Rs"). Non-Latin customer names will not print correctly in PDF; use Word for those. |
 | R7 | The assistant look and typing animation are presentation only. The text is produced instantly by fixed rules; no AI model is involved. The header says "Private, runs on this phone". |
 | R4 | Clearing browser data erases notes and deals. Customer files can be downloaded as a backup. |
 | R5 | The site code on GitHub Pages is public (including the invented sample data). Real business data is never part of the site. |
@@ -176,3 +181,4 @@ Lists: "Likely to close" and "May churn" show customers scoring 50 or more. A cu
 | 15 Nov 2026 | Added: fixed daily visit plan with mark visited / skip with reason, end-of-day wrap-up, typed manager brief and visit plan completion on the Revenue tab, illustrated revenue card, deal celebration. Decisions confirmed: animation plays every time; salesperson tabs stay open to everyone in the pilot. |
 | 15 Nov 2026 | Renamed to Nudge. Header simplified (no status dot or "private" label). Salesperson tabs became a dropdown. Bottom tab bar removed; views are in the three-dots menu. Home page added, opened by the orb. Orb colour follows target pace. Monthly targets, gap to target and which customers to approach. Campaigns linked to customers with saving amounts. Visit notes can be typed. Suggestion chips made smaller and lighter. |
 | 15 Nov 2026 | Positioned as an independent app: upload → insights → export. Added exports (customer one-pager in two versions, brief, portfolio workbook, review deck), "How I got this" under every response, campaign expiry nudges, target ring around the orb, abstract shaded orb, install to home screen with offline use, and a comparison with Salesforce AI. |
+| 15 Nov 2026 | Added PDF export, the meeting pack (one-pagers for today's visits in one file), Share and Save buttons after every export, and a visibly animated orb. |
