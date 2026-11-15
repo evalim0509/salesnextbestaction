@@ -1,0 +1,76 @@
+# Elm Court Stores
+
+- Customer ID: C136
+- Salesperson: Chloe Tan
+- Segment: Retail
+- Status on 15 Nov 2026: **Likely to close**
+- File generated on this device by fixed rules. No AI language model was used.
+
+## Performance
+
+| Measure | Value |
+|---|---|
+| Customer since | 11 Nov 2024 |
+| Number of orders | 35 |
+| Last order | 31 Oct 2026 (15 days ago) |
+| Usual time between orders | 22 days |
+| Usual order size | $1,296 |
+| Revenue, last 12 months | $24,120 |
+| Revenue, 12 months before | $19,950 (+21%) |
+| Revenue, last 90 days | $6,615 |
+| Revenue, previous 90 days | $4,940 |
+
+### What they buy
+
+| Category | Last 12 months | Last bought |
+|---|---:|---|
+| Core Products | $17,820 | 31 Oct 2026 |
+| Accessories | $6,300 | 31 Oct 2026 |
+
+## Today's assessment
+
+- They are buying more: spending is up 34% in the last 3 months.
+- Their next order is coming up soon (they usually order about every 22 days; last order 15 days ago).
+- Most similar Retail customers buy Consumables, but they never have.
+
+### Visit priority: 38 / 100
+
+| Points | In plain English | Technical trace | Source |
+|---:|---|---|---|
+| +38 | They are one of your smaller customers ($24,120 in the last 12 months). | 0.6 × max(churn 0, close 52) + 0.1 × min(…) 0 + 0.3 × value percentile 22 (12-month revenue $24,120 ranked among your 36 customers) = 37.8 | Sales data |
+
+### Chance to close a deal: 52 / 100
+
+| Points | In plain English | Technical trace | Source |
+|---:|---|---|---|
+| +12 | Their next order is coming up soon (they usually order about every 22 days; last order 15 days ago). | recency 15d ÷ 22d = 0.68 in [0.6, 0.8) → +12 close | Sales data |
+| +20 | They are buying more: spending is up 34% in the last 3 months. | revenue last 90d $6,615 vs previous 90d $4,940 = +34% ≥ +25% → +20 close | Sales data |
+| +10 | Most similar Retail customers buy Consumables, but they never have. | Consumables bought by 12 of 15 Retail customers in the last 12 months (≥ 50%), 0 purchases by this customer → +10 close | Sales data |
+| +10 | Your documents say a campaign or offer applies to them (sample_account_plans.docx). | document signals: campaign +10 = 10, capped at 20 → +10 close | Documents |
+
+### Risk of losing them: 0 / 100
+
+No factors applied.
+
+## Suggested pitch
+
+Go in ready to take an order today.
+
+- They normally reorder Core Products about every 22 days and the last order was 15 days ago. Ask for the reorder (usual size about $1,296). _(Sales data)_
+- Customers like them usually buy Consumables too. Introduce it as something similar Retail customers find useful. _(Sales data)_
+- Their spending is up 34% in 3 months. Thank them and suggest a regular standing order. _(Sales data)_
+- Use the current offer: “Campaign for all Retail customers: buy 10 cases of Consumables and get 1 case free, valid until 31 December. Salespeople can offer this promotion on the spot without approval.” _(sample_account_plans.docx)_
+
+**Ask:** Ask for the Core Products reorder and a first trial of Consumables.
+
+## Visit notes
+
+No notes yet.
+
+## Deals logged in the app
+
+None yet.
+
+## From your documents
+
+- **sample_account_plans.docx** › Year-end Retail campaign: Campaign for all Retail customers: buy 10 cases of Consumables and get 1 case free, valid until 31 December. Salespeople can offer this promotion on the spot without approval. _[campaign]_

@@ -1,0 +1,78 @@
+# Maple Street Market
+
+- Customer ID: C114
+- Salesperson: Ben Carter
+- Segment: Retail
+- Status on 15 Nov 2026: **Good chance**
+- File generated on this device by fixed rules. No AI language model was used.
+
+## Performance
+
+| Measure | Value |
+|---|---|
+| Customer since | 12 Nov 2024 |
+| Number of orders | 51 |
+| Last order | 29 Oct 2026 (17 days ago) |
+| Usual time between orders | 15 days |
+| Usual order size | $1,428 |
+| Revenue, last 12 months | $33,255 |
+| Revenue, 12 months before | $38,350 (-13%) |
+| Revenue, last 90 days | $7,265 |
+| Revenue, previous 90 days | $8,485 |
+
+### What they buy
+
+| Category | Last 12 months | Last bought |
+|---|---:|---|
+| Core Products | $14,700 | 12 Oct 2026 |
+| Consumables | $9,955 | 29 Oct 2026 |
+| Accessories | $8,600 | 29 Oct 2026 |
+
+## Today's assessment
+
+- They are due to reorder now: they usually order about every 15 days and the last order was 17 days ago.
+- Your documents say a campaign or offer applies to them (sample_campaign_deck.pptx).
+- Their spending is down 14% in the last 3 months compared with the 3 months before.
+
+### Visit priority: 50 / 100
+
+| Points | In plain English | Technical trace | Source |
+|---:|---|---|---|
+| +42 | They are a mid-sized customer for you ($33,255 in the last 12 months). | 0.6 × max(churn 8, close 40) + 0.1 × min(…) 8 + 0.3 × value percentile 58 (12-month revenue $33,255 ranked among your 36 customers) = 42.2 | Sales data |
+| +8 | Your account plan marks them as a priority account (sample_campaign_deck.pptx). | document paragraph with priority wording: “Maple Street Market: strategic Retail account; offer the Consumables promotion on the…” → +8 priority | Documents |
+
+### Chance to close a deal: 40 / 100
+
+| Points | In plain English | Technical trace | Source |
+|---:|---|---|---|
+| +30 | They are due to reorder now: they usually order about every 15 days and the last order was 17 days ago. | recency 17d ÷ median gap between orders 15d = 1.17 in [0.8, 1.5) → +30 close | Sales data |
+| +10 | Your documents say a campaign or offer applies to them (sample_campaign_deck.pptx). | document signals: campaign +10 = 10, capped at 20 → +10 close | Documents |
+
+### Risk of losing them: 8 / 100
+
+| Points | In plain English | Technical trace | Source |
+|---:|---|---|---|
+| +8 | Their spending is down 14% in the last 3 months compared with the 3 months before. | revenue last 90d $7,265 vs previous 90d $8,485 = -14% ≤ -10% → +8 churn | Sales data |
+
+## Suggested pitch
+
+Go in ready to take an order today.
+
+- They normally reorder Core Products about every 15 days and the last order was 17 days ago. Ask for the reorder (usual size about $1,428). _(Sales data)_
+- Use the current offer: “Maple Street Market: strategic Retail account; offer the Consumables promotion on the next visit.” _(sample_campaign_deck.pptx)_
+- Use the current offer: “Campaign for all Retail customers: buy 10 cases of Consumables and get 1 case free, valid until 31 December. Salespeople can offer this promotion on the spot without approval.” _(sample_account_plans.docx)_
+
+**Ask:** Ask for the Core Products reorder.
+
+## Visit notes
+
+No notes yet.
+
+## Deals logged in the app
+
+None yet.
+
+## From your documents
+
+- **sample_campaign_deck.pptx** › Accounts to watch: Maple Street Market: strategic Retail account; offer the Consumables promotion on the next visit. _[priority, campaign]_
+- **sample_account_plans.docx** › Year-end Retail campaign: Campaign for all Retail customers: buy 10 cases of Consumables and get 1 case free, valid until 31 December. Salespeople can offer this promotion on the spot without approval. _[campaign]_
