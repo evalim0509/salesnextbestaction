@@ -125,7 +125,7 @@ for rep in REPS:
 wc = wb.create_sheet('Campaigns'); wc.append(['Campaign', 'Segment', 'Category', 'Discount %', 'Minimum Spend', 'End Date', 'Description'])
 for c in wc[1]: c.font = Font(bold=True)
 wc.append(['Year-end Retail campaign', 'Retail', 'Consumables', 9, 0, dt.date(END.year, 12, 31), 'Buy 10 cases of Consumables, get 1 free'])
-wc.append(['Wholesale bundle rebate', 'Wholesale', 'Core Products + Accessories', 3, 2000, dt.date(END.year, 12, 31), 'Order Core Products and Accessories together for a 3% rebate at quarter end'])
+wc.append(['Wholesale bundle rebate', 'Wholesale', 'Core Products + Accessories', 3, 2000, END + dt.timedelta(days=6), 'Order Core Products and Accessories together for a 3% rebate at quarter end'])
 wc.append(['Premium Range launch offer', 'Corporate', 'Premium Range', 5, 0, dt.date(END.year, 12, 31), '5% introductory discount on Premium Range'])
 for row in wc.iter_rows(min_row=2, min_col=6, max_col=6): row[0].number_format = 'yyyy-mm-dd'
 for sh in (wt, wc):

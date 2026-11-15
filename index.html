@@ -7,12 +7,15 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nudge">
 <title>Nudge</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" href="icons/icon-192.png">
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 <div id="app">
   <header class="top">
-    <button class="orb sm" id="home" aria-label="Home"></button>
+    <button class="ring" id="home" aria-label="Home"><span class="orb sm"></span></button>
     <h1>Nudge</h1>
     <div class="who-wrap">
       <button id="who" class="who" aria-haspopup="listbox" aria-expanded="false" hidden><span id="who-name"></span>
@@ -47,6 +50,7 @@
         <button data-act="churn">May churn</button>
         <button data-act="wrap">Wrap up my day</button>
         <button data-act="customers">My customers</button>
+        <button data-act="export">Export</button>
       </div>
     </div>
   </main>
@@ -72,7 +76,9 @@
 <script src="vendor/jszip.min.js"></script>
 <script src="js/engine.js"></script>
 <script src="js/parsers.js"></script>
+<script src="vendor/pptxgen.min.js"></script>
 <script src="js/dashboard.js"></script>
+<script src="js/export.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

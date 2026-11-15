@@ -32,22 +32,33 @@ svg { width: 22px; height: 22px; fill: currentColor; }
 
 #app { height: 100dvh; max-width: 560px; margin: 0 auto; display: flex; flex-direction: column; position: relative; }
 
-/* the orb: the assistant's face */
-.orb { display: inline-block; flex: none; border-radius: 50%; width: 132px; height: 132px;
-  background: radial-gradient(circle at 32% 28%, #fff 0 6%, rgba(255,255,255,0) 30%), radial-gradient(circle at 70% 75%, #6aa8ff 0, rgba(106,168,255,0) 55%), radial-gradient(circle at 25% 75%, #ff8fb4 0, rgba(255,143,180,0) 55%), radial-gradient(circle at 60% 25%, #ffd6a0 0, rgba(255,214,160,0) 60%), #c9b8ff;
-  box-shadow: 0 18px 40px rgba(120,110,220,.28), inset 0 -8px 18px rgba(80,90,200,.25); }
-.orb.sm { width: 42px; height: 42px; box-shadow: 0 4px 12px rgba(120,110,220,.3), inset 0 -3px 6px rgba(80,90,200,.25); }
-.orb.xs { width: 26px; height: 26px; box-shadow: 0 2px 6px rgba(120,110,220,.3); }
-[data-mood="ahead"] .orb { background: radial-gradient(circle at 32% 28%, #fff 0 6%, rgba(255,255,255,0) 30%), radial-gradient(circle at 70% 75%, #1fa971 0, rgba(31,169,113,0) 58%), radial-gradient(circle at 25% 75%, #9be22d 0, rgba(155,226,45,0) 58%), radial-gradient(circle at 60% 25%, #e9f9a8 0, rgba(233,249,168,0) 60%), #6fd08a; box-shadow: 0 18px 40px rgba(60,170,110,.3), inset 0 -8px 18px rgba(20,120,80,.25); }
-[data-mood="behind"] .orb { background: radial-gradient(circle at 32% 28%, #fff 0 6%, rgba(255,255,255,0) 30%), radial-gradient(circle at 70% 75%, #ff8a3d 0, rgba(255,138,61,0) 58%), radial-gradient(circle at 25% 75%, #ffb648 0, rgba(255,182,72,0) 58%), radial-gradient(circle at 60% 25%, #ffe9b0 0, rgba(255,233,176,0) 60%), #ffc56e; box-shadow: 0 18px 40px rgba(240,150,50,.3), inset 0 -8px 18px rgba(200,100,20,.22); }
-[data-mood] .orb.sm { box-shadow: 0 4px 12px rgba(60,80,120,.22); } [data-mood] .orb.xs { box-shadow: 0 2px 6px rgba(60,80,120,.2); }
-.orb { transition: background .6s; }
+/* the orb: abstract, layered shades that drift. Colours follow the day's mood. */
+#app { --o1: #8f7bff; --o2: #6aa8ff; --o3: #ff8fb4; --o4: #ffd6a0; --o5: #c9b8ff; --ringc: #8f7bff; }
+#app[data-mood="ahead"] { --o1: #12a36b; --o2: #9be22d; --o3: #2fc6c0; --o4: #f1f7a6; --o5: #0f7f78; --ringc: #1fa971; }
+#app[data-mood="behind"] { --o1: #ff8a3d; --o2: #ffcf70; --o3: #ff5f6d; --o4: #ffe9c2; --o5: #c96a1b; --ringc: #f08a24; }
+.orb { position: relative; display: inline-block; flex: none; width: 132px; height: 132px; border-radius: 50%; overflow: hidden; isolation: isolate; font-size: 132px;
+  background: radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--o2) 35%, #fff) 0, color-mix(in srgb, var(--o1) 55%, #fff) 100%);
+  box-shadow: 0 .14em .3em color-mix(in srgb, var(--o1) 32%, transparent); }
+.orb::before { content: ""; position: absolute; inset: -30%; border-radius: 50%; opacity: .9; filter: blur(.09em);
+  background: radial-gradient(circle at 28% 34%, var(--o2) 0, transparent 34%), radial-gradient(circle at 72% 30%, var(--o4) 0, transparent 30%), radial-gradient(circle at 66% 72%, var(--o3) 0, transparent 36%), radial-gradient(circle at 30% 74%, var(--o5) 0, transparent 34%), conic-gradient(from 40deg, var(--o1), var(--o3), var(--o2), var(--o5), var(--o1));
+  animation: drift 16s linear infinite; }
+.orb::after { content: ""; position: absolute; inset: 0; border-radius: 50%;
+  background: radial-gradient(circle at 30% 24%, rgba(255,255,255,.85) 0, rgba(255,255,255,0) 30%), radial-gradient(circle at 74% 82%, rgba(255,255,255,.35) 0, rgba(255,255,255,0) 40%);
+  box-shadow: inset 0 0 .16em rgba(255,255,255,.6), inset 0 -.1em .2em rgba(0,0,0,.12); }
+.orb.sm { width: 36px; height: 36px; font-size: 36px; }
+.orb.xs { width: 26px; height: 26px; font-size: 26px; }
+@keyframes drift { to { transform: rotate(360deg); } }
+/* thin ring that fills with the month's target */
+.ring { position: relative; flex: none; display: inline-grid; place-items: center; padding: 4px; border: 0; border-radius: 50%; background: none; cursor: pointer; }
+.has-target .ring { background: conic-gradient(var(--ringc) calc(var(--p, 0) * 1%), rgba(16,21,31,.10) 0); }
+.has-target .ring::before { content: ""; position: absolute; inset: 2px; border-radius: 50%; background: #e3eef8; }
+.ring > .orb { position: relative; }
+.ring.big { padding: 9px; cursor: default; } .has-target .ring.big::before { inset: 4px; background: #e6f0f9; }
 @keyframes float { 50% { transform: translateY(-8px) scale(1.02); } }
 @keyframes breathe { 50% { transform: scale(1.12); } }
 
 .top { padding: calc(10px + env(safe-area-inset-top)) 16px 10px; display: flex; align-items: center; gap: 10px; position: relative; z-index: 5; }
 .top h1 { font-size: 1.25rem; font-weight: 700; margin: 0; letter-spacing: -.02em; flex: 1; }
-button.orb { border: 0; padding: 0; cursor: pointer; }
 .round { flex: none; width: 44px; height: 44px; border-radius: 50%; border: 0; background: var(--card); box-shadow: 0 2px 10px rgba(45,80,130,.10); display: grid; place-items: center; }
 .round.dark { background: var(--ink); color: #fff; }
 /* salesperson dropdown */
@@ -119,9 +130,10 @@ button.orb { border: 0; padding: 0; cursor: pointer; }
 .rowlist button .sub { display: block; font-weight: 400; font-size: .84rem; color: var(--ink-3); }
 
 details.audit { margin-top: 10px; border-top: 1px solid var(--line); padding-top: 8px; }
-details.audit summary { font-weight: 700; color: var(--this-year); padding: 6px 0; cursor: pointer; }
+details.audit summary { font-weight: 600; font-size: .8rem; color: var(--ink-3); padding: 4px 0; cursor: pointer; }
 .score { display: flex; justify-content: space-between; font-weight: 700; margin: 12px 0 4px; }
 .factor { display: grid; grid-template-columns: 44px 1fr; gap: 8px; padding: 8px 0; border-top: 1px dashed var(--line); font-size: .84rem; }
+.factor.nopts { grid-template-columns: 1fr; }
 .factor .pts { font-weight: 800; text-align: right; font-variant-numeric: tabular-nums; }
 .factor .pts.neg { color: var(--risk); }
 .factor code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .76rem; color: var(--ink-2); word-break: break-word; display: block; margin-top: 2px; }
@@ -131,7 +143,13 @@ details.audit summary { font-weight: 700; color: var(--this-year); padding: 6px 
 
 /* welcome */
 .hello { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 10px 14px; gap: 6px; }
-.hello .orb { width: 112px; height: 112px; animation: float 5s ease-in-out infinite; margin-bottom: 16px; }
+.hello .orb { width: 112px; height: 112px; font-size: 112px; }
+.hello > .orb, .hello > .ring { animation: float 5s ease-in-out infinite; margin-bottom: 16px; }
+.steps { display: flex; align-items: center; justify-content: center; gap: 6px; margin: 4px 0 6px; width: 100%; max-width: 340px; }
+.steps button { flex: 1; border: 0; border-radius: 16px; background: var(--glass); padding: 10px 4px; font-size: .82rem; font-weight: 650; display: flex; flex-direction: column; align-items: center; gap: 4px; min-height: 62px; }
+.steps button b { width: 22px; height: 22px; border-radius: 50%; background: var(--ink); color: #fff; font-size: .72rem; display: grid; place-items: center; }
+.steps button:disabled { opacity: .45; }
+.steps i { width: 10px; height: 2px; background: rgba(16,21,31,.25); border-radius: 2px; flex: none; }
 .hello h2 { font-size: 1.7rem; font-weight: 500; letter-spacing: -.03em; line-height: 1.2; margin: 0 0 6px; }
 .hello p { color: var(--ink-2); margin: 0 0 14px; max-width: 32ch; }
 .hello .status { background: var(--glass); border-radius: 999px; padding: 7px 14px; font-size: .86rem; font-weight: 600; color: var(--ink); max-width: none; }
@@ -213,7 +231,7 @@ details.audit summary { font-weight: 700; color: var(--this-year); padding: 6px 
 .empty { text-align: center; padding: 40px 20px; color: var(--ink-2); }
 
 /* deal celebration */
-#app .orb.win { background: radial-gradient(circle at 32% 28%, #fff 0 6%, rgba(255,255,255,0) 32%), radial-gradient(circle at 62% 70%, #2fae3f 0, #9be22d 70%); animation: win 2.6s ease-out; }
+#app .orb.win { --o1: #12a36b; --o2: #9be22d; --o3: #2fc6c0; --o4: #f1f7a6; --o5: #0f7f78; animation: win 2.6s ease-out; }
 @keyframes win { 15%, 70% { box-shadow: 0 0 0 6px rgba(155,226,45,.45), 0 0 26px 10px rgba(155,226,45,.55); transform: scale(1.12); } }
 .confetti { position: fixed; left: 50%; top: 38%; z-index: 20; pointer-events: none; }
 .confetti i { position: absolute; width: 9px; height: 13px; border-radius: 2px; opacity: 0; animation: pop 1.7s cubic-bezier(.15,.7,.3,1) forwards; }

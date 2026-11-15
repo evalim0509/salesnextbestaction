@@ -279,7 +279,7 @@
 
   // ---------------------------------------------------------------- analysis
   var RULES = {
-    staleDays: 14, lostDays: 180, lostRatio: 6,
+    staleDays: 14, lostDays: 180, lostRatio: 6, expiryDays: 7,
     overdue: [[3, 45], [2, 35], [1.5, 20]],
     decline: [[-0.5, 30], [-0.25, 20], [-0.1, 8]],
     growth: [[0.25, 20], [0.1, 10]],
@@ -551,7 +551,7 @@
     if (has('budget_cut')) pt('Their budget was cut. Offer smaller, more frequent orders to protect their cash flow.', 'Visit notes');
     if (has('not_interested')) pt('They said no last time. Do not repeat the same offer; ask what has changed since.', 'Visit notes');
 
-    if (c.offer) { var op = { text: campaignLine(c.offer, cur), src: c.offer.src }; if (P.points.length >= 4) P.points[3] = op; else P.points.push(op); }
+    if (c.offer) { var op = { text: campaignLine(c.offer, cur), src: c.offer.src, tech: c.offer.tech }; if (P.points.length >= 4) P.points[3] = op; else P.points.push(op); }
 
     // 2. what the numbers say
     if (!c.lost && c.ratio >= 1.5) pt('They normally order every ' + every + ' days and it has been ' + c.recency + '. Ask openly: “I noticed we have not had an order for a while. Did something change?”', 'Sales data');
@@ -568,12 +568,17 @@
       .slice(0, 6).forEach(function (s) {
         if (seen[s.text] || Object.keys(seen).length >= 2) return; seen[s.text] = 1;
         var lead = s.tags.indexOf('campaign') >= 0 ? 'Use the current offer' : s.tags.indexOf('renewal') >= 0 ? 'Bring up the renewal' : s.tags.indexOf('risk') >= 0 ? 'Be aware' : 'From the account plan';
-        var item = { text: lead + ': “' + shorten(s.text, 180) + '”', src: s.doc };
+        var item = { text: lead + ': “' + shorten(s.text, 180) + '”', src: s.doc, tech: 'paragraph linked to this customer by ' + (s.cids.length ? 'name' : 'segment or category') + '; wording tagged ' + s.tags.join(', ') };
         if (P.points.length < 4) P.points.push(item); else if (!c.offer) P.points[3] = item;
       });
     if (!P.points.length) pt('Ask what is coming up in their business over the next month and where you can help.', 'Sales data');
 
-    P.points.forEach(function (x) { if (P.sources.indexOf(x.src) < 0) P.sources.push(x.src); });
+    P.points.forEach(function (x) {
+      if (P.sources.indexOf(x.src) < 0) P.sources.push(x.src);
+      if (!x.tech) x.tech = x.src === 'Visit notes' ? 'sentence chosen because your notes contain: ' + (kws.map(function (id) { return KW[id].label; }).join(', ') || 'no keywords') + ' (concerns kept ' + RULES.noteNegDays + ' days, buying signals ' + RULES.notePosDays + ' days)'
+        : 'sentence chosen from: days since last order ' + c.recency + ', usual gap ' + every + ' days (ratio ' + c.ratio.toFixed(2) + '), 90-day spend change ' + pct(c.trend) + ', usual order ' + money(c.avgOrder, cur) + (c.peerGap.length ? ', category gap ' + c.peerGap[0] : '') + (c.lapsed.length ? ', lapsed ' + c.lapsed[0] : '');
+    });
+    P.openTech = 'opening and closing ask chosen by status “' + c.tag + '” (close ' + c.close + ', churn ' + c.churn + ')';
     if (has('quote') || has('budget_ok')) P.ask = 'Ask for the order today.';
     else if (c.tag === 'May churn' || c.tag === 'Watch' || c.lost) P.ask = 'Ask for one small order this week to get things moving again.';
     else if (c.tag === 'Likely to close' || c.tag === 'Good chance') P.ask = 'Ask for the ' + top + ' reorder' + (c.peerGap.length ? ' and a first trial of ' + c.peerGap[0] : '') + '.';
@@ -710,6 +715,60 @@
     return { picks: picks, covered: Math.round(covered), gap: gap, tech: 'ranked by close score × average order value; added until the sum of average order values ≥ gap (max 5)' };
   }
 
+  // ---------------------------------------------------------------- campaigns about to end
+  function expiring(an) {
+    var A = dayNum(an.asOf), by = {};
+    an.customers.forEach(function (c) {
+      if (c.lost) return;
+      c.campaigns.forEach(function (k) {
+        if (k.used || !k.end) return; var left = dayNum(k.end) - A; if (left < 0 || left > RULES.expiryDays) return;
+        var e = by[k.name] = by[k.name] || { name: k.name, end: k.end, daysLeft: left, customers: [], totalSaving: 0, src: k.src };
+        e.customers.push({ cid: c.cid, name: c.name, saving: k.saving, basis: k.basis }); e.totalSaving += k.saving;
+      });
+    });
+    return Object.keys(by).map(function (n) {
+      var e = by[n]; e.customers.sort(function (a, b) { return b.saving - a.saving; });
+      e.tech = 'campaign end date ' + e.end + ' is within ' + RULES.expiryDays + ' days of ' + an.asOf + '; listed customers match the campaign and have no purchase of its categories in the last 30 days; saving = discount × typical order (' + e.src + ')';
+      return e;
+    }).sort(function (a, b) { return a.daysLeft - b.daysLeft; });
+  }
+
+  // ---------------------------------------------------------------- account review one-pager (content only; export.js lays it out)
+  // version 'internal' = for the salesperson and manager; 'customer' = safe to hand over (no scores, risk labels or notes)
+  function accountReview(c, an, version) {
+    var cur = an.currency, p = buildPitch(c, an), R = { version: version, name: c.name, date: niceDate(an.asOf), salesperson: c.sp, segment: c.seg, kpis: [], sections: [], audit: [] };
+    var cats = Object.keys(c.cats).filter(function (k) { return c.cats[k].amt12 > 0; }).sort(function (a, b) { return c.cats[b].amt12 - c.cats[a].amt12; });
+    R.table = { head: ['Category', 'Last 12 months', 'Last bought'], rows: cats.map(function (k) { return [k, money(c.cats[k].amt12, cur), niceDate(c.cats[k].last)]; }) };
+    var offers = c.campaigns.filter(function (k) { return !k.used; });
+    if (version === 'customer') {
+      R.title = 'Account review: ' + c.name; R.subtitle = 'Prepared for you by ' + c.sp + ', ' + R.date;
+      R.kpis = [['Customer since', niceDate(c.first).slice(-8)], ['Orders placed', String(c.nOrders)], ['Purchases, last 12 months', money(c.rev12, cur)], ['Typical order', money(c.avgOrder, cur)]];
+      R.tableTitle = 'Your purchases by category';
+      if (offers.length) R.sections.push({ heading: 'Offers available to you', bullets: offers.map(function (k) { return k.name + ': on a ' + money(k.basis, cur) + ' order of ' + (k.cats.join(' and ') || 'goods') + ' you save about ' + money(k.saving, cur) + ' (' + Math.round(k.pct * 100) + '%)' + (k.minSpend ? ', minimum order ' + money(k.minSpend, cur) : '') + (k.end ? '. Valid until ' + niceDate(k.end) : '') + '.'; }) });
+      var ideas = [];
+      if (c.peerGap.length) ideas.push('Businesses like yours in ' + c.seg + ' also use ' + c.peerGap[0] + '. We would be glad to show you how it could work for you.');
+      if (c.lapsed.length) ideas.push('You used to order ' + c.lapsed[0] + '. If the need is still there, we can add it back to your regular order.');
+      if (c.revPrev90 > 0 && c.trend >= 0.1) ideas.push('Your orders have grown ' + Math.round(c.trend * 100) + '% in three months. A standing order would make sure you never run short.');
+      if (ideas.length) R.sections.push({ heading: 'Ideas for your business', bullets: ideas });
+      var o0 = offers[0], sameCat = o0 && (!o0.cats.length || o0.cats.indexOf(c.topCat) >= 0);
+      var next = 'A ' + c.topCat + ' order of about ' + money(c.avgOrder, cur) + ', in line with your usual order every ' + Math.round(c.gapUsed) + ' days' +
+        (o0 ? (sameCat ? ', using the ' + o0.name + ' to save about ' + money(o0.saving, cur) : ', plus ' + money(o0.basis, cur) + ' of ' + o0.cats.join(' and ') + ' under the ' + o0.name + ' to save about ' + money(o0.saving, cur)) : '') + '.';
+      R.sections.push({ heading: 'Proposed next order', bullets: [next] });
+      R.footer = 'Figures are taken from your order history with us up to ' + niceDate(an.dataTo || an.asOf) + '. Savings are estimates based on your typical order.';
+    } else {
+      R.title = 'Account review: ' + c.name; R.subtitle = 'Internal. ' + c.sp + ', ' + c.seg + ', ' + R.date + '. Status: ' + c.tag;
+      R.kpis = [['Revenue, last 12 months', money(c.rev12, cur) + (c.yoy == null ? '' : ' (' + pct(c.yoy) + ')')], ['Last order', c.recency + ' days ago'], ['Usual order', money(c.avgOrder, cur) + ' every ' + Math.round(c.gapUsed) + ' days'], ['Scores', 'Close ' + c.close + ', risk ' + c.churn + ', priority ' + c.priority]];
+      R.tableTitle = 'What they buy';
+      R.sections.push({ heading: 'Where they stand', bullets: topReasons(c, 4).map(function (f) { return f.plain; }) });
+      R.sections.push({ heading: 'What to say', bullets: [p.open].concat(p.points.map(function (x) { return x.text; })).concat(['Ask: ' + p.ask]) });
+      if (c.campaigns.length) R.sections.push({ heading: 'Campaigns that apply', bullets: c.campaigns.map(function (k) { return k.name + ': ' + (k.used ? 'already used in the last 30 days' : 'not used yet, saves about ' + money(k.saving, cur) + ' on ' + money(k.basis, cur)) + (k.end ? ', valid until ' + niceDate(k.end) : '') + '.'; }) });
+      if (c.notes.length) R.sections.push({ heading: 'Recent visit notes', bullets: c.notes.slice(0, 3).map(function (n) { return niceDate(n.ts.slice(0, 10)) + ': ' + ((n.keywords || []).map(function (id) { return KW[id] ? KW[id].label : id; }).concat(n.cats || []).join(', ') || 'note') + (n.transcript ? ' (“' + shorten(n.transcript, 110) + '”)' : ''); }) });
+      R.audit = c.factors.map(function (f) { return [f.bucket, (f.pts > 0 ? '+' : '') + f.pts, f.tech, f.src]; });
+      R.footer = 'Produced by Nudge from fixed rules on ' + R.date + '. No AI model was used. Not for sharing with the customer.';
+    }
+    return R;
+  }
+
   // ---------------------------------------------------------------- executive summary (morning brief)
   // Fixed sentence templates filled with numbers. Returns the facts so the screen can lay them out.
   function joinNames(a) { return a.length <= 1 ? a.join('') : a.slice(0, -1).join(', ') + ' and ' + a[a.length - 1]; }
@@ -738,12 +797,15 @@
       var v = sum(L.top3, function (c) { return c.avgOrder; });
       out.points.push({ kind: 'value', label: 'Today\'s potential', text: 'Your ' + L.top3.length + ' visits could bring in about ' + money(v, cur) + ', going by what these customers usually order.', tech: 'sum of average order value of the top ' + L.top3.length + ' by visit priority' });
     }
+    out.headlineTech = 'revenue ' + d.year + ' to ' + niceDate(d.asOf) + ' = ' + money(d.ytd.cur, cur) + '; same dates in ' + d.prevYear + ' = ' + money(d.ytd.prev, cur) + '; difference ' + money(d.ytd.inc, cur);
+    var ex = expiring(an); out.expiring = ex;
+    ex.forEach(function (k) { out.points.push({ kind: 'expiry', label: 'Ending soon', text: 'The ' + k.name + ' ends ' + (k.daysLeft === 0 ? 'today' : 'in ' + k.daysLeft + (k.daysLeft === 1 ? ' day' : ' days')) + '. ' + k.customers.length + (k.customers.length === 1 ? ' customer has' : ' customers have') + ' not used it: ' + joinNames(k.customers.slice(0, 4).map(function (x) { return x.name; })) + (k.customers.length > 4 ? ' and others' : '') + '. Together they could save about ' + money(k.totalSaving, cur) + '.', tech: k.tech }); });
     if (L.close.length) out.points.push({ kind: 'close', label: 'Ready to buy', text: L.close.length + (L.close.length === 1 ? ' customer is' : ' customers are') + ' likely to place an order now, led by ' + L.close[0].name + '.', tech: 'customers with close score ≥ ' + RULES.listThreshold });
     var offers = [];
     L.top3.forEach(function (c) {
-      if (c.offer) { offers.push({ name: c.name, renewal: false, text: campaignLine(c.offer, cur), doc: c.offer.src }); return; }
+      if (c.offer) { offers.push({ name: c.name, renewal: false, text: campaignLine(c.offer, cur), doc: c.offer.src, tech: c.offer.tech }); return; }
       var s = c.docs.concat(c.segDocs).filter(function (x) { return x.tags.indexOf('renewal') >= 0 || x.tags.indexOf('campaign') >= 0; })[0];
-      if (s) offers.push({ name: c.name, renewal: s.tags.indexOf('renewal') >= 0, text: shorten(s.text, 120), doc: s.doc });
+      if (s) offers.push({ name: c.name, renewal: s.tags.indexOf('renewal') >= 0, text: shorten(s.text, 120), doc: s.doc, tech: 'paragraph in ' + s.doc + ' linked to this customer; wording tagged ' + s.tags.join(', ') });
     });
     out.offers = offers;
     return out;
@@ -806,6 +868,7 @@
       : 'No account shows a strong sign of leaving.' });
     var wk = d.deals.filter(function (x) { return dayNum(d.asOf) - dayNum(x.date) < 7; });
     out.points.push({ kind: 'deals', label: 'Deals this week', text: wk.length ? wk.length + (wk.length === 1 ? ' deal' : ' deals') + ' worth ' + money(sum(wk, function (x) { return x.amt; }), cur) + (wk.length === 1 ? ' was' : ' were') + ' logged in the app in the last 7 days.' : 'No deals were logged in the app in the last 7 days.' });
+    expiring(an).forEach(function (k) { out.points.push({ kind: 'expiry', label: 'Ending soon', text: 'The ' + k.name + ' ends in ' + k.daysLeft + (k.daysLeft === 1 ? ' day' : ' days') + '; ' + k.customers.length + ' eligible ' + (k.customers.length === 1 ? 'customer has' : 'customers have') + ' not used it.', tech: k.tech }); });
     var vs = visitStats(state, d.asOf, sp);
     if (vs.week.planned) out.points.push({ kind: 'visits', label: 'Visit plans', text: 'Today ' + vs.today.done + ' of ' + vs.today.planned + ' planned visits are done' + (vs.today.skipped ? ' and ' + vs.today.skipped + ' skipped' : '') + '. Over the last 7 days: ' + vs.week.done + ' of ' + vs.week.planned + ' (' + Math.round(100 * vs.week.done / vs.week.planned) + '%).' });
     return out;
@@ -824,7 +887,7 @@
 
   var api = {
     parseDate: parseDate, normalizeRows: normalizeRows, mergeTx: mergeTx, analyze: analyze, lists: lists, topReasons: topReasons,
-    normalizeTargets: normalizeTargets, normalizeCampaigns: normalizeCampaigns, targetStatus: targetStatus, closeGap: closeGap, campaignLine: campaignLine, execSummary: execSummary, visitStats: visitStats, wrapUp: wrapUp, managerSummary: managerSummary, buildPitch: buildPitch, customerMarkdown: customerMarkdown, fileName: fileName, dashboard: dashboard, confirmDeals: confirmDeals,
+    normalizeTargets: normalizeTargets, normalizeCampaigns: normalizeCampaigns, targetStatus: targetStatus, closeGap: closeGap, campaignLine: campaignLine, expiring: expiring, accountReview: accountReview, execSummary: execSummary, visitStats: visitStats, wrapUp: wrapUp, managerSummary: managerSummary, buildPitch: buildPitch, customerMarkdown: customerMarkdown, fileName: fileName, dashboard: dashboard, confirmDeals: confirmDeals,
     extractKeywords: extractKeywords, linkDocs: linkDocs, salespeople: salespeople, asOfDate: asOfDate,
     KEYWORDS: KEYWORDS, KW: KW, RULES: RULES, money: money, pct: pct, niceDate: niceDate, todayISO: todayISO, addDays: addDays, dayNum: dayNum, MONTHS: MONTHS
   };

@@ -2,7 +2,10 @@
 
 A phone-friendly website that tells each salesperson who to visit today, who is likely to buy, who may leave and what to say. It uses fixed rules, not AI, and all data stays on the phone.
 
-Business requirements: [REQUIREMENTS.md](REQUIREMENTS.md)
+Three steps: **upload → insights → export**.
+
+- Business requirements: [REQUIREMENTS.md](REQUIREMENTS.md)
+- How it differs from Salesforce AI: [docs/NUDGE_VS_SALESFORCE.md](docs/NUDGE_VS_SALESFORCE.md)
 
 ## Put it live (one time, no terminal)
 
@@ -17,6 +20,9 @@ Business requirements: [REQUIREMENTS.md](REQUIREMENTS.md)
 2. Pick a salesperson from the dropdown at the top.
 3. Tap **Give me today's brief**, tap a customer, then try **What to say**, **Why this customer**, **Add visit note** and **Deal closed**.
 4. Tap the three dots, then **Revenue dashboard**. Tap the orb to go home.
+5. Tap **Export** for a customer one-pager, the brief in Word, the portfolio in Excel or a review deck in PowerPoint.
+
+To use it like an app: on iPhone tap Share, then "Add to Home Screen"; on Android use the browser menu, then "Install app".
 
 ## Sales file format
 
@@ -35,7 +41,9 @@ Two optional extra sheets in the same file:
 | `js/engine.js` | The scoring rules, pitch builder and customer file writer |
 | `js/parsers.js` | Reads Excel, Word and PowerPoint inside the browser |
 | `js/dashboard.js` | Management revenue dashboard |
-| `vendor/` | SheetJS and JSZip, bundled so the page loads nothing from outside |
+| `js/export.js` | Builds the Word, PowerPoint and Excel exports in the browser |
+| `sw.js`, `manifest.webmanifest`, `icons/` | Lets the site be installed as an app and work offline |
+| `vendor/` | SheetJS, JSZip and PptxGenJS, bundled so the page loads nothing from outside |
 | `sample-data/` | Sample sales file, Word account plans, PowerPoint deck and example customer .md files |
 | `tools/` | Scripts that rebuild the sample files |
 | `tests/engine.test.js` | Checks the rules against the sample data: `node tests/engine.test.js` |

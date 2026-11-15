@@ -25,7 +25,11 @@ const ab = b => b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength);
     const a2 = NBA.analyze(Object.assign({}, state, { campaigns: [] }), 'Aisha Rahman', { today: '2026-11-15' }), b2 = a2.customers.find(c => c.name === 'Blue Harbor Stores');
     assert(b2.offer && b2.offer.fromText && /buy 10 get 1 free/.test(b2.offer.mech), JSON.stringify(b2.campaigns));
     console.log(ts, '\n', ex.points.filter(q => q.kind === 'target' || q.kind === 'gap'), '\n', NBA.campaignLine(bh.offer, '$'), '\n', NBA.campaignLine(b2.offer, '$'));
-    const nw = a.customers.find(c => c.name === 'Northwind Trading'); console.log(nw.campaigns);
+    const exp = NBA.expiring(a); assert(exp.length === 1 && exp[0].name === 'Wholesale bundle rebate' && exp[0].daysLeft === 5 && exp[0].customers.length >= 1, JSON.stringify(exp));
+    assert(ex.points.some(q => q.kind === 'expiry')); assert(ex.points.every(q => q.tech), 'every point has a trail'); assert(ex.headlineTech);
+    const ri = NBA.accountReview(bh, a, 'internal'), rc = NBA.accountReview(bh, a, 'customer');
+    assert(/May churn/.test(ri.subtitle) && ri.audit.length); const flat = JSON.stringify(rc); assert(!/churn|score|risk|Internal/i.test(flat), 'customer version has nothing sensitive'); assert(/save about/.test(flat));
+    assert(NBA.buildPitch(bh, a).points.every(q => q.tech));
   }
   const today = '2026-11-15';
   assert.deepStrictEqual(NBA.salespeople(state), ['Aisha Rahman', 'Ben Carter', 'Chloe Tan']);
