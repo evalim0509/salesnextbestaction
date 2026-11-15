@@ -61,6 +61,13 @@
       '<div class="panel"><div class="small">' + d.year + ' to date</div><div class="v">' + NBA.money(d.ytd.cur, cur) + '</div><div class="small">' + d.prevYear + ': ' + NBA.money(d.ytd.prev, cur) + '</div></div>' +
       '<div class="panel"><div class="small">' + d.month.label + ' to date</div><div class="v">' + NBA.money(d.month.cur, cur) + '</div><div class="small">' + (d.hasPrev ? delta(d.month.inc, d.month.pct, cur) : '') + '</div></div></div>';
 
+    var people = sp ? [sp] : NBA.salespeople(state), tgs = people.map(function (n) { return { name: n, t: NBA.targetStatus(state, n) }; }).filter(function (x) { return x.t.hasTarget; });
+    if (tgs.length) h += '<div class="panel"><h3>' + tgs[0].t.month + ' target</h3><p class="small">Month to date against each monthly target. The line marks where sales should be today.</p>' + tgs.map(function (x) {
+      var t = x.t, w = Math.min(100, Math.round(100 * t.mtd / t.target)), pace = Math.min(100, Math.round(100 * t.pace / t.target));
+      return '<div class="person"><div class="row"><span>' + esc(x.name) + '</span><span>' + NBA.money(t.mtd, cur) + ' of ' + NBA.money(t.target, cur) + '</span></div>' +
+        '<div class="meter tall"><span style="width:' + w + '%;background:var(--' + (t.ahead ? 'lime' : 'amber') + ')"></span><i style="left:' + pace + '%"></i></div>' +
+        '<div class="small">' + (t.gap > 0 ? NBA.money(t.gap, cur) + ' to go, ' + (t.ahead ? '▲ on pace' : '▼ behind pace') + ', ' + t.daysLeft + ' days left' : '▲ Target reached') + '</div></div>';
+    }).join('') + '</div>';
     h += '<div class="panel"><h3>Revenue by month</h3><div class="legend"><span><i style="background:var(--this-year)"></i>' + d.year + '</span><span><i style="background:var(--last-year)"></i>' + d.prevYear + '</span></div>' +
       '<div class="chart" id="mchart">' + monthChart(d, cur) + '</div><button class="linkbtn" id="tbl-toggle">Show as table</button><div id="mtable" hidden><table class="dtable"><tr><th>Month</th><th>' + d.year + '</th><th>' + d.prevYear + '</th><th>Change</th></tr>' +
       d.months.map(function (m) { return '<tr><td>' + m.label + (m.partial ? ' (to date)' : '') + '</td><td>' + (m.future ? '' : NBA.money(m.cur, cur)) + '</td><td>' + NBA.money(m.partial ? m.prevToDate : m.prev, cur) + '</td><td>' + (m.future ? '' : signed(m.cur - (m.partial ? m.prevToDate : m.prev), cur)) + '</td></tr>'; }).join('') + '</table></div></div>';

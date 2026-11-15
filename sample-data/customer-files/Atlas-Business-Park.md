@@ -32,7 +32,7 @@
 
 - They are due to reorder now: they usually order about every 31 days and the last order was 31 days ago.
 - They are buying more: spending is up 32% in the last 3 months.
-- Your documents say a renewal is coming up and a campaign or offer applies to them (sample_account_plans.docx).
+- Your documents say a renewal is coming up and the Premium Range launch applies to them and they have not used it (sample_account_plans.docx).
 
 ### Visit priority: 74 / 100
 
@@ -47,7 +47,7 @@
 |---:|---|---|---|
 | +30 | They are due to reorder now: they usually order about every 31 days and the last order was 31 days ago. | recency 31d ÷ median gap between orders 31d = 1.00 in [0.8, 1.5) → +30 close | Sales data |
 | +20 | They are buying more: spending is up 32% in the last 3 months. | revenue last 90d $11,270 vs previous 90d $8,510 = +32% ≥ +25% → +20 close | Sales data |
-| +20 | Your documents say a renewal is coming up and a campaign or offer applies to them (sample_account_plans.docx). | document signals: renewal +15, campaign +10 = 25, capped at 20 → +20 close | Documents |
+| +20 | Your documents say a renewal is coming up and the Premium Range launch applies to them and they have not used it (sample_account_plans.docx). | document signals: renewal +15, campaign +10 = 25, capped at 20 → +20 close | Documents |
 
 ### Risk of losing them: 0 / 100
 
@@ -57,12 +57,18 @@ No factors applied.
 
 Go in ready to take an order today.
 
+- The Premium Range launch applies to them and they have not used it yet. On a $2,007 order of Premium Range they save about $100 (5% discount, worth about 5%). _(sample_account_plans.docx)_
 - They normally reorder Premium Range about every 31 days and the last order was 31 days ago. Ask for the reorder (usual size about $4,126). _(Sales data)_
 - Their spending is up 32% in 3 months. Thank them and suggest a regular standing order. _(Sales data)_
-- Use the current offer: “The new Premium Range launch offer gives Corporate customers a 5% introductory discount on their first Premium Range order this quarter.” _(sample_account_plans.docx)_
 - Bring up the renewal: “Atlas Business Park is a priority account. Their facilities contract renews in January and they have asked about Service Plans.” _(sample_account_plans.docx)_
 
 **Ask:** Ask for the Premium Range reorder.
+
+## Campaigns that apply
+
+| Campaign | Status | Saving | Technical trace | Source |
+|---|---|---:|---|---|
+| Premium Range launch | Not used yet | $100 on $2,007 | saving = 5% × $2,007 (their average order in Premium Range, last 12 months); unused = no purchase of Premium Range in the last 30 days; terms read from document text | sample_account_plans.docx |
 
 ## Visit notes
 

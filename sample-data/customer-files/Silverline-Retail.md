@@ -31,7 +31,7 @@
 ## Today's assessment
 
 - Their spending is down 63% in the last 3 months compared with the 3 months before.
-- Your documents say a campaign or offer applies to them (sample_account_plans.docx).
+- Your documents say the Year-end Retail campaign applies to them and they have not used it (sample_account_plans.docx).
 - They are a mid-sized customer for you ($27,255 in the last 12 months).
 
 ### Visit priority: 31 / 100
@@ -44,7 +44,7 @@
 
 | Points | In plain English | Technical trace | Source |
 |---:|---|---|---|
-| +10 | Your documents say a campaign or offer applies to them (sample_account_plans.docx). | document signals: campaign +10 = 10, capped at 20 → +10 close | Documents |
+| +10 | Your documents say the Year-end Retail campaign applies to them and they have not used it (sample_account_plans.docx). | document signals: campaign +10 = 10, capped at 20 → +10 close | Documents |
 
 ### Risk of losing them: 30 / 100
 
@@ -56,11 +56,17 @@
 
 Go in to listen first. Ask how things are going with their orders before you talk about products.
 
+- The Year-end Retail campaign applies to them and they have not used it yet. On a $626 order of Consumables they save about $57 (buy 10 get 1 free, worth about 9%). Valid until 31 Dec 2026. _(sample_account_plans.docx)_
 - They used to buy Consumables (last time 12 Apr 2026) and then stopped. Ask why and whether they still need it. _(Sales data)_
 - Their spending is down 63% in 3 months. Ask if they are buying part of their needs elsewhere. _(Sales data)_
-- Use the current offer: “Campaign for all Retail customers: buy 10 cases of Consumables and get 1 case free, valid until 31 December. Salespeople can offer this promotion on the spot without approval.” _(sample_account_plans.docx)_
 
 **Ask:** Ask for one small order this week to get things moving again.
+
+## Campaigns that apply
+
+| Campaign | Status | Saving | Technical trace | Source |
+|---|---|---:|---|---|
+| Year-end Retail campaign | Not used yet, valid until 31 Dec 2026 | $57 on $626 | saving = 9.1% × $626 (their average order in Consumables, last 12 months); unused = no purchase of Consumables in the last 30 days; terms read from document text | sample_account_plans.docx |
 
 ## Visit notes
 

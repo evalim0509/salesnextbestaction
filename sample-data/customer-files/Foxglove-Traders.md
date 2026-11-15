@@ -60,6 +60,12 @@ It has been a while. Go in to listen: ask how business is and what they use toda
 
 **Ask:** Ask for one small order this week to get things moving again.
 
+## Campaigns that apply
+
+| Campaign | Status | Saving | Technical trace | Source |
+|---|---|---:|---|---|
+| Wholesale growth campaign | Not used yet | $61 on $2,020 | saving = 3% × $2,020 (their average order in Accessories + Core Products, last 12 months); unused = no purchase of Accessories + Core Products in the last 30 days; terms read from document text | sample_campaign_deck.pptx |
+
 ## Visit notes
 
 No notes yet.

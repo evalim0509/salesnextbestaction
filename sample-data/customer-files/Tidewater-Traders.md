@@ -44,7 +44,7 @@
 
 | Points | In plain English | Technical trace | Source |
 |---:|---|---|---|
-| +10 | Your documents say a campaign or offer applies to them (sample_campaign_deck.pptx). | document signals: campaign +10 = 10, capped at 20 → +10 close | Documents |
+| +10 | Your documents say the Wholesale growth campaign applies to them and they have not used it (sample_campaign_deck.pptx). | document signals: campaign +10 = 10, capped at 20 → +10 close | Documents |
 
 ### Risk of losing them: 75 / 100
 
@@ -58,11 +58,17 @@
 
 Go in to listen first. Ask how things are going with their orders before you talk about products.
 
+- The Wholesale growth campaign applies to them and they have not used it yet. On a $1,840 order of Accessories and Core Products they save about $55 (3% rebate, worth about 3%). _(sample_campaign_deck.pptx)_
 - They normally order every 21 days and it has been 67. Ask openly: “I noticed we have not had an order for a while. Did something change?” _(Sales data)_
-- Use the current offer: “Campaign for all Wholesale customers: order Core Products and Accessories together as a bundle and receive a 3% rebate at quarter end.” _(sample_campaign_deck.pptx)_
-- Use the current offer: “Target: every Wholesale account places at least one bundle order this quarter.” _(sample_campaign_deck.pptx)_
+- Be aware: “Tidewater Traders: orders have stopped; at risk of churn. Visit this week.” _(sample_campaign_deck.pptx)_
 
 **Ask:** Ask for one small order this week to get things moving again.
+
+## Campaigns that apply
+
+| Campaign | Status | Saving | Technical trace | Source |
+|---|---|---:|---|---|
+| Wholesale growth campaign | Not used yet | $55 on $1,840 | saving = 3% × $1,840 (their average order in Accessories + Core Products, last 12 months); unused = no purchase of Accessories + Core Products in the last 30 days; terms read from document text | sample_campaign_deck.pptx |
 
 ## Visit notes
 

@@ -30,7 +30,7 @@
 ## Today's assessment
 
 - Most similar Corporate customers buy Service Plans, but they never have.
-- Your documents say a campaign or offer applies to them (sample_account_plans.docx).
+- Your documents say the Premium Range launch applies to them and they have not used it (sample_account_plans.docx).
 - Their spending is down 17% in the last 3 months compared with the 3 months before.
 
 ### Visit priority: 20 / 100
@@ -44,7 +44,7 @@
 | Points | In plain English | Technical trace | Source |
 |---:|---|---|---|
 | +10 | Most similar Corporate customers buy Service Plans, but they never have. | Service Plans bought by 6 of 9 Corporate customers in the last 12 months (≥ 50%), 0 purchases by this customer → +10 close | Sales data |
-| +10 | Your documents say a campaign or offer applies to them (sample_account_plans.docx). | document signals: campaign +10 = 10, capped at 20 → +10 close | Documents |
+| +10 | Your documents say the Premium Range launch applies to them and they have not used it (sample_account_plans.docx). | document signals: campaign +10 = 10, capped at 20 → +10 close | Documents |
 
 ### Risk of losing them: 8 / 100
 
@@ -56,11 +56,17 @@
 
 A friendly check-in. Thank them for the steady business and look for one new idea to offer.
 
+- The Premium Range launch applies to them and they have not used it yet. On a $1,528 order of Premium Range they save about $76 (5% discount, worth about 5%). _(sample_account_plans.docx)_
 - They used to buy Premium Range (last time 28 Apr 2026) and then stopped. Ask why and whether they still need it. _(Sales data)_
 - Customers like them usually buy Service Plans too. Introduce it as something similar Corporate customers find useful. _(Sales data)_
-- Use the current offer: “The new Premium Range launch offer gives Corporate customers a 5% introductory discount on their first Premium Range order this quarter.” _(sample_account_plans.docx)_
 
 **Ask:** Agree the date of their next order before you leave.
+
+## Campaigns that apply
+
+| Campaign | Status | Saving | Technical trace | Source |
+|---|---|---:|---|---|
+| Premium Range launch | Not used yet | $76 on $1,528 | saving = 5% × $1,528 (their average order in Premium Range, last 12 months); unused = no purchase of Premium Range in the last 30 days; terms read from document text | sample_account_plans.docx |
 
 ## Visit notes
 

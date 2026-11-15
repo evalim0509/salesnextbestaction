@@ -63,6 +63,12 @@ Go in ready to take an order today.
 
 **Ask:** Ask for the Core Products reorder.
 
+## Campaigns that apply
+
+| Campaign | Status | Saving | Technical trace | Source |
+|---|---|---:|---|---|
+| Wholesale growth campaign | Already used in the last 30 days | $75 on $2,514 | saving = 3% × $2,514 (their average order in Accessories + Core Products, last 12 months); unused = no purchase of Accessories + Core Products in the last 30 days; terms read from document text | sample_campaign_deck.pptx |
+
 ## Visit notes
 
 No notes yet.

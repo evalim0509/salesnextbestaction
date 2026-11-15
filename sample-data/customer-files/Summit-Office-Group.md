@@ -62,6 +62,12 @@ Go in ready to take an order today.
 
 **Ask:** Ask for the Core Products reorder.
 
+## Campaigns that apply
+
+| Campaign | Status | Saving | Technical trace | Source |
+|---|---|---:|---|---|
+| Premium Range launch | Already used in the last 30 days | $101 on $2,013 | saving = 5% × $2,013 (their average order in Premium Range, last 12 months); unused = no purchase of Premium Range in the last 30 days; terms read from document text | sample_account_plans.docx |
+
 ## Visit notes
 
 No notes yet.

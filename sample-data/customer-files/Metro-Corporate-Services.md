@@ -44,7 +44,7 @@
 
 | Points | In plain English | Technical trace | Source |
 |---:|---|---|---|
-| +20 | Your documents say a renewal is coming up and a campaign or offer applies to them (sample_account_plans.docx). | document signals: renewal +15, campaign +10 = 25, capped at 20 → +20 close | Documents |
+| +20 | Your documents say a renewal is coming up and the Premium Range launch applies to them and they have not used it (sample_account_plans.docx). | document signals: renewal +15, campaign +10 = 25, capped at 20 → +20 close | Documents |
 
 ### Risk of losing them: 85 / 100
 
@@ -58,11 +58,17 @@
 
 Go in to listen first. Ask how things are going with their orders before you talk about products.
 
+- The Premium Range launch applies to them and they have not used it yet. On a $1,697 order of Premium Range they save about $85 (5% discount, worth about 5%). _(sample_account_plans.docx)_
 - They normally order every 30 days and it has been 90. Ask openly: “I noticed we have not had an order for a while. Did something change?” _(Sales data)_
-- Use the current offer: “Their annual contract expires at the end of the year. Prepare a renewal offer with the Premium Range launch discount.” _(sample_account_plans.docx)_
-- Use the current offer: “The new Premium Range launch offer gives Corporate customers a 5% introductory discount on their first Premium Range order this quarter.” _(sample_account_plans.docx)_
+- Be aware: “Metro Corporate Services has a new procurement manager who is reviewing all suppliers. Risk of losing the account if we do not meet her soon.” _(sample_account_plans.docx)_
 
 **Ask:** Ask for one small order this week to get things moving again.
+
+## Campaigns that apply
+
+| Campaign | Status | Saving | Technical trace | Source |
+|---|---|---:|---|---|
+| Premium Range launch | Not used yet | $85 on $1,697 | saving = 5% × $1,697 (their average order in Premium Range, last 12 months); unused = no purchase of Premium Range in the last 30 days; terms read from document text | sample_account_plans.docx |
 
 ## Visit notes
 

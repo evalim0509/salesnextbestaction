@@ -61,6 +61,12 @@ Go in ready to take an order today.
 
 **Ask:** Ask for the Core Products reorder and a first trial of Accessories.
 
+## Campaigns that apply
+
+| Campaign | Status | Saving | Technical trace | Source |
+|---|---|---:|---|---|
+| Year-end Retail campaign | Already used in the last 30 days, valid until 31 Dec 2026 | $62 on $685 | saving = 9.1% × $685 (their average order in Consumables, last 12 months); unused = no purchase of Consumables in the last 30 days; terms read from document text | sample_account_plans.docx |
+
 ## Visit notes
 
 No notes yet.

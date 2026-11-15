@@ -31,7 +31,7 @@
 ## Today's assessment
 
 - They are due to reorder now: they usually order about every 28 days and the last order was 34 days ago.
-- Your documents say a campaign or offer applies to them and the account plan sees room to grow (sample_account_plans.docx).
+- Your documents say the Wholesale growth campaign applies to them and they have not used it and the account plan sees room to grow (sample_account_plans.docx).
 - Their spending is down 59% in the last 3 months compared with the 3 months before.
 
 ### Visit priority: 57 / 100
@@ -45,7 +45,7 @@
 | Points | In plain English | Technical trace | Source |
 |---:|---|---|---|
 | +30 | They are due to reorder now: they usually order about every 28 days and the last order was 34 days ago. | recency 34d ÷ median gap between orders 28d = 1.21 in [0.8, 1.5) → +30 close | Sales data |
-| +18 | Your documents say a campaign or offer applies to them and the account plan sees room to grow (sample_account_plans.docx). | document signals: campaign +10, growth +8 = 18, capped at 20 → +18 close | Documents |
+| +18 | Your documents say the Wholesale growth campaign applies to them and they have not used it and the account plan sees room to grow (sample_account_plans.docx). | document signals: campaign +10, growth +8 = 18, capped at 20 → +18 close | Documents |
 
 ### Risk of losing them: 30 / 100
 
@@ -57,12 +57,17 @@
 
 Go in ready to take an order today.
 
+- The Wholesale growth campaign applies to them and they have not used it yet. On a $3,102 order of Accessories and Core Products they save about $93 (3% rebate, worth about 3%). _(sample_campaign_deck.pptx)_
 - They normally reorder Core Products about every 28 days and the last order was 34 days ago. Ask for the reorder (usual size about $4,338). _(Sales data)_
 - Their spending is down 59% in 3 months. Ask if they are buying part of their needs elsewhere. _(Sales data)_
-- Use the current offer: “Falcon Distribution asked for a quotation on a bundle of Core Products and Accessories. Good opportunity to close before month end.” _(sample_account_plans.docx)_
-- Use the current offer: “Campaign for all Wholesale customers: order Core Products and Accessories together as a bundle and receive a 3% rebate at quarter end.” _(sample_campaign_deck.pptx)_
 
 **Ask:** Ask for the Core Products reorder.
+
+## Campaigns that apply
+
+| Campaign | Status | Saving | Technical trace | Source |
+|---|---|---:|---|---|
+| Wholesale growth campaign | Not used yet | $93 on $3,102 | saving = 3% × $3,102 (their average order in Accessories + Core Products, last 12 months); unused = no purchase of Accessories + Core Products in the last 30 days; terms read from document text | sample_campaign_deck.pptx |
 
 ## Visit notes
 

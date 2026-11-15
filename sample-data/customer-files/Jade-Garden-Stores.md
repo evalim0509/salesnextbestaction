@@ -61,6 +61,12 @@ A friendly check-in. Thank them for the steady business and look for one new ide
 
 **Ask:** Agree the date of their next order before you leave.
 
+## Campaigns that apply
+
+| Campaign | Status | Saving | Technical trace | Source |
+|---|---|---:|---|---|
+| Year-end Retail campaign | Already used in the last 30 days, valid until 31 Dec 2026 | $65 on $714 | saving = 9.1% × $714 (their average order in Consumables, last 12 months); unused = no purchase of Consumables in the last 30 days; terms read from document text | sample_account_plans.docx |
+
 ## Visit notes
 
 No notes yet.

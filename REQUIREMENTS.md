@@ -1,4 +1,4 @@
-# Sales Brief: business requirements
+# Nudge: business requirements
 
 This is the living record of what the product must do. It is updated every time a feature is added or changed (see the change log at the bottom). The code is expected to match this document.
 
@@ -27,8 +27,9 @@ Status: Done = built and tested. Pilot limit = works within the limit described.
 | P2 | Code is stored in the connected GitHub repository. | Done |
 | P3 | No LLM or AI service anywhere. All analysis is fixed rules and arithmetic. | Done |
 | P4 | Data stays confidential. Uploaded files, notes and deals are read and stored on the phone only (browser storage). Nothing is sent to a server. The page loads no outside scripts or fonts. | Done |
-| P5 | No login for the pilot. A row of salesperson tabs at the top switches between salespeople. The chat never asks "who are you". The first salesperson is selected by default and the choice is remembered. | Done |
-| P6 | Each salesperson sees only their own customers in the brief. | Pilot limit: with no login, anyone holding the file can tap another salesperson's tab. |
+| P5 | No login for the pilot. A dropdown in the header switches between salespeople. The chat never asks "who are you". The first salesperson is selected by default and the choice is remembered. | Done |
+| P7 | The product is called Nudge. The header shows only the orb, the name, the salesperson dropdown and the menu button (no status dot, no "private" label). | Done |
+| P6 | Each salesperson sees only their own customers in the brief. | Pilot limit: with no login, anyone holding the file can pick another salesperson from the dropdown. |
 
 ### 3.2 Uploading data
 
@@ -39,6 +40,8 @@ Status: Done = built and tested. Pilot limit = works within the limit described.
 | U3 | Word and PowerPoint files hold written account plans, strategy, marketing campaign plans and meeting notes. The app links each paragraph to customers by name and uses it in scoring and pitches. | Done |
 | U4 | Uploading a newer sales file adds to what is loaded; rows already loaded are skipped. | Done |
 | U5 | Sample data and sample Word and PowerPoint documents are provided for testing. | Done (`sample-data/`) |
+| U6 | Monthly targets come from an optional "Targets" sheet in the sales file: Salesperson, Month, Target. | Done |
+| U7 | Campaign terms come from an optional "Campaigns" sheet: Campaign, Segment, Category, Discount %, Minimum Spend, End Date, Description. Without the sheet, simple terms ("5% discount", "3% rebate", "buy 10 get 1 free", "until 31 December") are read from Word and PowerPoint text and marked as read from text. | Done |
 
 ### 3.3 Morning brief (main tab)
 
@@ -47,8 +50,12 @@ Status: Done = built and tested. Pilot limit = works within the limit described.
 | B1 | Simple, professional chat interface in the look of the reference screenshot (soft sky background, glass cards, dark pill buttons, floating bottom bar, assistant orb). | Done |
 | B8 | The brief opens with an executive summary: my revenue against last year, revenue at risk, the value of today's visits, customers ready to buy, and offers and renewals from the uploaded documents. | Done |
 | B9 | Replies do not appear instantly: thinking dots show first, then the words type out. Tapping the chat skips to the full text. People who switch off motion on their phone get instant text. | Done |
-| B10 | The bottom bar has no typing box: a scrolling row of suggestions, a "Record a visit note" button, upload and customer list buttons. | Done |
-| B2 | No free typing by the user. Everything is done with buttons. | Done (the only keyed entry is an optional exact deal amount on a number pad) |
+| B10 | The bottom bar has no typing box: a scrolling row of small, light suggestions, a "Record a visit note" button, upload and customer list buttons. | Done |
+| B13 | Home page: "Hey {name}, what can I do for you today?" with the target status and the main actions. The app opens here, and tapping the orb returns here from anywhere. | Done |
+| B14 | The orb shows the day's mood: green when month-to-date sales are at or above target pace, amber when behind. With no target it compares with last year. | Done |
+| B15 | Monthly target in the brief: how much is closed, how much more is needed and the days left, plus which customers to approach to close the gap, each with their usual order size and any offer that applies. Also available as "Close my gap". | Done |
+| B16 | "My brief" and "Revenue dashboard" are reached from the three-dots menu; there is no bottom tab bar. | Done |
+| B2 | Everything is done with buttons. Typing is allowed in two places only: a visit note (owner decision, 15 Nov 2026) and an optional exact deal amount. | Done |
 | B3 | Suggest the top 3 customers to visit each day, with reasons in plain English. | Done |
 | B4 | Show which customers are likely to close a deal. | Done |
 | B5 | Show which customers may churn. | Done |
@@ -64,7 +71,8 @@ Status: Done = built and tested. Pilot limit = works within the limit described.
 |---|---|---|
 | N1 | There is a .md file for each customer, holding performance, today's assessment with its working, the pitch, visit notes, deals and document excerpts. It can be viewed and downloaded (one file, or all as a .zip). | Done. Files are generated on the phone; examples are in `sample-data/customer-files/`. |
 | N2 | After a visit the salesperson records a note as keywords (tapped from a fixed list). | Done |
-| N3 | Notes can be recorded by voice. Spoken words are matched to the same keyword list. | Done. See risk R1. |
+| N3 | Notes can be recorded by voice or typed. The words are matched to the same keyword list, and the text is kept in the customer file. | Done. See risk R1. |
+| N5 | Campaigns are linked to customers: the pitch, brief and customer file say which campaign applies, whether the customer has used it, and how much they would save on a typical order. | Done |
 | N4 | Notes work together with the uploaded data and documents to customise the pitch for that customer. | Done |
 
 ### 3.5 Deals and management dashboard (second tab)
@@ -78,6 +86,7 @@ Status: Done = built and tested. Pilot limit = works within the limit described.
 | D6 | The Revenue tab opens with a typed manager brief: team revenue against last year, who needs help, biggest accounts at risk, deals logged in the last 7 days, and visit plan completion. It follows the salesperson filter. | Done |
 | D7 | Visit plan completion per salesperson (today and last 7 days) is shown on the Revenue tab. | Pilot limit: counts visits marked on this device only (see R2). |
 | D8 | Saving a deal plays a short celebration (confetti, the orb turns green). The revenue card uses a drawn sky-and-hills picture; no outside image is loaded. | Done |
+| D9 | The Revenue tab shows month-to-date sales against each salesperson's monthly target, with a marker for where sales should be today. | Done |
 | D5 | The dashboard updates with every closed deal. | Done on the phone where the deal was logged (see R2). |
 
 ## 4. How the model works
@@ -111,6 +120,12 @@ Lists: "Likely to close" and "May churn" show customers scoring 50 or more. A cu
 
 **Executive summary**: "At risk" is the sum of 12-month revenue of customers with a churn score of 50 or more. "Today's potential" is the sum of the usual order size of the top 3 visits. Offers and renewals are the first document paragraph with campaign or renewal wording linked to each of the top 3 customers.
 
+**Monthly target**: pace = target × day of month ÷ days in month. Ahead (green orb) when month-to-date sales ≥ pace, otherwise behind (amber). Gap = target − month-to-date sales.
+
+**Closing the gap**: active customers are ranked by close score × usual order size. They are added in that order until their usual order sizes add up to the gap, to a maximum of 5.
+
+**Campaigns**: a campaign applies when the customer's segment matches (or the campaign names the customer), and it has not ended. "Not used yet" means no purchase of the campaign's categories in the last 30 days. Saving = discount % × the customer's average order in those categories over the last 12 months (their overall average order if they have never bought the category; raised to the minimum spend if there is one). "Buy X get Y free" is treated as Y ÷ (X + Y). An unused campaign adds +10 to the close score.
+
 ## 5. Known limits and risks
 
 | ID | Item |
@@ -118,6 +133,8 @@ Lists: "Likely to close" and "May churn" show customers scoring 50 or more. A cu
 | R1 | Voice notes use the phone's built-in speech recognition. On some phones (for example Chrome on Android) the audio is processed by Google or Apple servers, which is outside the "nothing leaves the phone" rule. The app says so on the note screen, voice can be switched off under More, and keywords can always be tapped instead. |
 | R2 | Because data lives on each phone, notes and deals logged on one phone do not appear on another. Management sees deals logged on their own device plus whatever is in the uploaded sales file. A shared view needs a server (future decision). |
 | R3 | No login in the pilot, so the salesperson tabs and the management tab are not access controlled. |
+| R8 | Campaign terms read from Word or PowerPoint text use simple patterns and can miss unusual wording. The Campaigns sheet is the reliable source. Saving amounts are estimates based on typical order size. |
+| R9 | A typed note is stored as written in the customer file on the phone. Only the fixed keywords found in it affect scores. |
 | R7 | The assistant look and typing animation are presentation only. The text is produced instantly by fixed rules; no AI model is involved. The header says "Private, runs on this phone". |
 | R4 | Clearing browser data erases notes and deals. Customer files can be downloaded as a backup. |
 | R5 | The site code on GitHub Pages is public (including the invented sample data). Real business data is never part of the site. |
@@ -136,3 +153,4 @@ Lists: "Likely to close" and "May churn" show customers scoring 50 or more. A cu
 | 15 Nov 2026 | First version: upload, morning brief with top 3 visits, likely to close and may churn lists, auditable reasons, keyword and voice notes, tailored pitch, per-customer .md files, deal logging, management revenue dashboard, sample data. Decisions confirmed: data on the phone only; generic industry; incremental measured against the same period last year; deals from both app and uploads. |
 | 15 Nov 2026 | Redesign to the reference screenshot. Salesperson tabs replace the "who are you" question. Executive summary added to the morning brief. Thinking dots and typed-out replies with tap to skip. Typing box replaced by suggestion chips and a voice note button. Dashboard gets a hero card and can be filtered by salesperson. |
 | 15 Nov 2026 | Added: fixed daily visit plan with mark visited / skip with reason, end-of-day wrap-up, typed manager brief and visit plan completion on the Revenue tab, illustrated revenue card, deal celebration. Decisions confirmed: animation plays every time; salesperson tabs stay open to everyone in the pilot. |
+| 15 Nov 2026 | Renamed to Nudge. Header simplified (no status dot or "private" label). Salesperson tabs became a dropdown. Bottom tab bar removed; views are in the three-dots menu. Home page added, opened by the orb. Orb colour follows target pace. Monthly targets, gap to target and which customers to approach. Campaigns linked to customers with saving amounts. Visit notes can be typed. Suggestion chips made smaller and lighter. |

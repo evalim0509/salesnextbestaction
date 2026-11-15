@@ -108,6 +108,28 @@ for r in rows: ws.append(list(r))
 for row in ws.iter_rows(min_row=2, max_col=1):
     row[0].number_format = 'yyyy-mm-dd'
 for col, w in zip('ABCDEFGHIJK', [12, 12, 16, 12, 28, 12, 18, 18, 10, 10, 12]): ws.column_dimensions[col].width = w
+# Targets: each month of the current year = same month last year + 5%, rounded to 500
+from collections import defaultdict
+ly = defaultdict(float)
+for r in rows:
+    if r[0].year == END.year - 1: ly[(r[2], r[0].month)] += r[10]
+wt = wb.create_sheet('Targets'); wt.append(['Salesperson', 'Month', 'Target'])
+for c in wt[1]: c.font = Font(bold=True)
+for rep in REPS:
+    for m in range(1, 13):
+        t = round(ly[(rep, m)] * 1.05 / 500) * 500
+        if rep == 'Chloe Tan' and m == END.month:  # demo: one salesperson slightly ahead of pace, so the green orb can be seen
+            mtd = sum(r[10] for r in rows if r[2] == rep and r[0].year == END.year and r[0].month == m)
+            t = round(mtd * 1.9 / 500) * 500
+        wt.append([rep, f'{END.year}-{m:02d}', t])
+wc = wb.create_sheet('Campaigns'); wc.append(['Campaign', 'Segment', 'Category', 'Discount %', 'Minimum Spend', 'End Date', 'Description'])
+for c in wc[1]: c.font = Font(bold=True)
+wc.append(['Year-end Retail campaign', 'Retail', 'Consumables', 9, 0, dt.date(END.year, 12, 31), 'Buy 10 cases of Consumables, get 1 free'])
+wc.append(['Wholesale bundle rebate', 'Wholesale', 'Core Products + Accessories', 3, 2000, dt.date(END.year, 12, 31), 'Order Core Products and Accessories together for a 3% rebate at quarter end'])
+wc.append(['Premium Range launch offer', 'Corporate', 'Premium Range', 5, 0, dt.date(END.year, 12, 31), '5% introductory discount on Premium Range'])
+for row in wc.iter_rows(min_row=2, min_col=6, max_col=6): row[0].number_format = 'yyyy-mm-dd'
+for sh in (wt, wc):
+    for col in 'ABCDEFG': sh.column_dimensions[col].width = 24
 wb.save(os.path.join(OUT, 'sample_transactions.xlsx'))
 print(len(rows), 'transaction rows')
 

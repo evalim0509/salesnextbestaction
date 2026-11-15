@@ -1,11 +1,11 @@
-/* Sales Brief: the chat screen. Buttons only, no typing. All data stays in this browser. */
+/* Nudge: the chat screen. Buttons first; typing only for visit notes. All data stays in this browser. */
 (function () {
   'use strict';
   var NBA = window.NBA, Parsers = window.NBAParsers;
   var $ = function (s, r) { return (r || document).querySelector(s); };
   var chat = $('#chat'), dock = $('#dock'), sheet = $('#sheet'), fileInput = $('#file');
   var state = blank(), an = null, dashSp = null, view = 'brief';
-  function blank() { return { me: null, tx: [], docs: [], notes: [], deals: [], visits: [], plans: {}, files: [], settings: { currency: '$', voice: true } }; }
+  function blank() { return { me: null, tx: [], docs: [], notes: [], deals: [], visits: [], plans: {}, targets: [], campaigns: [], files: [], settings: { currency: '$', voice: true } }; }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
   function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
   function cur() { return state.settings.currency; }
@@ -32,7 +32,11 @@
     }
   };
   function save() { return DB.set(state); }
-  function refresh() { an = state.tx.length && state.me ? NBA.analyze(state, state.me) : null; }
+  function refresh() { an = state.tx.length && state.me ? NBA.analyze(state, state.me) : null; setMood(); }
+  function setMood() {
+    var app = $('#app'); if (!state.tx.length) { app.removeAttribute('data-mood'); return; }
+    var m = NBA.targetStatus(state, view === 'dash' ? dashSp : state.me).mood; if (m === 'calm') app.removeAttribute('data-mood'); else app.dataset.mood = m;
+  }
   function cust(cid) { return an && an.customers.filter(function (c) { return c.cid === cid; })[0]; }
 
   // ------------------------------------------------------------ chat primitives
@@ -116,26 +120,39 @@
 
   // ------------------------------------------------------------ flows
   function welcome() {
-    hurry(); chat.innerHTML = ''; dock.hidden = true; $('#people').hidden = true;
+    hurry(); chat.innerHTML = ''; dock.hidden = true; $('#who').hidden = true;
     var h = document.createElement('div'); h.className = 'hello fade';
     h.innerHTML = '<span class="orb"></span><h2>' + greeting() + '. Shall we plan your day?</h2><p>Upload your sales file and I will tell you who to visit, who is ready to buy and what to say.</p>' +
       acts([['upload', 'Upload my files', 'pri'], ['sample', 'Try with sample data', '']]) +
       '<p class="small" style="margin-top:14px">Your files are read on this phone only. Nothing is sent anywhere and no AI service is used.</p>';
     chat.appendChild(h);
   }
-  function renderPeople() {
-    var el = $('#people'), people = NBA.salespeople(state), dash = view === 'dash';
-    el.hidden = !people.length; if (!people.length) return;
-    var sel = dash ? dashSp : state.me;
-    el.innerHTML = (dash ? '<button role="tab" data-sp="" aria-selected="' + (sel === null) + '">All team</button>' : '') +
-      people.map(function (p) { return '<button role="tab" data-sp="' + esc(p) + '" aria-selected="' + (p === sel) + '">' + esc(p) + '</button>'; }).join('');
-    var on = el.querySelector('[aria-selected="true"]'); if (on && on.scrollIntoView) on.scrollIntoView({ inline: 'center', block: 'nearest' });
+  // Home: where the orb takes you
+  function home() {
+    if (!state.tx.length) { welcome(); return; }
+    if (view !== 'brief') tab('brief');
+    refresh(); hurry(); Q = Q.then(function () { chat.innerHTML = ''; turnStart = null; });
+    var ts = NBA.targetStatus(state, state.me), first = state.me.split(' ')[0];
+    var status = ts.hasTarget ? (ts.gap > 0 ? $$(ts.gap) + ' to go for your ' + ts.month + ' target, ' + (ts.ahead ? 'and you are on pace' : 'a little behind pace') : 'You have hit your ' + ts.month + ' target') : '';
+    var h = document.createElement('div'); h.className = 'hello fade';
+    h.innerHTML = '<span class="orb"></span><h2>Hey ' + esc(first) + ', what can I do for you today?</h2>' + (status ? '<p class="status">' + status + '</p>' : '') +
+      acts([['brief', 'Give me today\'s brief', 'pri']].concat(ts.hasTarget && ts.gap > 0 ? [['gap', 'How do I close my target gap?', '']] : []).concat([['close', 'Who is likely to close?', ''], ['churn', 'Who may churn?', ''], ['wrap', 'Wrap up my day', '']]));
+    Q.then(function () { chat.appendChild(h); chat.scrollTop = 0; });
   }
+  function renderPeople() {
+    var btn = $('#who'), people = NBA.salespeople(state), dash = view === 'dash';
+    btn.hidden = !people.length; if (!people.length) return;
+    var sel = dash ? dashSp : state.me;
+    $('#who-name').textContent = sel || 'All team';
+    $('#who-menu').innerHTML = (dash ? '<button role="option" data-sp="" aria-selected="' + (sel === null) + '">All team</button>' : '') +
+      people.map(function (p) { return '<button role="option" data-sp="' + esc(p) + '" aria-selected="' + (p === sel) + '">' + esc(p) + '</button>'; }).join('');
+  }
+  function whoMenu(open) { $('#who-menu').hidden = !open; $('#who').setAttribute('aria-expanded', !!open); }
   function askWho() { setMe(NBA.salespeople(state)[0]); }
   function setMe(name) {
     state.me = name; save(); refresh();
     dock.hidden = false; renderPeople();
-    clearChat(); brief();
+    home();
   }
   function greeting() { var h = new Date().getHours(); return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening'; }
 
@@ -190,6 +207,20 @@
     if (!L.top3.length) { bot('<p>You have no active customers in the uploaded data.</p>'); return; }
     bot('<p>' + (doneN ? 'Your plan for today: ' + doneN + ' of ' + P.length + ' visits accounted for.' : 'My recommendation: visit these ' + P.length + ' customers today, in this order.') + ' Tap one for the pitch.</p>');
     L.top3.forEach(visitCard);
+  }
+  function showGap() {
+    refresh(); if (!an) return;
+    var ts = NBA.targetStatus(state, state.me, { asOf: an.asOf });
+    if (!ts.hasTarget) { bot('<p>I do not have a monthly target for you yet. Add a “Targets” sheet to the sales file with three columns: Salesperson, Month and Target.</p>'); return; }
+    if (ts.gap <= 0) { bot('<p>You have already reached your ' + ts.month + ' target of ' + $$(ts.target) + ' with ' + $$(ts.mtd) + ' closed. Anything more is a bonus.</p>'); return; }
+    var g = NBA.closeGap(an, ts.gap);
+    bot('<h3>Closing your ' + ts.month + ' gap</h3><p>You have closed ' + $$(ts.mtd) + ' of ' + $$(ts.target) + '. You need <b>' + $$(ts.gap) + '</b> more in ' + ts.daysLeft + (ts.daysLeft === 1 ? ' day' : ' days') + '.</p>' +
+      '<p>These customers are your best chance. Their usual orders add up to ' + $$(g.covered) + (g.covered >= ts.gap ? ', enough to cover it.' : ', which covers ' + Math.round(100 * g.covered / ts.gap) + '% of the gap. Use the offers to lift order sizes.') + '</p>' +
+      '<div class="rowlist">' + g.picks.map(function (p) {
+        return '<button data-cid="' + esc(p.cid) + '"><span>' + esc(p.name) + '<span class="sub">About ' + $$(p.amount) + '. ' + esc(p.reason) + (p.offer ? ' Offer: ' + esc(p.offer.name) + ' saves them about ' + $$(p.offer.saving) + '.' : '') + '</span></span></button>';
+      }).join('') + '</div>' +
+      '<details class="audit"><summary>Show the calculation</summary><div class="factor"><span class="pts"></span><span>Target pace<code>' + esc(ts.tech) + '</code></span></div><div class="factor"><span class="pts"></span><span>Customer ranking<code>' + esc(g.tech) + '</code>' +
+      g.picks.map(function (p) { return '<code>' + esc(p.name) + ': close ' + p.close + ' × ' + $$(p.amount) + '</code>'; }).join('') + '</span></div></details>', 'wide');
   }
   function wrapUpDay() {
     refresh(); if (!an) return;
@@ -299,14 +330,22 @@
     var SR = window.SpeechRecognition || window.webkitSpeechRecognition, voice = SR && state.settings.voice;
     var h = '';
     if (voice) h += '<button class="mic" id="mic"><svg viewBox="0 0 24 24"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3zM5 11a7 7 0 0 0 14 0M12 18v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Speak your note</span></button>' +
-      '<div class="heard" id="heard" hidden></div><p class="small">I pick out the keywords below from what you say. Voice uses your phone\'s own speech service, which on some phones sends the audio to Apple or Google. For sensitive visits, tap the keywords instead.</p>';
+      '<div class="heard" id="heard" hidden></div><p class="small">I pick out the keywords below from what you say or type. Voice uses your phone\'s own speech service, which on some phones sends the audio to Apple or Google. For sensitive visits, tap the keywords instead.</p>';
     else if (!SR && state.settings.voice) h += '<p class="small">Voice notes are not available in this browser. Tap the keywords instead.</p>';
+    h += '<textarea class="typed" id="typed" rows="3" placeholder="Or type your note here" aria-label="Type your note"></textarea>';
     Object.keys(groups).forEach(function (g) { h += '<div class="group">' + g + '</div><div data-kw>' + chipsHTML(groups[g]) + '</div>'; });
     h += '<div class="group">Talked about</div><div data-cat>' + chipsHTML(an.categories.map(function (x) { return [x, x]; })) + '</div>';
     openSheet('Visit note: ' + c.name, h, '<button class="btn pri" id="save-note" disabled>Save note</button>');
     var body = $('#sheet-body'), saveBtn = $('#save-note'), transcript = '', rec = null;
     function sel(attr) { return [].map.call(body.querySelectorAll('[' + attr + '] .chip[aria-pressed="true"]'), function (b) { return b.dataset.k; }); }
-    function check() { saveBtn.disabled = !(sel('data-kw').length || sel('data-cat').length || transcript); }
+    var typed = $('#typed');
+    function check() { saveBtn.disabled = !(sel('data-kw').length || sel('data-cat').length || transcript || typed.value.trim()); }
+    function pickUp(text) {
+      var k = NBA.extractKeywords(text, an.categories);
+      k.keywords.forEach(function (id) { var b = body.querySelector('[data-kw] .chip[data-k="' + id + '"]'); if (b) b.setAttribute('aria-pressed', 'true'); });
+      k.cats.forEach(function (x) { [].forEach.call(body.querySelectorAll('[data-cat] .chip'), function (b) { if (b.dataset.k === x) b.setAttribute('aria-pressed', 'true'); }); });
+    }
+    typed.oninput = function () { pickUp(typed.value); check(); };
     body.onclick = function (e) {
       var ch = e.target.closest('.chip'); if (ch) { ch.setAttribute('aria-pressed', ch.getAttribute('aria-pressed') !== 'true'); check(); }
     };
@@ -335,10 +374,11 @@
     }
     saveBtn.onclick = function () {
       var before = { close: c.close, churn: c.churn };
-      var note = { id: uid(), cid: c.cid, ts: stamp(), keywords: sel('data-kw'), cats: sel('data-cat'), transcript: transcript };
+      var tv = typed.value.trim();
+      var note = { id: uid(), cid: c.cid, ts: stamp(), keywords: sel('data-kw'), cats: sel('data-cat'), transcript: [transcript, tv].filter(Boolean).join(' '), typed: !!tv && !transcript };
       state.notes.push(note); save(); closeSheet(); refresh(); autoVisited(c.cid);
       var n = cust(c.cid);
-      said('Note for ' + c.name + ': ' + (note.keywords.map(function (id) { return NBA.KW[id].label; }).concat(note.cats).join(', ') || 'spoken note'));
+      said('Note for ' + c.name + ': ' + (note.keywords.map(function (id) { return NBA.KW[id].label; }).concat(note.cats).join(', ') || (note.typed ? 'typed note' : 'spoken note')));
       var ch = [];
       if (n.close !== before.close) ch.push('Chance to close went from ' + before.close + ' to ' + n.close + ' out of 100.');
       if (n.churn !== before.churn) ch.push('Risk of losing them went from ' + before.churn + ' to ' + n.churn + ' out of 100.');
@@ -430,9 +470,10 @@
   function moreSheet() {
     var cs = ['$', '€', '£', 'RM', 'S$', '₹', 'Rp', '¥'];
     var when = NBA.asOfDate(state), nCust = {}; state.tx.forEach(function (t) { nCust[t.cid] = 1; });
-    openSheet('More',
+    openSheet('Menu',
+      '<div class="rowlist" style="margin:0 0 6px"><button data-act="tab-brief"><span>My brief</span>' + (view === 'brief' ? '<span class="tag">Open</span>' : '') + '</button><button data-act="tab-dash"><span>Revenue dashboard</span>' + (view === 'dash' ? '<span class="tag">Open</span>' : '') + '</button></div>' +
       '<div class="group">On this phone</div><p class="small" style="margin:0 0 8px">' + state.tx.length.toLocaleString() + ' sales rows for ' + Object.keys(nCust).length + ' customers, up to ' + (when.dataTo ? NBA.niceDate(when.dataTo) : 'n/a') + '. ' +
-      state.docs.length + ' document' + (state.docs.length === 1 ? '' : 's') + (state.docs.length ? ' (' + state.docs.map(function (d) { return esc(d.name); }).join(', ') + ')' : '') + '. ' + state.notes.length + ' visit notes. ' + state.deals.length + ' deals logged.</p>' +
+      state.targets.length + ' monthly targets. ' + state.campaigns.length + ' campaigns. ' + state.docs.length + ' document' + (state.docs.length === 1 ? '' : 's') + (state.docs.length ? ' (' + state.docs.map(function (d) { return esc(d.name); }).join(', ') + ')' : '') + '. ' + state.notes.length + ' visit notes. ' + state.deals.length + ' deals logged.</p>' +
       '<div class="rowlist"><button data-m="zip">Download all my customer files (.zip)</button><button data-m="sample">Load sample data</button></div>' +
       '<div class="group">Currency</div><div id="cur">' + chipsHTML(cs.map(function (x) { return [x, x]; }), [cur()]) + '</div>' +
       '<div class="group">Voice notes</div><div id="voice">' + chipsHTML([['on', 'On'], ['off', 'Off']], [state.settings.voice ? 'on' : 'off']) + '</div>' +
@@ -466,10 +507,14 @@
         var mg = NBA.mergeTx(state.tx, r.tx); state.tx = mg.tx; gotTx = true;
         var confirmed = NBA.confirmDeals(state, r.tx);
         Object.keys(state.plans).forEach(function (k) { var i = k.lastIndexOf('|'), sp = k.slice(0, i), d = k.slice(i + 1); if (!state.visits.some(function (v) { return v.sp === sp && v.date === d; })) delete state.plans[k]; });
+        if (r.targets && r.targets.length) { r.targets.forEach(function (t) { state.targets = state.targets.filter(function (x) { return !(x.sp === t.sp && x.month === t.month); }); state.targets.push(t); }); }
+        if (r.campaigns && r.campaigns.length) state.campaigns = r.campaigns;
+        var extra = (r.targets && r.targets.length ? ' ' + r.targets.length + ' monthly targets.' : '') + (r.campaigns && r.campaigns.length ? ' ' + r.campaigns.length + ' campaigns.' : '');
+        if (!r.tx.length) { lines.push('<li><b>' + esc(r.name) + '</b>:' + extra + '</li>'); return; }
         var ids = {}, min = r.tx[0].d, max = r.tx[0].d; r.tx.forEach(function (t) { ids[t.cid] = 1; if (t.d < min) min = t.d; if (t.d > max) max = t.d; });
         lines.push('<li><b>' + esc(r.name) + '</b>: ' + mg.added.toLocaleString() + ' new sales rows for ' + Object.keys(ids).length + ' customers, ' + NBA.niceDate(min) + ' to ' + NBA.niceDate(max) + '.' +
           (mg.duplicates ? ' ' + mg.duplicates.toLocaleString() + ' rows were already loaded and were skipped.' : '') + (r.skipped ? ' ' + r.skipped + ' rows had no date or amount and were left out.' : '') +
-          (confirmed ? ' ' + confirmed + ' deal' + (confirmed === 1 ? '' : 's') + ' you logged in the app ' + (confirmed === 1 ? 'is' : 'are') + ' now covered by this file.' : '') + '</li>');
+          (confirmed ? ' ' + confirmed + ' deal' + (confirmed === 1 ? '' : 's') + ' you logged in the app ' + (confirmed === 1 ? 'is' : 'are') + ' now covered by this file.' : '') + extra + '</li>');
       } else {
         state.docs = state.docs.filter(function (d) { return d.name !== r.doc.name; }); state.docs.push(r.doc);
         var custs = {}; state.tx.forEach(function (t) { custs[t.cid] = { cid: t.cid, name: t.cname, seg: t.seg }; });
@@ -503,6 +548,8 @@
         // move the sample forward in time so its newest sale is yesterday
         var tx = rs[0].tx, max = tx.reduce(function (m, t) { return t.d > m ? t.d : m; }, ''), shift = NBA.dayNum(NBA.todayISO()) - 1 - NBA.dayNum(max);
         tx.forEach(function (t) { t.d = NBA.addDays(t.d, shift); });
+        rs[0].targets.forEach(function (t) { t.month = NBA.addDays(t.month + '-15', shift).slice(0, 7); });
+        rs[0].campaigns.forEach(function (c) { if (c.end) c.end = NBA.addDays(c.end, shift); });
         state = blank(); dashSp = null; chat.innerHTML = ''; ingest(rs);
       })
       .catch(function () { wait.innerHTML = '<p>I could not load the sample files. Check your connection and try again.</p>'; });
@@ -518,7 +565,11 @@
     else if (name === 'customers') customersSheet();
     else if (name === 'more') moreSheet();
     else if (name === 'dash') tab('dash');
+    else if (name === 'home') home();
     else if (name === 'wrap') { said('Wrap up my day'); wrapUpDay(); }
+    else if (name === 'gap') { said('How do I close my target gap?'); showGap(); }
+    else if (name === 'tab-brief') { closeSheet(); tab('brief'); }
+    else if (name === 'tab-dash') { closeSheet(); tab('dash'); }
     else if (name === 'pitch') showPitch(cid);
     else if (name === 'why') showWhy(cid);
     else if (name === 'note') { if (cid) noteSheet(cid); else customersSheet('Visit note for which customer?', noteSheet); }
@@ -534,25 +585,26 @@
   });
   chat.addEventListener('pointerdown', hurry);
   document.addEventListener('click', function (e) { var b = e.target.closest('[data-act]'); if (b) act(b.dataset.act); });
-  $('#people').addEventListener('click', function (e) {
+  $('#who').addEventListener('click', function (e) { e.stopPropagation(); whoMenu($('#who-menu').hidden); });
+  document.addEventListener('click', function () { whoMenu(false); });
+  $('#who-menu').addEventListener('click', function (e) {
     var b = e.target.closest('[data-sp]'); if (!b) return;
-    if (view === 'dash') { dashSp = b.dataset.sp || null; renderPeople(); showDash(); }
+    if (view === 'dash') { dashSp = b.dataset.sp || null; renderPeople(); setMood(); showDash(); }
     else if (b.dataset.sp !== state.me) setMe(b.dataset.sp);
   });
+  $('#home').addEventListener('click', home);
   function tab(name) {
     var dash = name === 'dash'; view = name;
     $('#view-brief').hidden = dash; $('#view-dash').hidden = !dash;
-    $('#tab-brief').setAttribute('aria-selected', !dash); $('#tab-dash').setAttribute('aria-selected', dash);
-    renderPeople();
+    renderPeople(); setMood();
     if (dash) showDash();
   }
-  document.querySelector('.tabs').addEventListener('click', function (e) { var b = e.target.closest('[data-tab]'); if (b) tab(b.dataset.tab); });
 
   // ------------------------------------------------------------ start
   DB.get().then(function (s) {
-    if (s && s.tx) { state = s; state.settings = state.settings || { currency: '$', voice: true }; state.visits = state.visits || []; state.plans = state.plans || {}; }
+    if (s && s.tx) { state = s; state.settings = state.settings || { currency: '$', voice: true }; state.visits = state.visits || []; state.plans = state.plans || {}; state.targets = state.targets || []; state.campaigns = state.campaigns || []; }
     if (!state.tx.length) welcome();
     else if (!state.me) askWho();
-    else { dock.hidden = false; renderPeople(); brief(); }
+    else { dock.hidden = false; renderPeople(); home(); }
   });
 })();

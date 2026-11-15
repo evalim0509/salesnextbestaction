@@ -11,7 +11,22 @@ const ab = b => b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength);
   const p = await P.parseFile('sample_campaign_deck.pptx', ab(S('sample_campaign_deck.pptx')));
   assert.strictEqual(d.kind, 'doc'); assert.strictEqual(p.kind, 'doc'); assert(p.doc.paras.length >= 6);
 
-  const state = { tx: x.tx, docs: [d.doc, p.doc], notes: [], deals: [], settings: { currency: '$' } };
+  assert.strictEqual(x.targets.length, 36); assert.strictEqual(x.campaigns.length, 3);
+  const state = { tx: x.tx, docs: [d.doc, p.doc], notes: [], deals: [], targets: x.targets, campaigns: x.campaigns, settings: { currency: '$' } };
+  { // targets, gap and campaigns
+    const a = NBA.analyze(state, 'Aisha Rahman', { today: '2026-11-15' }), ts = NBA.targetStatus(state, 'Aisha Rahman', { today: '2026-11-15' });
+    assert(ts.hasTarget && ts.gap > 0 && ts.mood === 'behind', JSON.stringify(ts));
+    const g = NBA.closeGap(a, ts.gap); assert(g.picks.length >= 1 && g.picks.length <= 5);
+    const ex = NBA.execSummary(state, 'Aisha Rahman', a, { today: '2026-11-15' }); assert(ex.points.some(q => q.kind === 'gap' && /Approach/.test(q.text)));
+    const bh = a.customers.find(c => c.name === 'Blue Harbor Stores'); assert(bh.offer && bh.offer.name === 'Year-end Retail campaign' && bh.offer.saving > 0);
+    assert(NBA.buildPitch(bh, a).points.some(q => /have not used it yet/.test(q.text) && /save about \$/.test(q.text)));
+    assert(/Campaigns that apply/.test(NBA.customerMarkdown(bh, a)));
+    // text-only campaigns still give numbers when there is no Campaigns sheet
+    const a2 = NBA.analyze(Object.assign({}, state, { campaigns: [] }), 'Aisha Rahman', { today: '2026-11-15' }), b2 = a2.customers.find(c => c.name === 'Blue Harbor Stores');
+    assert(b2.offer && b2.offer.fromText && /buy 10 get 1 free/.test(b2.offer.mech), JSON.stringify(b2.campaigns));
+    console.log(ts, '\n', ex.points.filter(q => q.kind === 'target' || q.kind === 'gap'), '\n', NBA.campaignLine(bh.offer, '$'), '\n', NBA.campaignLine(b2.offer, '$'));
+    const nw = a.customers.find(c => c.name === 'Northwind Trading'); console.log(nw.campaigns);
+  }
   const today = '2026-11-15';
   assert.deepStrictEqual(NBA.salespeople(state), ['Aisha Rahman', 'Ben Carter', 'Chloe Tan']);
 

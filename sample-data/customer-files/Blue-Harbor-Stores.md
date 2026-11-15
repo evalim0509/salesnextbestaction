@@ -45,7 +45,7 @@
 | Points | In plain English | Technical trace | Source |
 |---:|---|---|---|
 | +10 | Most similar Retail customers buy Accessories, but they never have. | Accessories bought by 8 of 15 Retail customers in the last 12 months (≥ 50%), 0 purchases by this customer → +10 close | Sales data |
-| +10 | Your documents say a campaign or offer applies to them (sample_account_plans.docx). | document signals: campaign +10 = 10, capped at 20 → +10 close | Documents |
+| +10 | Your documents say the Year-end Retail campaign applies to them and they have not used it (sample_account_plans.docx). | document signals: campaign +10 = 10, capped at 20 → +10 close | Documents |
 
 ### Risk of losing them: 85 / 100
 
@@ -59,12 +59,18 @@
 
 Go in to listen first. Ask how things are going with their orders before you talk about products.
 
+- The Year-end Retail campaign applies to them and they have not used it yet. On a $633 order of Consumables they save about $58 (buy 10 get 1 free, worth about 9%). Valid until 31 Dec 2026. _(sample_account_plans.docx)_
 - They normally order every 14 days and it has been 50. Ask openly: “I noticed we have not had an order for a while. Did something change?” _(Sales data)_
 - Customers like them usually buy Accessories too. Introduce it as something similar Retail customers find useful. _(Sales data)_
-- Use the current offer: “Plan: visit every two weeks, offer the Consumables promotion, and review delivery times with the store manager.” _(sample_account_plans.docx)_
-- Use the current offer: “Campaign for all Retail customers: buy 10 cases of Consumables and get 1 case free, valid until 31 December. Salespeople can offer this promotion on the spot without approval.” _(sample_account_plans.docx)_
+- From the account plan: “Blue Harbor Stores is a key account in the Retail segment and a priority for retention this quarter.” _(sample_account_plans.docx)_
 
 **Ask:** Ask for one small order this week to get things moving again.
+
+## Campaigns that apply
+
+| Campaign | Status | Saving | Technical trace | Source |
+|---|---|---:|---|---|
+| Year-end Retail campaign | Not used yet, valid until 31 Dec 2026 | $58 on $633 | saving = 9.1% × $633 (their average order in Consumables, last 12 months); unused = no purchase of Consumables in the last 30 days; terms read from document text | sample_account_plans.docx |
 
 ## Visit notes
 

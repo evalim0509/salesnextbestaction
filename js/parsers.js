@@ -21,7 +21,7 @@
 
   function parseSheetFile(name, buf) {
     var wb = XLSX.read(new Uint8Array(buf), { type: 'array' });
-    var tx = [], skipped = 0, why = '';
+    var tx = [], skipped = 0, why = '', targets = [], campaigns = [];
     wb.SheetNames.forEach(function (sn) {
       var ws = wb.Sheets[sn]; if (!ws || !ws['!ref']) return;
       var first = XLSX.utils.decode_range(ws['!ref']);
@@ -32,11 +32,13 @@
         var rows = XLSX.utils.sheet_to_json(ws, { defval: '', raw: true, range: range });
         var res = NBA.normalizeRows(rows);
         if (res.ok) { tx = tx.concat(res.tx); skipped += res.skipped; return; }
+        var tg = NBA.normalizeTargets(rows); if (tg.length) { targets = targets.concat(tg); return; }
+        var cp = NBA.normalizeCampaigns(rows); if (cp.length) { campaigns = campaigns.concat(cp); return; }
         if (!why) why = res.reason;
       }
     });
-    if (!tx.length) return { kind: 'error', name: name, reason: (why || 'No sales rows found.') + ' A sales file needs at least Date, Customer and Amount columns.' };
-    return { kind: 'tx', name: name, tx: tx, skipped: skipped };
+    if (!tx.length && !targets.length && !campaigns.length) return { kind: 'error', name: name, reason: (why || 'No sales rows found.') + ' A sales file needs at least Date, Customer and Amount columns.' };
+    return { kind: 'tx', name: name, tx: tx, skipped: skipped, targets: targets, campaigns: campaigns };
   }
 
   function parseDocx(name, buf) {
