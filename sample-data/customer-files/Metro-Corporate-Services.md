@@ -74,6 +74,10 @@ Go in to listen first. Ask how things are going with their orders before you tal
 
 No notes yet.
 
+## What you know (context notes)
+
+No context notes yet.
+
 ## Deals logged in the app
 
 None yet.

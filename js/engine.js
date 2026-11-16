@@ -292,7 +292,7 @@
 
   // ---------------------------------------------------------------- analysis
   var RULES = {
-    staleDays: 14, lostDays: 180, lostRatio: 6, expiryDays: 7, stayingPts: 30, stayingDays: 30,
+    staleDays: 14, lostDays: 180, lostRatio: 6, expiryDays: 7, stayingPts: 30, stayingDays: 30, outcomeDays: 14, backtestWeeks: 12, tuneStep: 5, tuneMax: 10, tuneMinN: 20, tuneUp: 1.3, tuneDown: 0.9, tuneRestDays: 30,
     overdue: [[3, 45], [2, 35], [1.5, 20]],
     decline: [[-0.5, 30], [-0.25, 20], [-0.1, 8]],
     growth: [[0.25, 20], [0.1, 10]],
@@ -331,7 +331,7 @@
    */
   function analyze(state, me, opts) {
     opts = opts || {};
-    var cur = (state.settings && state.settings.currency) || '$';
+    var cur = (state.settings && state.settings.currency) || '$', TUNE = state.tuning || {};
     var when = asOfDate(state, opts.today); if (opts.asOf) when = { asOf: opts.asOf, stale: when.stale, dataTo: when.dataTo };
     var asOf = when.asOf, A = dayNum(asOf);
     var tx = allTx(state).filter(function (t) { return t.d <= asOf; });
@@ -381,14 +381,19 @@
 
     mine.forEach(function (c) {
       var F = []; // factors
-      function add(bucket, pts, plain, tech, src) { if (pts) F.push({ bucket: bucket, pts: pts, plain: plain, tech: tech, src: src || 'Sales data', label: factorLabel(plain) }); }
+      function add(bucket, pts, plain, tech, src) {
+        if (!pts) return; var label = factorLabel(plain), tn = bucket === 'close' && pts > 0 && TUNE[label];
+        if (tn && tn.delta) { pts = Math.max(1, pts + tn.delta); tech += '; tuned ' + (tn.delta > 0 ? '+' : '') + tn.delta + ' on ' + tn.date + ' from past outcomes, approved by a manager → ' + pts; }
+        F.push({ bucket: bucket, pts: pts, plain: plain, tech: tech, src: src || 'Sales data', label: label });
+      }
       var gap = c.gap || fallbackGap, gapNote = c.gap ? 'median gap between orders' : 'median gap of all customers (too few orders of their own)';
       var ratio = c.recency / gap;
       c.gapUsed = gap; c.ratio = ratio;
       c.trend = c.revPrev90 > 0 ? (c.rev90 - c.revPrev90) / c.revPrev90 : (c.rev90 > 0 ? 1 : 0);
       c.yoy = c.revPY > 0 ? (c.rev12 - c.revPY) / c.revPY : null;
       c.lost = c.recency > Math.max(RULES.lostDays, RULES.lostRatio * gap);
-      c.notes = (state.notes || []).filter(function (n) { return n.cid === c.cid; }).sort(function (a, b) { return a.ts < b.ts ? 1 : -1; });
+      c.notes = (state.notes || []).filter(function (n) { return n.cid === c.cid && n.type !== 'context'; }).sort(function (a, b) { return a.ts < b.ts ? 1 : -1; });
+      c.context = (state.notes || []).filter(function (n) { return n.cid === c.cid && n.type === 'context'; }).sort(function (a, b) { return a.ts < b.ts ? 1 : -1; });
       c.deals = (state.deals || []).filter(function (d) { return d.cid === c.cid; }).sort(function (a, b) { return a.ts < b.ts ? 1 : -1; });
       c.docs = snippets.filter(function (s) { return s.cids.indexOf(c.cid) >= 0; });
       c.segDocs = snippets.filter(function (s) { return !s.cids.length && s.tags.indexOf('campaign') >= 0 && (s.segs.indexOf(c.seg) >= 0 || (!s.segs.length && s.cats.some(function (k) { return c.cats[k]; }))); });
@@ -600,6 +605,7 @@
       if (!x.tech) x.tech = x.src === 'Visit notes' ? 'sentence chosen because your notes contain: ' + (kws.map(function (id) { return KW[id].label; }).join(', ') || 'no keywords') + ' (concerns kept ' + RULES.noteNegDays + ' days, buying signals ' + RULES.notePosDays + ' days)'
         : 'sentence chosen from: days since last order ' + c.recency + ', usual gap ' + every + ' days (ratio ' + c.ratio.toFixed(2) + '), 90-day spend change ' + pct(c.trend) + ', usual order ' + money(c.avgOrder, cur) + (c.peerGap.length ? ', category gap ' + c.peerGap[0] : '') + (c.lapsed.length ? ', lapsed ' + c.lapsed[0] : '');
     });
+    P.remember = c.context.length ? { text: shorten(c.context[0].transcript || '', 220), date: c.context[0].ts.slice(0, 10) } : null;
     P.openTech = 'opening and closing ask chosen by status “' + c.tag + '” (close ' + c.close + ', churn ' + c.churn + ')';
     if (has('quote') || has('budget_ok')) P.ask = 'Ask for the order today.';
     else if (c.tag === 'May churn' || c.tag === 'Watch' || c.lost) P.ask = 'Ask for one small order this week to get things moving again.';
@@ -663,6 +669,10 @@
       if (n.transcript) L.push('- ' + (n.typed ? 'Typed' : 'Spoken') + ' note: “' + n.transcript + '”');
       L.push('');
     });
+    L.push('## What you know (context notes)', '');
+    if (!c.context.length) L.push('No context notes yet.', '');
+    c.context.forEach(function (n) { L.push('- ' + niceDate(n.ts.slice(0, 10)) + ': ' + (n.transcript || '').replace(/\s+/g, ' ')); });
+    if (c.context.length) L.push('', 'Context notes are background knowledge. They do not change any score.', '');
     L.push('## Deals logged in the app', '');
     if (!c.deals.length) L.push('None yet.', '');
     else {
@@ -785,6 +795,7 @@
       R.sections.push({ heading: 'What to say', bullets: [p.open].concat(p.points.map(function (x) { return x.text; })).concat(['Ask: ' + p.ask]) });
       if (c.campaigns.length) R.sections.push({ heading: 'Campaigns that apply', bullets: c.campaigns.map(function (k) { return k.name + ': ' + (k.used ? 'already used in the last 30 days' : 'not used yet, saves about ' + money(k.saving, cur) + ' on ' + money(k.basis, cur)) + (k.end ? ', valid until ' + niceDate(k.end) : '') + '.'; }) });
       if (c.notes.length) R.sections.push({ heading: 'Recent visit notes', bullets: c.notes.slice(0, 3).map(function (n) { return niceDate(n.ts.slice(0, 10)) + ': ' + ((n.keywords || []).map(function (id) { return KW[id] ? KW[id].label : id; }).concat(n.cats || []).join(', ') || 'note') + (n.transcript ? ' (“' + shorten(n.transcript, 110) + '”)' : ''); }) });
+      if (c.context.length) R.sections.push({ heading: 'What you know', bullets: c.context.slice(0, 3).map(function (n) { return niceDate(n.ts.slice(0, 10)) + ': ' + shorten((n.transcript || '').replace(/\s+/g, ' '), 260); }) });
       R.audit = c.factors.map(function (f) { return [f.bucket, (f.pts > 0 ? '+' : '') + f.pts, f.tech, f.src]; });
       R.footer = 'Produced by Nudge from fixed rules on ' + R.date + '. No AI model was used. Not for sharing with the customer.';
     }
@@ -857,7 +868,7 @@
     var vis = (state.visits || []).filter(function (v) { return v.sp === me && v.date === day; });
     function st(cid) { return vis.filter(function (v) { return v.cid === cid; })[0]; }
     var deals = (state.deals || []).filter(function (d) { return d.sp === me && d.date === day; });
-    var noted = {}; (state.notes || []).forEach(function (n) { if (n.ts.slice(0, 10) === day && name[n.cid]) noted[n.cid] = 1; });
+    var noted = {}; (state.notes || []).forEach(function (n) { if (n.type !== 'context' && n.ts.slice(0, 10) === day && name[n.cid]) noted[n.cid] = 1; });
     var seen = {}; planCids.forEach(function (c) { var v = st(c); if (v && v.status === 'done') seen[c] = 1; }); deals.forEach(function (d) { seen[d.cid] = 1; });
     return {
       planned: planCids.length,
@@ -929,6 +940,53 @@
     return D;
   }
 
+  // ---------------------------------------------------------------- learning from outcomes
+  // Replays the rules on past dates and checks what really happened next, then proposes small changes for a manager to approve.
+  function ordered(rows, from, days) { var a = dayNum(from); return rows.some(function (t) { var n = dayNum(t.d); return t.amt > 0 && n > a && n <= a + days; }); }
+  function learning(state, sp, opts) {
+    opts = opts || {};
+    var asOf = asOfDate(state, opts.today).asOf, N = RULES.outcomeDays, A = dayNum(asOf), tx = allTx(state), by = {}, first = null;
+    tx.forEach(function (t) { (by[t.cid] = by[t.cid] || []).push(t); if (!first || t.d < first) first = t.d; });
+    var rows = [], weeks = 0;
+    for (var k = 0; k < RULES.backtestWeeks; k++) {
+      var D = fromDayNum(A - N - 7 * k); if (!first || dayNum(D) - dayNum(first) < 120) break;
+      var st = { tx: state.tx, docs: state.docs, campaigns: state.campaigns, targets: state.targets, settings: state.settings, tuning: {},
+        notes: (state.notes || []).filter(function (n) { return n.ts.slice(0, 10) <= D; }), deals: (state.deals || []).filter(function (d) { return d.date <= D; }), visits: (state.visits || []).filter(function (v) { return v.date <= D; }) };
+      analyze(st, sp || null, { asOf: D }).customers.forEach(function (c) {
+        if (c.lost) return;
+        rows.push({ d: D, cid: c.cid, close: c.close, churn: c.churn, hit: ordered(by[c.cid] || [], D, N), f: c.factors.filter(function (x) { return x.bucket === 'close' && x.pts > 0; }).map(function (x) { return [x.label, x.pts]; }) });
+      });
+      weeks++;
+    }
+    function rate(a) { return a.length ? a.filter(function (r) { return r.hit; }).length / a.length : 0; }
+    var T = RULES.listThreshold, base = rate(rows), hi = rows.filter(function (r) { return r.close >= T; }), rk = rows.filter(function (r) { return r.churn >= T; }), tune = state.tuning || {}, labels = {};
+    rows.forEach(function (r) { r.f.forEach(function (x) { var e = labels[x[0]] = labels[x[0]] || { label: x[0], rows: [], pts: [] }; e.rows.push(r); e.pts.push(x[1]); }); });
+    var factors = Object.keys(labels).map(function (l) {
+      var e = labels[l], rt = rate(e.rows), lift = base ? rt / base : 0, cur = (tune[l] || {}).delta || 0, step = 0;
+      var rested = !tune[l] || A - dayNum(tune[l].date) >= RULES.tuneRestDays; // one step at a time: wait before proposing again
+      if (rested && e.rows.length >= RULES.tuneMinN && l !== 'Your notes') { if (lift >= RULES.tuneUp && cur < RULES.tuneMax) step = RULES.tuneStep; else if (lift < RULES.tuneDown && cur > -RULES.tuneMax) step = -RULES.tuneStep; }
+      var pts = Math.round(median(e.pts));
+      return { label: l, n: e.rows.length, rate: rt, lift: lift, pts: pts, delta: cur, step: step, dismissed: !!(state.tuneDismissed || {})[l],
+        tech: e.rows.length + ' past flags; ' + Math.round(rt * 100) + '% ordered within ' + N + ' days against ' + Math.round(base * 100) + '% for all active customers = ' + lift.toFixed(2) + ' times; propose ' + (step ? (step > 0 ? '+' : '') + step : 'no change') + ' (needs ' + RULES.tuneMinN + '+ flags, ≥ ' + RULES.tuneUp + '× to raise, < ' + RULES.tuneDown + '× to lower, at most ±' + RULES.tuneMax + ' from the original, one step every ' + RULES.tuneRestDays + ' days)' };
+    }).sort(function (a, b) { return b.lift - a.lift; });
+    // live record: the visits Nudge actually suggested, and what followed
+    var live = { n: 0, hit: 0, visited: { n: 0, hit: 0 }, other: { n: 0, hit: 0 } };
+    Object.keys(state.plans || {}).forEach(function (key) {
+      var i = key.lastIndexOf('|'), name = key.slice(0, i), date = key.slice(i + 1);
+      if ((sp && name !== sp) || A - dayNum(date) < N) return;
+      state.plans[key].forEach(function (cid) {
+        var h = ordered(by[cid] || [], date, N), v = (state.visits || []).some(function (x) { return x.cid === cid && x.sp === name && x.date === date && x.status === 'done'; });
+        live.n++; if (h) live.hit++; var b = v ? live.visited : live.other; b.n++; if (h) b.hit++;
+      });
+    });
+    return { days: N, weeks: weeks, samples: rows.length, base: base, close: { n: hi.length, rate: rate(hi) }, risk: { n: rk.length, quiet: rk.length ? 1 - rate(rk) : 0 }, factors: factors, live: live,
+      applied: Object.keys(tune).map(function (l) { return { label: l, delta: tune[l].delta, date: tune[l].date }; }),
+      tech: 'rules replayed on ' + weeks + ' past dates, one week apart, ending ' + N + ' days before ' + asOf + ' (' + rows.length + ' customer-days); a hit is any order in the following ' + N + ' days; past dates use the sales known then, but today\'s documents and campaigns' };
+  }
+
+  // tone of a set of note keywords: used to colour the orb while the salesperson speaks or types
+  function tone(ids) { var t = 0; (ids || []).forEach(function (id) { var k = KW[id]; if (!k) return; t += id === 'staying' ? RULES.stayingPts : k.close - k.churn; }); return t > 0 ? 'pos' : t < 0 ? 'neg' : ''; }
+
   // An app-logged deal is "confirmed" (and no longer counted separately) once an uploaded
   // transaction for the same customer exists on or after the deal date.
   function confirmDeals(state, newTx) {
@@ -942,7 +1000,7 @@
 
   var api = {
     parseDate: parseDate, normalizeRows: normalizeRows, mergeTx: mergeTx, analyze: analyze, lists: lists, topReasons: topReasons,
-    normalizeTargets: normalizeTargets, normalizeCampaigns: normalizeCampaigns, targetStatus: targetStatus, closeGap: closeGap, campaignLine: campaignLine, expiring: expiring, weeklyDigest: weeklyDigest, accountReview: accountReview, execSummary: execSummary, visitStats: visitStats, wrapUp: wrapUp, managerSummary: managerSummary, buildPitch: buildPitch, customerMarkdown: customerMarkdown, fileName: fileName, dashboard: dashboard, confirmDeals: confirmDeals,
+    normalizeTargets: normalizeTargets, normalizeCampaigns: normalizeCampaigns, targetStatus: targetStatus, closeGap: closeGap, campaignLine: campaignLine, expiring: expiring, weeklyDigest: weeklyDigest, learning: learning, tone: tone, accountReview: accountReview, execSummary: execSummary, visitStats: visitStats, wrapUp: wrapUp, managerSummary: managerSummary, buildPitch: buildPitch, customerMarkdown: customerMarkdown, fileName: fileName, dashboard: dashboard, confirmDeals: confirmDeals,
     extractKeywords: extractKeywords, linkDocs: linkDocs, salespeople: salespeople, asOfDate: asOfDate,
     KEYWORDS: KEYWORDS, KW: KW, RULES: RULES, money: money, pct: pct, niceDate: niceDate, todayISO: todayISO, addDays: addDays, dayNum: dayNum, MONTHS: MONTHS
   };

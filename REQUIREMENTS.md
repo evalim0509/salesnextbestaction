@@ -80,6 +80,8 @@ Status: Done = built and tested. Pilot limit = works within the limit described.
 | B24 | Home page: the Upload, Insights, Export steps are a small, quiet row. | Done |
 | B25 | Menu wording: Export, Brief, Dashboard. No "use it like an app" section (the app can still be installed from the browser). | Done |
 
+| B26 | Each visit card carries a small coloured dot with an arrow and percentage: the customer's spend in the last 90 days against the 90 before (green up, red down, grey steady). | Done |
+
 ### 3.4 Customer notes and pitch
 
 | ID | Requirement | Status |
@@ -89,6 +91,10 @@ Status: Done = built and tested. Pilot limit = works within the limit described.
 | N3 | Notes can be recorded by voice or typed. The words are matched to the same keyword list, and the text is kept in the customer file. | Done. See risk R1. |
 | N6 | "Staying with us" keyword: the salesperson's judgement that a customer will not leave (tap, say or type, for example "won't churn", "staying", "renewed"). It takes 30 points off the risk score for 30 days, is shown as "Your judgement" in the audit trail, and fades unless an order arrives. | Done |
 | N7 | If a spoken or typed note matches no keyword, the note screen says so and asks the salesperson to tap one before saving; "Save anyway" keeps the text only. | Done |
+| N8 | Two ways to save a note. "Save for scores": keywords move the scores and the pitch. "Save as context": a longer note kept as background knowledge (a second brain), with no keyword matching and no effect on any score; it is not counted as a visit. | Done |
+| N9 | Context notes appear under "What you know" on the customer card, as a "Remember" line above "What to say", in the customer file and in internal exports. Never in the customer-facing one-pager. | Done |
+| N10 | While the salesperson speaks or types, the orb on the note screen turns green for good news and red for concerns, from the keywords found so far, with a one-line label. | Done (colour change tested with a simulated microphone) |
+| N11 | A voice note can be deleted and recorded again without leaving the note screen; keywords the recording switched on are cleared with it. | Done |
 | N5 | Campaigns are linked to customers: the pitch, brief and customer file say which campaign applies, whether the customer has used it, and how much they would save on a typical order. | Done |
 | N4 | Notes work together with the uploaded data and documents to customise the pitch for that customer. | Done |
 
@@ -118,6 +124,9 @@ Status: Done = built and tested. Pilot limit = works within the limit described.
 | D8 | Saving a deal plays a short celebration (confetti, the orb turns green). The revenue card uses a drawn sky-and-hills picture; no outside image is loaded. | Done |
 | D9 | The Revenue tab shows month-to-date sales against each salesperson's monthly target, with a marker for where sales should be today. | Done |
 | D10 | Manager weekly digest: the last 7 days against the 7 before (sales, target, visits done, deals logged), with expandable lists of biggest orders, accounts at risk, customers ready to buy and campaigns ending. On the Dashboard and exportable as PDF or Word. | Done (visits, deals and notes are those on this device) |
+| D11 | Outcome tracking: Nudge replays its rules on past weeks and checks who really ordered in the following 14 days. The Dashboard shows how often "ready to buy" customers ordered against the average, how often "at risk" customers stayed quiet, and each rule's record. | Done |
+| D12 | Self-improvement with approval: when a rule's customers order clearly more or less often than average, Nudge proposes raising or lowering its points by 5. Nothing changes unless a manager taps Apply. Each change is dated, shown in every affected score's audit trail, can be undone, and is limited to 10 points from the original with one step every 30 days. | Done |
+| D13 | For the visits Nudge actually suggested on this device, it records whether an order followed within 14 days, split by visited or not. | Done (results appear once suggestions are 14 days old) |
 | D5 | The dashboard updates with every closed deal. | Done on the phone where the deal was logged (see R2). |
 
 ## 4. How the model works
@@ -160,6 +169,10 @@ Lists: "Likely to close" and "May churn" show customers scoring 50 or more. A cu
 
 **Campaigns**: a campaign applies when the customer's segment matches (or the campaign names the customer), and it has not ended. "Not used yet" means no purchase of the campaign's categories in the last 30 days. Saving = discount % × the customer's average order in those categories over the last 12 months (their overall average order if they have never bought the category; raised to the minimum spend if there is one). "Buy X get Y free" is treated as Y ÷ (X + Y). An unused campaign adds +10 to the close score.
 
+**Learning from outcomes**: the rules are replayed on up to 12 past dates, one week apart, ending 14 days before today. A "hit" is any order in the 14 days after. A rule is proposed for +5 when its customers ordered at least 1.3 times as often as all active customers, and for -5 when below 0.9 times, with at least 20 past flags. Only rules that add to the chance-to-close score are tuned. Approved changes are stored as `tuning` and applied on top of `RULES`.
+
+**Trend dot**: revenue in the last 90 days against the previous 90; up at +10% or more, down at -10% or less.
+
 ## 5. Known limits and risks
 
 | ID | Item |
@@ -174,6 +187,9 @@ Lists: "Likely to close" and "May churn" show customers scoring 50 or more. A cu
 | R12 | Sharing a file hands it to another app chosen by the salesperson, so from that point it leaves the phone. Nudge itself still sends nothing. |
 | R13 | PDFs use a built-in font, so a few symbols are replaced with plain ones (for example the rupee sign becomes "Rs"). Non-Latin customer names will not print correctly in PDF; use Word for those. |
 | R14 | "Staying with us" is the salesperson's opinion, not data. It cannot take a customer's risk to zero on its own, it expires after 30 days, and managers can see it in the audit trail and the Excel export. |
+| R15 | The outcome check replays past sales but uses today's documents and campaigns, so it slightly flatters rules that depend on them. With little history (under about 6 months) there are too few past flags to propose anything. |
+| R16 | Tuning is stored on the phone where a manager approved it. Another phone keeps the original points until the same change is approved there. |
+| R17 | Context notes are free text and may hold sensitive remarks. They stay on the phone and in internal exports; salespeople should not write anything they would not want a colleague to read. |
 | R7 | The assistant look and typing animation are presentation only. The text is produced instantly by fixed rules; no AI model is involved. The header says "Private, runs on this phone". |
 | R4 | Clearing browser data erases notes and deals. Customer files can be downloaded as a backup. |
 | R5 | The site code on GitHub Pages is public (including the invented sample data). Real business data is never part of the site. |
@@ -196,3 +212,4 @@ Lists: "Likely to close" and "May churn" show customers scoring 50 or more. A cu
 | 15 Nov 2026 | Positioned as an independent app: upload → insights → export. Added exports (customer one-pager in two versions, brief, portfolio workbook, review deck), "How I got this" under every response, campaign expiry nudges, target ring around the orb, abstract shaded orb, install to home screen with offline use, and a comparison with Salesforce AI. |
 | 15 Nov 2026 | Added PDF export, the meeting pack (one-pagers for today's visits in one file), Share and Save buttons after every export, and a visibly animated orb. |
 | 16 Nov 2026 | Decluttered every reply: visuals first (tiles, meters, bars, spend line), sentences behind expanders. New customer card with + for notes, icons for file and export, Done for a closed deal. More visible orb states. Manager weekly digest. "Staying with us" keyword (-30 risk for 30 days) and a warning when a note matches no keyword. Menu renamed to Export, Brief, Dashboard; install hint removed; home steps made smaller. |
+| 16 Nov 2026 | Note screen: orb turns green or red with the tone of what is said, voice note can be deleted and re-recorded in place, and two save options (for scores, or as context). Context notes shown on the customer card, above "What to say" and in internal exports. Trend dot on visit cards. Outcome tracking with manager-approved tuning proposals on the Dashboard. |

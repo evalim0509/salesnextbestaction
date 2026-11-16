@@ -71,6 +71,10 @@ It has been a while. Go in to listen: ask how business is and what they use toda
 
 No notes yet.
 
+## What you know (context notes)
+
+No context notes yet.
+
 ## Deals logged in the app
 
 None yet.

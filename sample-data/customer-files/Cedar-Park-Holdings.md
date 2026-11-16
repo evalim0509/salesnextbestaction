@@ -74,6 +74,10 @@ Go in ready to take an order today.
 
 No notes yet.
 
+## What you know (context notes)
+
+No context notes yet.
+
 ## Deals logged in the app
 
 None yet.

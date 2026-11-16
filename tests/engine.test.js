@@ -63,6 +63,22 @@ const ab = b => b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength);
     assert(a.customers.every(c => NBA.buildPitch(c, a).points.every(q => q.title && q.title !== 'Talking point')));
     assert.strictEqual(bh.months12.length, 12); assert.strictEqual(bh.months12[11].key, '2026-11');
     const w = NBA.weeklyDigest(state, null, { today }); assert.strictEqual(w.tiles.length, 4); assert(w.sections.length === 4 && w.audit.length); console.log(w.tiles, w.sections[1]); }
+  // context notes, tone, learning from outcomes and tuning
+  { const a = NBA.analyze(state, 'Aisha Rahman', { today }), bh = a.customers.find(c => c.name === 'Blue Harbor Stores');
+    const st = Object.assign({}, state, { notes: [{ id: 'c1', cid: bh.cid, ts: today + 'T09:00:00', type: 'context', keywords: [], cats: [], transcript: 'Owner is unhappy about a competitor but his daughter takes over in January and prefers us.' }] });
+    const a2 = NBA.analyze(st, 'Aisha Rahman', { today }), b2 = a2.customers.find(c => c.cid === bh.cid);
+    assert.strictEqual(b2.churn, bh.churn); assert.strictEqual(b2.close, bh.close); assert.strictEqual(b2.priority, bh.priority, 'context is not a visit'); assert.strictEqual(b2.context.length, 1); assert.strictEqual(b2.notes.length, 0);
+    assert(NBA.buildPitch(b2, a2).remember.text.includes('daughter')); assert(/What you know/.test(NBA.customerMarkdown(b2, a2)));
+    assert(JSON.stringify(NBA.accountReview(b2, a2, 'internal')).includes('daughter')); assert(!JSON.stringify(NBA.accountReview(b2, a2, 'customer')).includes('daughter'));
+    assert.strictEqual(NBA.tone(['quote', 'happy']), 'pos'); assert.strictEqual(NBA.tone(['competitor', 'price']), 'neg'); assert.strictEqual(NBA.tone(['staying']), 'pos'); assert.strictEqual(NBA.tone([]), '');
+    const L = NBA.learning(state, null, { today }); assert(L.weeks >= 8 && L.samples > 200); assert(L.close.rate > L.base, 'ready-to-buy flags beat the baseline'); assert(L.factors.length >= 3);
+    console.log('LEARNING base', L.base.toFixed(2), 'close', L.close, 'risk', L.risk, L.factors.map(f => [f.label, f.n, f.rate.toFixed(2), f.lift.toFixed(2), f.pts, f.step]));
+    const up = L.factors.find(f => f.step > 0); assert(up, 'at least one proposal');
+    const tuned = Object.assign({}, state, { tuning: { [up.label]: { delta: up.step, date: today } } });
+    const before = NBA.analyze(state, null, { today }).customers.flatMap(c => c.factors).find(f => f.label === up.label && f.bucket === 'close');
+    const after = NBA.analyze(tuned, null, { today }).customers.flatMap(c => c.factors).find(f => f.label === up.label && f.bucket === 'close');
+    assert.strictEqual(after.pts, before.pts + up.step); assert(/tuned \+5/.test(after.tech));
+    const plans = { ['Aisha Rahman|' + NBA.addDays(today, -20)]: [bh.cid] }; assert.strictEqual(NBA.learning(Object.assign({}, state, { plans }), null, { today }).live.n, 1); }
   // visit plan, wrap-up and manager brief
   { const a = NBA.analyze(state, 'Aisha Rahman', { today }), plan = NBA.lists(a).top3.map(c => c.cid);
     const st = Object.assign({}, state, { plans: { ['Aisha Rahman|' + today]: plan }, visits: [{ cid: plan[0], sp: 'Aisha Rahman', date: today, status: 'done' }, { cid: plan[1], sp: 'Aisha Rahman', date: today, status: 'skipped', reason: 'Ran out of time' }] });

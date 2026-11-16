@@ -67,6 +67,10 @@ A friendly check-in. Thank them for the steady business and look for one new ide
 
 No notes yet.
 
+## What you know (context notes)
+
+No context notes yet.
+
 ## Deals logged in the app
 
 None yet.

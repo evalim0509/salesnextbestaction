@@ -7,3 +7,5 @@
 - Every chat reply must end with a `trail([...])` "How I got this" block. Customer-facing exports must never contain scores, risk labels or visit notes.
 - When a file the app loads is added or renamed, add it to `FILES` in `sw.js` and bump `CACHE`.
 - Replies must be glanceable: lead with tiles, meters or bars and at most a line or two of text; put sentences and calculations inside `more(...)` or `trail(...)` expanders.
+- Notes with `type: 'context'` are knowledge only: never score them, never count them as a visit, never put them in customer-facing exports.
+- The rules must never change themselves. Tuning comes only from `state.tuning`, which is written when a manager taps Apply.

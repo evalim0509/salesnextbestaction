@@ -5,7 +5,7 @@
   var $ = function (s, r) { return (r || document).querySelector(s); };
   var chat = $('#chat'), dock = $('#dock'), sheet = $('#sheet'), fileInput = $('#file');
   var state = blank(), an = null, dashSp = null, view = 'brief';
-  function blank() { return { me: null, tx: [], docs: [], notes: [], deals: [], visits: [], plans: {}, targets: [], campaigns: [], files: [], settings: { currency: '$', voice: true } }; }
+  function blank() { return { me: null, tx: [], docs: [], notes: [], deals: [], visits: [], plans: {}, tuning: {}, tuneDismissed: {}, targets: [], campaigns: [], files: [], settings: { currency: '$', voice: true } }; }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
   function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
   function cur() { return state.settings.currency; }
@@ -223,10 +223,15 @@
     openSheet('Skip ' + c.name + ' today?', '<div class="group">Why?</div><div class="rowlist" style="margin:0">' + reasons.map(function (r) { return '<button data-r="' + r + '">' + r + '</button>'; }).join('') + '</div>');
     $('#sheet-body').onclick = function (e) { var b = e.target.closest('[data-r]'); if (b) { closeSheet(); markVisit(cid, 'skipped', b.dataset.r); } };
   }
+  // small coloured dot: is this customer's spend rising, flat or falling (last 90 days against the 90 before)
+  function trendDot(c) {
+    var t = c.revPrev90 > 0 ? c.trend : 0, k = t >= 0.1 ? 'up' : t <= -0.1 ? 'down' : 'flat';
+    return '<span class="trend ' + k + '" title="Spend ' + (k === 'up' ? 'rising' : k === 'down' ? 'falling' : 'steady') + '"><i></i>' + (k === 'up' ? '▲ ' : k === 'down' ? '▼ ' : '') + (k === 'flat' ? 'steady' : Math.abs(Math.round(t * 100)) + '%') + '</span>';
+  }
   function visitCard(c, i) {
     var r = NBA.topReasons(c, 1)[0];
     var b = document.createElement('div'); b.className = 'visit fade';
-    b.innerHTML = '<button class="vmain" data-cid="' + esc(c.cid) + '"><span class="n">' + (i + 1) + '</span><span><span class="name">' + esc(c.name) + '</span>' + tag(c) +
+    b.innerHTML = '<button class="vmain" data-cid="' + esc(c.cid) + '"><span class="n">' + (i + 1) + '</span><span><span class="name">' + esc(c.name) + '</span>' + tag(c) + trendDot(c) +
       '<span class="why">' + esc(r ? r.plain : 'Worth a regular check-in.') + '</span></span>' +
       '<span class="arrow"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-6-6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button>' +
       '<div class="vfoot" data-visit="' + esc(c.cid) + '">' + footHTML(c.cid) + '</div>';
@@ -370,6 +375,33 @@
       '<div class="tiles two">' + D.tiles.map(function (t) { return '<div class="tile"><small>' + esc(t.label) + '</small><b>' + esc(t.value) + '</b><span class="' + (t.dir === 'up' ? 'delta up' : t.dir === 'down' ? 'delta down' : '') + '">' + (t.dir === 'up' ? '▲ ' : t.dir === 'down' ? '▼ ' : '') + esc(t.sub) + '</span></div>'; }).join('') + '</div>' +
       D.sections.map(function (s) { return more(s.heading, '<ul>' + s.bullets.map(function (b) { return '<li>' + esc(b) + '</li>'; }).join('') + '</ul>'); }).join('') + trail(D.audit);
     el.insertBefore(wk, card.nextSibling);
+    // how well the rules have been doing, and proposals a manager can approve
+    var Lr = NBA.learning(state, dashSp), lp = document.createElement('div'); lp.className = 'panel learn';
+    if (Lr.samples) {
+      var props = Lr.factors.filter(function (f) { return f.step && !f.dismissed; });
+      lp.innerHTML = '<h3>Is Nudge getting it right?</h3><p class="small">Checked against what customers did in the ' + Lr.days + ' days after each call.</p>' +
+        meter('Ready to buy', Math.round(Lr.close.rate * 100), 'go', Math.round(Lr.close.rate * 100) + '%') + meter('All customers', Math.round(Lr.base * 100), 'ink', Math.round(Lr.base * 100) + '%') +
+        '<p class="small">' + (Lr.close.n ? 'Customers flagged ready to buy ordered ' + (Lr.base ? (Lr.close.rate / Lr.base).toFixed(1) : '0') + ' times as often as the average customer.' : 'No ready-to-buy flags in the period checked.') +
+        (Lr.risk.n ? ' ' + Math.round(Lr.risk.quiet * 100) + '% of customers flagged at risk did stay quiet.' : '') + '</p>' +
+        (Lr.live.n ? tiles([['Visits suggested', String(Lr.live.n), Lr.days + '+ days ago'], ['Then ordered', Math.round(100 * Lr.live.hit / Lr.live.n) + '%', Lr.live.hit + ' of ' + Lr.live.n], ['When visited', Lr.live.visited.n ? Math.round(100 * Lr.live.visited.hit / Lr.live.visited.n) + '%' : 'n/a', Lr.live.visited.n + ' visits']]) : '<p class="small">Results for the visits Nudge suggests on this phone will appear here once they are ' + Lr.days + ' days old.</p>') +
+        props.map(function (f) {
+          return '<div class="prop" data-label="' + esc(f.label) + '" data-step="' + f.step + '"><p><b>' + esc(f.label) + '</b> ' + (f.step > 0 ? 'works better than its weight suggests' : 'is weaker than its weight suggests') + '. ' + (f.step > 0 ? 'Raise' : 'Lower') + ' it from ' + (f.pts + f.delta) + ' to ' + (f.pts + f.delta + f.step) + ' points?</p>' +
+            '<p class="small">' + f.n + ' past flags: ' + Math.round(f.rate * 100) + '% ordered within ' + Lr.days + ' days, against ' + Math.round(Lr.base * 100) + '% overall.</p><div class="acts"><button class="pri" data-tune="apply">Apply</button><button data-tune="dismiss">Dismiss</button></div></div>';
+        }).join('') +
+        (Lr.applied.length ? more('Changes applied (' + Lr.applied.length + ')', '<ul>' + Lr.applied.map(function (a) { return '<li><b>' + esc(a.label) + '</b>: ' + (a.delta > 0 ? '+' : '') + a.delta + ' points, ' + NBA.niceDate(a.date) + ' <button class="linkbtn" data-tune="undo" data-label="' + esc(a.label) + '">Undo</button></li>'; }).join('') + '</ul>') : '') +
+        more('Each rule\'s record', '<table class="dtable"><tr><th>Rule</th><th>Flags</th><th>Ordered</th><th>vs average</th></tr>' + Lr.factors.map(function (f) { return '<tr><td>' + esc(f.label) + '</td><td>' + f.n + '</td><td>' + Math.round(f.rate * 100) + '%</td><td>' + f.lift.toFixed(2) + '×</td></tr>'; }).join('') + '</table>') +
+        trail([['Method', Lr.tech]].concat(Lr.factors.map(function (f) { return [f.label, f.tech]; })).concat([['Control', 'nothing changes unless a manager taps Apply; each change is dated, shown in every affected score\'s trail, and can be undone']]));
+      wk.parentNode.insertBefore(lp, wk.nextSibling);
+      lp.addEventListener('click', function (e) {
+        var b = e.target.closest('[data-tune]'); if (!b) return; var box = b.closest('[data-label]'), label = box.dataset.label;
+        state.tuning = state.tuning || {}; state.tuneDismissed = state.tuneDismissed || {};
+        if (b.dataset.tune === 'apply') { var cur = (state.tuning[label] || {}).delta || 0; state.tuning[label] = { delta: cur + +box.dataset.step, date: NBA.todayISO() }; }
+        else if (b.dataset.tune === 'undo') { delete state.tuning[label]; delete state.tuneDismissed[label]; }
+        else state.tuneDismissed[label] = NBA.todayISO();
+        save(); refresh(); showDash();
+      });
+    }
+
     card.addEventListener('pointerdown', function () { fast = true; skippers.splice(0).forEach(function (f) { f(); }); });
     pause(900).then(function () {
       if (run !== dashRun) return;
@@ -397,6 +429,7 @@
     bot('<div data-cid="' + esc(c.cid) + '"><div class="chead"><div><h3>' + esc(c.name) + '</h3>' + tag(c) + '</div><button class="plus" data-do="note" aria-label="Add visit note">+</button></div>' +
       tiles([['Last order', c.recency === 0 ? 'Today' : c.recency + ' days', 'ago'], ['Usual order', $$(c.avgOrder), 'every ' + Math.round(c.gapUsed) + ' days'], ['12 months', $$(c.rev12), c.yoy == null ? '' : NBA.pct(c.yoy)]]) +
       (c.lost ? '' : meter('Chance to close', c.close, 'go') + meter('Risk of leaving', c.churn, 'risk')) + rhythm(c) + spark(c) +
+      (c.context.length ? more('What you know (' + c.context.length + ')', '<ul>' + c.context.slice(0, 5).map(function (n) { return '<li><b>' + NBA.niceDate(n.ts.slice(0, 10)) + '</b>: ' + esc(n.transcript) + '</li>'; }).join('') + '</ul>') : '') +
       acts([['pitch', 'What to say', 'pri'], ['why', 'Why this customer']]) +
       '<div class="iconrow"><button data-do="file" aria-label="Customer file" title="Customer file">' + ICON.file + '</button><button data-do="export1" aria-label="Export one-pager" title="Export one-pager">' + ICON.out + '</button><button class="done" data-do="deal" aria-label="Deal closed">' + ICON.check + 'Done</button></div></div>' +
       trail([['Tiles', 'last order ' + c.last + '; usual order = average of ' + c.nOrders + ' orders; 12-month revenue = sales from ' + NBA.addDays(an.asOf, -364) + ' to ' + an.asOf], ['Order rhythm', 'days since last order ' + c.recency + ' against median gap ' + Math.round(c.gapUsed) + ' (ratio ' + c.ratio.toFixed(2) + '); shaded band = due window ' + NBA.RULES.reorderWindow[0] + ' to ' + NBA.RULES.reorderWindow[1] + ' × gap'], ['Spend line', 'sales summed by calendar month, ' + c.months12[0].key + ' to ' + c.months12[11].key], ['Status “' + c.tag + '”', 'close ' + c.close + ', risk ' + c.churn + ', priority ' + c.priority]].concat(scoreTrail(c))), 'wide');
@@ -405,9 +438,10 @@
     var c = cust(cid); if (!c) return; said('What to say to ' + c.name);
     var p = NBA.buildPitch(c, an);
     bot('<h3>What to say</h3><p class="small">' + esc(c.name) + '</p>' +
+      (p.remember ? '<div class="remember"><small>Remember, from your note of ' + NBA.niceDate(p.remember.date) + '</small>' + esc(p.remember.text) + '</div>' : '') +
       p.points.map(function (x, i) { return '<details class="pt"><summary><b>' + (i + 1) + '</b>' + esc(x.title) + '</summary><p>' + esc(x.text) + '</p><span class="src">From: ' + esc(x.src) + '</span></details>'; }).join('') +
       '<div class="pitch-ask">' + esc(p.ask) + '</div>' + more('How to open', '<p>' + esc(p.open) + '</p>') +
-      trail([['Opening and ask', p.openTech]].concat(p.points.map(function (x, i) { return ['Point ' + (i + 1) + ' (' + x.src + ')', x.tech]; }))), 'wide');
+      trail([['Opening and ask', p.openTech]].concat(p.remember ? [['Remember', 'your latest context note, shown as written; it does not affect the points below']] : []).concat(p.points.map(function (x, i) { return ['Point ' + (i + 1) + ' (' + x.src + ')', x.tech]; }))), 'wide');
   }
   function showWhy(cid) {
     var c = cust(cid); if (!c) return; said('Why ' + c.name + '?');
@@ -434,35 +468,45 @@
     return '<div class="chips">' + items.map(function (k) { return '<button class="chip" aria-pressed="' + (sel && sel.indexOf(k[0]) >= 0) + '" data-k="' + esc(k[0]) + '">' + esc(k[1]) + '</button>'; }).join('') + '</div>';
   }
 
-  // ---- visit note: keywords by tap or by voice
+  // ---- visit note: speak, type or tap. Two ways to save: for the scores (keywords) or as context (knowledge only).
   function noteSheet(cid) {
     var c = cust(cid); if (!c) return;
     var groups = {}; NBA.KEYWORDS.forEach(function (k) { (groups[k.group] = groups[k.group] || []).push([k.id, k.label]); });
     var SR = window.SpeechRecognition || window.webkitSpeechRecognition, voice = SR && state.settings.voice;
-    var h = '';
-    if (voice) h += '<button class="mic" id="mic"><svg viewBox="0 0 24 24"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3zM5 11a7 7 0 0 0 14 0M12 18v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span class="orb xs"></span><span>Speak your note</span></button>' +
-      '<div class="heard" id="heard" hidden></div><p class="small">I pick out the keywords below from what you say or type. Voice uses your phone\'s own speech service, which on some phones sends the audio to Apple or Google. For sensitive visits, tap the keywords instead.</p>';
-    else if (!SR && state.settings.voice) h += '<p class="small">Voice notes are not available in this browser. Tap the keywords instead.</p>';
-    h += '<textarea class="typed" id="typed" rows="3" placeholder="Or type your note here" aria-label="Type your note"></textarea>';
+    var h = '<div class="tonebar"><span class="orb sm" id="note-orb"></span><span id="tone-text">Speak, type or tap. I will listen for good and bad news.</span></div>';
+    if (voice) h += '<button class="mic" id="mic"><svg viewBox="0 0 24 24"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3zM5 11a7 7 0 0 0 14 0M12 18v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Speak your note</span></button>' +
+      '<div class="heard" id="heard" hidden><p id="heard-text"></p><button class="linkbtn" id="redo">Delete and record again</button></div>';
+    else if (!SR && state.settings.voice) h += '<p class="small">Voice notes are not available in this browser.</p>';
+    h += '<textarea class="typed" id="typed" rows="3" placeholder="Or type your note here" aria-label="Type your note"></textarea>' +
+      (voice ? more('About voice and privacy', '<p>Voice uses your phone\'s own speech service, which on some phones sends the audio to Apple or Google. For sensitive visits, type or tap instead.</p>') : '');
     Object.keys(groups).forEach(function (g) { h += '<div class="group">' + g + '</div><div data-kw>' + chipsHTML(groups[g]) + '</div>'; });
     h += '<div class="group">Talked about</div><div data-cat>' + chipsHTML(an.categories.map(function (x) { return [x, x]; })) + '</div>';
-    openSheet('Visit note: ' + c.name, h, '<button class="btn pri" id="save-note" disabled>Save note</button>');
-    var body = $('#sheet-body'), saveBtn = $('#save-note'), transcript = '', rec = null;
+    openSheet('Visit note: ' + c.name, h, '<button class="btn" id="save-context" disabled>Save as context</button><button class="btn pri" id="save-note" disabled>Save for scores</button>');
+    var body = $('#sheet-body'), saveBtn = $('#save-note'), ctxBtn = $('#save-context'), typed = $('#typed'), panel = sheet.querySelector('.sheet-panel');
+    var transcript = '', rec = null, finalText = '', byVoice = {}; // chips switched on by the voice note, so deleting it can undo them
     function sel(attr) { return [].map.call(body.querySelectorAll('[' + attr + '] .chip[aria-pressed="true"]'), function (b) { return b.dataset.k; }); }
-    var typed = $('#typed');
-    function check() { saveBtn.disabled = !(sel('data-kw').length || sel('data-cat').length || transcript || typed.value.trim()); }
-    function pickUp(text) {
-      var k = NBA.extractKeywords(text, an.categories);
-      k.keywords.forEach(function (id) { var b = body.querySelector('[data-kw] .chip[data-k="' + id + '"]'); if (b) b.setAttribute('aria-pressed', 'true'); });
-      k.cats.forEach(function (x) { [].forEach.call(body.querySelectorAll('[data-cat] .chip'), function (b) { if (b.dataset.k === x) b.setAttribute('aria-pressed', 'true'); }); });
+    function text() { return [transcript, typed.value.trim()].filter(Boolean).join(' '); }
+    function check() {
+      var kws = sel('data-kw'), t = NBA.tone(kws);
+      saveBtn.disabled = !(kws.length || sel('data-cat').length || text()); ctxBtn.disabled = !text();
+      panel.dataset.tone = t; // colours the orb: green for good news, red for concerns
+      $('#tone-text').textContent = t === 'pos' ? 'Sounds like good news.' : t === 'neg' ? 'Sounds like a concern.' : kws.length ? 'Mixed: good and bad news balance out.' : text() ? 'No keyword picked up yet.' : 'Speak, type or tap. I will listen for good and bad news.';
+    }
+    function pickUp(t, fromVoice) {
+      var k = NBA.extractKeywords(t, an.categories);
+      function on(b) { if (b && b.getAttribute('aria-pressed') !== 'true') { b.setAttribute('aria-pressed', 'true'); if (fromVoice) byVoice[b.dataset.k] = b; } }
+      k.keywords.forEach(function (id) { on(body.querySelector('[data-kw] .chip[data-k="' + id + '"]')); });
+      k.cats.forEach(function (x) { [].forEach.call(body.querySelectorAll('[data-cat] .chip'), function (b) { if (b.dataset.k === x) on(b); }); });
     }
     typed.oninput = function () { pickUp(typed.value); check(); };
     body.onclick = function (e) {
-      var ch = e.target.closest('.chip'); if (ch) { ch.setAttribute('aria-pressed', ch.getAttribute('aria-pressed') !== 'true'); check(); }
+      var ch = e.target.closest('.chip'); if (ch) { ch.setAttribute('aria-pressed', ch.getAttribute('aria-pressed') !== 'true'); delete byVoice[ch.dataset.k]; check(); }
     };
+    var stop = function () {};
     if (voice) {
-      var mic = $('#mic'), heard = $('#heard'), finalText = '';
-      var stop = function () { if (rec) { try { rec.stop(); } catch (e) {} rec = null; } mic.classList.remove('on'); if ($('#app').dataset.state === 'listening') delete $('#app').dataset.state; mic.lastChild.textContent = transcript ? 'Speak again to add more' : 'Speak your note'; };
+      var mic = $('#mic'), heard = $('#heard'), heardText = $('#heard-text');
+      stop = function () { if (rec) { try { rec.stop(); } catch (e) {} rec = null; } mic.classList.remove('on'); panel.classList.remove('listening'); if ($('#app').dataset.state === 'listening') delete $('#app').dataset.state; mic.lastChild.textContent = transcript ? 'Speak again to add more' : 'Speak your note'; };
+      var hear = function (t) { transcript = t; heard.hidden = !t; heardText.textContent = t; pickUp(t, true); check(); };
       mic.onclick = function () {
         if (rec) { stop(); return; }
         try {
@@ -470,39 +514,52 @@
           rec.onresult = function (ev) {
             var interim = '';
             for (var i = ev.resultIndex; i < ev.results.length; i++) { if (ev.results[i].isFinal) finalText += ev.results[i][0].transcript + ' '; else interim += ev.results[i][0].transcript; }
-            transcript = (finalText + interim).trim(); heard.hidden = false; heard.textContent = transcript;
-            var k = NBA.extractKeywords(transcript, an.categories);
-            k.keywords.forEach(function (id) { var b = body.querySelector('[data-kw] .chip[data-k="' + id + '"]'); if (b) b.setAttribute('aria-pressed', 'true'); });
-            k.cats.forEach(function (x) { [].forEach.call(body.querySelectorAll('[data-cat] .chip'), function (b) { if (b.dataset.k === x) b.setAttribute('aria-pressed', 'true'); }); });
-            check();
+            hear((finalText + interim).trim());
           };
-          rec.onerror = function (ev) { heard.hidden = false; if (!transcript) heard.textContent = ev.error === 'not-allowed' ? 'Microphone is blocked. Allow it in your browser settings, or tap the keywords.' : 'I could not hear that. Try again, or tap the keywords.'; stop(); };
+          rec.onerror = function (ev) { if (!transcript) { heard.hidden = false; heardText.textContent = ev.error === 'not-allowed' ? 'Microphone is blocked. Allow it in your browser settings, or type instead.' : 'I could not hear that. Try again, or type instead.'; } stop(); };
           rec.onend = function () { rec = null; stop(); };
-          rec.start(); mic.classList.add('on'); $('#app').dataset.state = 'listening'; mic.lastChild.textContent = 'Listening… tap to stop';
+          rec.start(); mic.classList.add('on'); panel.classList.add('listening'); $('#app').dataset.state = 'listening'; mic.lastChild.textContent = 'Listening… tap to stop';
         } catch (e) { rec = null; }
       };
-      onClose = stop;
+      // delete the recording and start over, without leaving this screen
+      $('#redo').onclick = function () {
+        stop(); Object.keys(byVoice).forEach(function (k) { byVoice[k].setAttribute('aria-pressed', 'false'); }); byVoice = {};
+        transcript = ''; finalText = ''; heard.hidden = true; heardText.textContent = ''; mic.lastChild.textContent = 'Speak your note'; delete saveBtn.dataset.warned; saveBtn.textContent = 'Save for scores';
+        var w = body.querySelector('.warn-box'); if (w) w.remove(); check();
+      };
+      panel._test = { hear: hear }; // lets automated tests feed a transcript without a microphone
     }
+    onClose = function () { stop(); delete panel.dataset.tone; panel.classList.remove('listening'); };
+    check();
+
+    // save as context: longer notes kept as knowledge. No keyword matching, no effect on scores.
+    ctxBtn.onclick = function () {
+      var note = { id: uid(), cid: c.cid, ts: stamp(), type: 'context', keywords: [], cats: [], transcript: text(), typed: !transcript };
+      state.notes.push(note); save(); closeSheet(); refresh();
+      said('Context for ' + c.name);
+      var n = cust(c.cid).context.length;
+      bot('<p><b>Saved as context</b> for ' + esc(c.name) + '.</p><p class="small">' + n + (n === 1 ? ' context note' : ' context notes') + ' on file. Scores are unchanged, by design.</p>' +
+        more('What I will do with it', '<p>I show the latest context note as a reminder above “What to say”, list them under “What you know” on the customer card, and include them in the customer file and internal exports. They never go in the customer-facing one-pager.</p>') +
+        trail([['Stored', 'the text as written, dated ' + note.ts.slice(0, 10) + ', on this phone only'], ['Scores', 'context notes are not matched to keywords and are not counted as a visit, so close, risk and priority stay the same']]));
+    };
+    // save for scores: keywords move the scores and the pitch
     saveBtn.onclick = function () {
-      var said0 = (transcript + ' ' + typed.value).trim();
-      if (said0 && !sel('data-kw').length && !saveBtn.dataset.warned) {
+      if (text() && !sel('data-kw').length && !saveBtn.dataset.warned) {
         saveBtn.dataset.warned = 1; saveBtn.textContent = 'Save anyway';
-        var wn = document.createElement('p'); wn.className = 'warn-box'; wn.textContent = 'I did not pick up a keyword from that, so the scores will not move. Tap a keyword below if one fits, for example “Staying with us”.';
-        var firstGroup = body.querySelector('.group'); body.insertBefore(wn, firstGroup); body.classList.add('nudge-kw'); wn.scrollIntoView({ block: 'center' }); return;
+        var wn = document.createElement('p'); wn.className = 'warn-box'; wn.textContent = 'I did not pick up a keyword, so the scores will not move. Tap a keyword that fits, or use “Save as context” to keep this as background knowledge.';
+        body.insertBefore(wn, body.querySelector('.group')); body.classList.add('nudge-kw'); wn.scrollIntoView({ block: 'center' }); return;
       }
       var before = { close: c.close, churn: c.churn };
-      var tv = typed.value.trim();
-      var note = { id: uid(), cid: c.cid, ts: stamp(), keywords: sel('data-kw'), cats: sel('data-cat'), transcript: [transcript, tv].filter(Boolean).join(' '), typed: !!tv && !transcript };
+      var note = { id: uid(), cid: c.cid, ts: stamp(), keywords: sel('data-kw'), cats: sel('data-cat'), transcript: text(), typed: !transcript && !!typed.value.trim() };
       state.notes.push(note); save(); closeSheet(); refresh(); autoVisited(c.cid);
       var n = cust(c.cid);
       said('Note for ' + c.name + ': ' + (note.keywords.map(function (id) { return NBA.KW[id].label; }).concat(note.cats).join(', ') || (note.typed ? 'typed note' : 'spoken note')));
       var moved = n.close !== before.close || n.churn !== before.churn;
       var why = !note.keywords.length ? 'No keyword was picked, so the scores stay as they were. The note text is kept in the customer file.' : 'These keywords carry no points right now, or the score is already at its limit.';
-      var m = bot('<p><b>Saved</b> to ' + esc(c.name) + '.</p>' +
+      bot('<p><b>Saved</b> to ' + esc(c.name) + '.</p>' +
         (moved ? (n.close !== before.close ? meter('Chance to close', n.close, 'go', before.close + ' → ' + n.close) : '') + (n.churn !== before.churn ? meter('Risk of leaving', n.churn, 'risk', before.churn + ' → ' + n.churn) : '') : '<p class="small">Scores did not change.</p>' + more('Why not?', '<p>' + why + '</p>')) +
         '<div data-cid="' + esc(c.cid) + '">' + acts([['pitch', 'See updated pitch', 'pri full']]) + '</div>' +
         trail([['Keywords saved', note.keywords.map(function (id) { return id === 'staying' ? 'staying (risk −' + NBA.RULES.stayingPts + ' for ' + NBA.RULES.stayingDays + ' days)' : id + ' (close ' + NBA.KW[id].close + ', risk ' + NBA.KW[id].churn + ')'; }).join(', ') || 'none'], ['Scores', 'close ' + before.close + ' → ' + n.close + ', risk ' + before.churn + ' → ' + n.churn + '; note points are capped at ±' + NBA.RULES.notePosCap + ' (close) and ±' + NBA.RULES.noteNegCap + ' (risk)'], ['Text', note.transcript ? 'only the fixed keywords found in your words affect scores; the text itself is stored in the customer file' : '']]));
-      scroll(m);
     };
   }
   // In stale-data mode "today" for the model is the day after the newest sale, so notes and deals use that date.
@@ -734,7 +791,7 @@
 
   // ------------------------------------------------------------ start
   DB.get().then(function (s) {
-    if (s && s.tx) { state = s; state.settings = state.settings || { currency: '$', voice: true }; state.visits = state.visits || []; state.plans = state.plans || {}; state.targets = state.targets || []; state.campaigns = state.campaigns || []; }
+    if (s && s.tx) { state = s; state.settings = state.settings || { currency: '$', voice: true }; state.visits = state.visits || []; state.plans = state.plans || {}; state.tuning = state.tuning || {}; state.tuneDismissed = state.tuneDismissed || {}; state.targets = state.targets || []; state.campaigns = state.campaigns || []; }
     if (!state.tx.length) welcome();
     else if (!state.me) askWho();
     else { dock.hidden = false; renderPeople(); home(); }
