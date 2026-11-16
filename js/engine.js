@@ -192,6 +192,7 @@
   // close / churn are the points a keyword adds to each score. Fixed list: the app never interprets free text.
   var KEYWORDS = [
     { id: 'happy', label: 'Happy with us', group: 'Mood', close: 5, churn: -10, syn: ['happy', 'satisfied', 'pleased', 'went well', 'good meeting', 'great meeting'] },
+    { id: 'staying', label: 'Staying with us', group: 'Mood', close: 0, churn: 0, syn: ['staying', 'won t churn', 'wont churn', 'will not churn', 'not going to churn', 'no longer at risk', 'not leaving', 'won t leave', 'wont leave', 'will not leave', 'renewed', 'committed', 'loyal', 'sticking with us', 'staying with us'] },
     { id: 'unhappy', label: 'Unhappy', group: 'Mood', close: 0, churn: 15, syn: ['unhappy', 'not happy', 'upset', 'angry', 'frustrated', 'disappointed', 'annoyed'] },
     { id: 'interested', label: 'Interested', group: 'Buying signals', close: 15, churn: 0, syn: ['interested', 'keen', 'wants to buy', 'want to buy'] },
     { id: 'quote', label: 'Asked for a quote', group: 'Buying signals', close: 25, churn: 0, syn: ['quote', 'quotation', 'proposal', 'price list'] },
@@ -277,9 +278,21 @@
     return (i > 80 ? cut.slice(0, i + 1) : cut.slice(0, cut.lastIndexOf(' ')) + '…');
   }
 
+  // short names for factors and pitch points, so screens can show a few words first and the sentence on demand
+  var FLABELS = [[/^They usually order about every/, 'Overdue'], [/^Their spending is down/, 'Spending down'], [/^They are due to reorder/, 'Due to reorder'], [/^Their next order is coming/, 'Order coming up'],
+    [/^They are buying more/, 'Spending up'], [/^Most similar/, 'Category gap'], [/^Your visit notes/, 'Your notes'], [/^You told me they are staying/, 'Your judgement'], [/^Your documents flag/, 'Risk in documents'], [/^Your documents say/, 'Offer or renewal'],
+    [/^They are (one of your|a mid)/, 'Customer size'], [/^Your account plan/, 'Priority account'], [/^You were in touch/, 'Recently contacted'], [/^They have not ordered/, 'Inactive']];
+  function factorLabel(plain) { for (var i = 0; i < FLABELS.length; i++) if (FLABELS[i][0].test(plain)) return FLABELS[i][1]; return 'Other'; }
+  var PTITLES = [[/^Start with the delivery/, 'Fix the delivery issue'], [/^They complained about quality/, 'Address the quality complaint'], [/^They were unhappy/, 'Ask what would help'], [/^A competitor/, 'Counter the competitor'], [/^Price was a concern/, 'Talk value, not discount'],
+    [/^They asked for a quote/, 'Bring the quote'], [/^Their budget is approved/, 'Confirm the order'], [/^They wanted a sample/, 'Follow up the sample'], [/^They mentioned a bigger/, 'Offer a standing order'], [/^They are expanding/, 'Supply the new site'],
+    [/^They showed interest/, 'Pick up their interest'], [/^Their budget was cut/, 'Offer smaller orders'], [/^They said no/, 'Try a new angle'], [/^They told you they are staying/, 'Thank them for staying'], [/^They normally order every/, 'Ask why orders stopped'], [/^They normally reorder/, 'Ask for the reorder'],
+    [/^They used to buy/, 'Win back a category'], [/^Customers like them/, 'Introduce a new category'], [/^Their spending is up/, 'Propose a standing order'], [/^Their spending is down/, 'Ask about lost share'], [/^The .* applies to them/, 'Use the offer'],
+    [/^Use the current offer/, 'Use the current offer'], [/^Bring up the renewal/, 'Bring up the renewal'], [/^Be aware/, 'Be aware'], [/^From the account plan/, 'From the account plan'], [/^Ask what is coming up/, 'Ask about next month']];
+  function pointTitle(text) { for (var i = 0; i < PTITLES.length; i++) if (PTITLES[i][0].test(text)) return PTITLES[i][1]; return 'Talking point'; }
+
   // ---------------------------------------------------------------- analysis
   var RULES = {
-    staleDays: 14, lostDays: 180, lostRatio: 6, expiryDays: 7,
+    staleDays: 14, lostDays: 180, lostRatio: 6, expiryDays: 7, stayingPts: 30, stayingDays: 30,
     overdue: [[3, 45], [2, 35], [1.5, 20]],
     decline: [[-0.5, 30], [-0.25, 20], [-0.1, 8]],
     growth: [[0.25, 20], [0.1, 10]],
@@ -344,6 +357,7 @@
       var ot = Object.keys(orderTotals).map(function (k) { return orderTotals[k]; }).filter(function (x) { return x > 0; });
       return {
         cid: cid, name: last.cname, sp: last.sp, seg: last.seg, rows: rows,
+        months12: (function () { var m = [], y = +asOf.slice(0, 4), mo = +asOf.slice(5, 7); for (var k = 11; k >= 0; k--) { var d = new Date(Date.UTC(y, mo - 1 - k, 1)), key = d.getUTCFullYear() + '-' + pad(d.getUTCMonth() + 1); m.push({ key: key, label: MONTHS[d.getUTCMonth()], amt: sum(rows, function (t) { return t.d.slice(0, 7) === key ? t.amt : 0; }) }); } return m; })(),
         nOrders: days.length, first: rows[0].d, last: days.length ? fromDayNum(days[days.length - 1]) : last.d,
         recency: days.length ? A - days[days.length - 1] : 9999,
         gap: gaps.length >= 2 ? median(gaps) : null,
@@ -367,7 +381,7 @@
 
     mine.forEach(function (c) {
       var F = []; // factors
-      function add(bucket, pts, plain, tech, src) { if (pts) F.push({ bucket: bucket, pts: pts, plain: plain, tech: tech, src: src || 'Sales data' }); }
+      function add(bucket, pts, plain, tech, src) { if (pts) F.push({ bucket: bucket, pts: pts, plain: plain, tech: tech, src: src || 'Sales data', label: factorLabel(plain) }); }
       var gap = c.gap || fallbackGap, gapNote = c.gap ? 'median gap between orders' : 'median gap of all customers (too few orders of their own)';
       var ratio = c.recency / gap;
       c.gapUsed = gap; c.ratio = ratio;
@@ -463,6 +477,12 @@
           'note keywords in last ' + days + 'd: ' + ids.map(function (id) { return id + ' (' + (KW[id][field] > 0 ? '+' : '') + KW[id][field] + ')'; }).join(', ') + ' = ' + raw + ', capped at ±' + cap + ' → ' + (pts > 0 ? '+' : '') + pts + ' ' + bucket, 'Visit notes');
       }
       noteFactor('churn', neg, 'churn', RULES.noteNegCap, RULES.noteNegDays);
+      // the salesperson's own judgement that the customer is staying: counts for a limited time, shown separately
+      var stay = c.notes.filter(function (n) { return (n.keywords || []).indexOf('staying') >= 0 && A - dayNum(n.ts.slice(0, 10)) <= RULES.stayingDays && A - dayNum(n.ts.slice(0, 10)) >= 0; })[0];
+      c.staying = !!stay;
+      if (stay) { var sAge = A - dayNum(stay.ts.slice(0, 10));
+        add('churn', -RULES.stayingPts, 'You told me they are staying with you. I am trusting that for ' + (RULES.stayingDays - sAge) + ' more days; an order would confirm it.',
+          'note keyword “staying” saved ' + sAge + 'd ago ≤ ' + RULES.stayingDays + 'd → −' + RULES.stayingPts + ' churn (salesperson judgement, not sales data)', 'Your judgement'); }
       noteFactor('close', pos, 'close', RULES.notePosCap, RULES.notePosDays);
 
       // --- documents
@@ -549,6 +569,7 @@
     if (has('expanding')) pt('They are expanding. Ask what the new site needs and offer to supply it from day one.', 'Visit notes');
     if (has('interested') && lastNote && lastNote.cats && lastNote.cats.length) pt('They showed interest in ' + lastNote.cats.join(' and ') + '. Pick up where you left off.', 'Visit notes');
     if (has('budget_cut')) pt('Their budget was cut. Offer smaller, more frequent orders to protect their cash flow.', 'Visit notes');
+    if (c.staying) pt('They told you they are staying. Thank them, and agree the date of the next order so the commitment turns into a sale.', 'Visit notes');
     if (has('not_interested')) pt('They said no last time. Do not repeat the same offer; ask what has changed since.', 'Visit notes');
 
     if (c.offer) { var op = { text: campaignLine(c.offer, cur), src: c.offer.src, tech: c.offer.tech }; if (P.points.length >= 4) P.points[3] = op; else P.points.push(op); }
@@ -575,6 +596,7 @@
 
     P.points.forEach(function (x) {
       if (P.sources.indexOf(x.src) < 0) P.sources.push(x.src);
+      x.title = pointTitle(x.text);
       if (!x.tech) x.tech = x.src === 'Visit notes' ? 'sentence chosen because your notes contain: ' + (kws.map(function (id) { return KW[id].label; }).join(', ') || 'no keywords') + ' (concerns kept ' + RULES.noteNegDays + ' days, buying signals ' + RULES.notePosDays + ' days)'
         : 'sentence chosen from: days since last order ' + c.recency + ', usual gap ' + every + ' days (ratio ' + c.ratio.toFixed(2) + '), 90-day spend change ' + pct(c.trend) + ', usual order ' + money(c.avgOrder, cur) + (c.peerGap.length ? ', category gap ' + c.peerGap[0] : '') + (c.lapsed.length ? ', lapsed ' + c.lapsed[0] : '');
     });
@@ -874,6 +896,39 @@
     return out;
   }
 
+  // ---------------------------------------------------------------- manager weekly digest (last 7 days against the 7 before)
+  function weeklyDigest(state, sp, opts) {
+    opts = opts || {};
+    var an = analyze(state, sp || null, { today: opts.today }), cur = an.currency, A = dayNum(an.asOf), from = addDays(an.asOf, -6);
+    var tx = allTx(state).filter(function (t) { return !sp || t.sp === sp; });
+    function rev(a, b) { return sum(tx, function (t) { var n = dayNum(t.d); return n >= A - a && n <= A - b ? t.amt : 0; }); }
+    var wk = rev(6, 0), prev = rev(13, 7), ts = targetStatus(state, sp, { today: opts.today, asOf: an.asOf }), vs = visitStats(state, an.asOf, sp);
+    var deals = (state.deals || []).filter(function (d) { return (!sp || d.sp === sp) && A - dayNum(d.date) < 7 && A - dayNum(d.date) >= 0; });
+    var notes = (state.notes || []).filter(function (n) { var a = A - dayNum(n.ts.slice(0, 10)); return a >= 0 && a < 7 && an.customers.some(function (c) { return c.cid === n.cid; }); });
+    var byCust = {}; tx.forEach(function (t) { var n = dayNum(t.d); if (n >= A - 6 && n <= A) { var e = byCust[t.cid] = byCust[t.cid] || { name: t.cname, sp: t.sp, amt: 0 }; e.amt += t.amt; } });
+    var wins = Object.keys(byCust).map(function (k) { return byCust[k]; }).sort(function (a, b) { return b.amt - a.amt; }).slice(0, 3);
+    var live = an.customers.filter(function (c) { return !c.lost; });
+    var risks = live.filter(function (c) { return c.churn >= RULES.listThreshold; }).sort(function (a, b) { return b.rev12 - a.rev12; });
+    var ready = live.filter(function (c) { return c.close >= RULES.listThreshold; }).sort(function (a, b) { return b.close * b.avgOrder - a.close * a.avgOrder; });
+    var ex = expiring(an), owner = function (c) { return sp ? '' : ', ' + c.sp.split(' ')[0]; };
+    var D = { who: sp || 'All salespeople', period: niceDate(from) + ' to ' + niceDate(an.asOf), asOf: an.asOf, week: wk, prev: prev, change: prev ? (wk - prev) / prev : null, target: ts, visits: vs.week, deals: { n: deals.length, total: sum(deals, function (d) { return d.amt; }) }, notes: notes.length };
+    D.tiles = [
+      { label: 'Sales this week', value: money(wk, cur), sub: prev ? pct(D.change) + ' on the week before' : 'no sales the week before', dir: wk >= prev ? 'up' : 'down' },
+      { label: ts.hasTarget ? ts.month + ' target' : 'Target', value: ts.hasTarget ? Math.round(100 * ts.mtd / ts.target) + '%' : 'Not set', sub: ts.hasTarget ? (ts.gap > 0 ? money(ts.gap, cur) + ' to go, ' + (ts.ahead ? 'on pace' : 'behind pace') : 'reached') : 'add a Targets sheet', dir: ts.hasTarget ? (ts.ahead ? 'up' : 'down') : '' },
+      { label: 'Visits done', value: vs.week.planned ? vs.week.done + ' of ' + vs.week.planned : 'None planned', sub: vs.week.planned ? Math.round(100 * vs.week.done / vs.week.planned) + '% of plan' + (vs.week.skipped ? ', ' + vs.week.skipped + ' skipped' : '') : 'on this device', dir: '' },
+      { label: 'Deals logged', value: String(deals.length), sub: deals.length ? money(D.deals.total, cur) : 'in the app', dir: '' }
+    ];
+    D.sections = [
+      { heading: 'Biggest orders this week', bullets: wins.length ? wins.map(function (w) { return w.name + ': ' + money(w.amt, cur) + (sp ? '' : ' (' + w.sp.split(' ')[0] + ')'); }) : ['No sales recorded this week.'] },
+      { heading: 'Accounts at risk (' + risks.length + ')', bullets: risks.length ? risks.slice(0, 5).map(function (c) { return c.name + ': ' + money(c.rev12, cur) + ' a year, ' + c.recency + ' days since last order' + owner(c); }) : ['No account shows a strong sign of leaving.'] },
+      { heading: 'Ready to buy next week (' + ready.length + ')', bullets: ready.length ? ready.slice(0, 5).map(function (c) { return c.name + ': usual order ' + money(c.avgOrder, cur) + (c.offer ? ', offer: ' + c.offer.name : '') + owner(c); }) : ['No customer stands out as ready to buy.'] },
+      { heading: 'Campaigns ending soon (' + ex.length + ')', bullets: ex.length ? ex.map(function (k) { return k.name + ': ends in ' + k.daysLeft + ' days, ' + k.customers.length + ' eligible customers have not used it'; }) : ['No campaign ends in the next ' + RULES.expiryDays + ' days.'] }
+    ];
+    D.audit = [['Sales this week', 'sum of sales dated ' + from + ' to ' + an.asOf + ' = ' + money(wk, cur) + '; the 7 days before = ' + money(prev, cur)], ['Target', ts.tech], ['Visits', 'planned visits in the last 7 days and those marked done on this device: ' + vs.week.done + ' of ' + vs.week.planned],
+      ['Deals and notes', deals.length + ' deals and ' + notes.length + ' visit notes saved in the app in the last 7 days'], ['At risk / ready to buy', 'risk or close score of ' + RULES.listThreshold + ' or more on ' + an.asOf], ['Campaigns', 'unused, applicable campaigns ending within ' + RULES.expiryDays + ' days']];
+    return D;
+  }
+
   // An app-logged deal is "confirmed" (and no longer counted separately) once an uploaded
   // transaction for the same customer exists on or after the deal date.
   function confirmDeals(state, newTx) {
@@ -887,7 +942,7 @@
 
   var api = {
     parseDate: parseDate, normalizeRows: normalizeRows, mergeTx: mergeTx, analyze: analyze, lists: lists, topReasons: topReasons,
-    normalizeTargets: normalizeTargets, normalizeCampaigns: normalizeCampaigns, targetStatus: targetStatus, closeGap: closeGap, campaignLine: campaignLine, expiring: expiring, accountReview: accountReview, execSummary: execSummary, visitStats: visitStats, wrapUp: wrapUp, managerSummary: managerSummary, buildPitch: buildPitch, customerMarkdown: customerMarkdown, fileName: fileName, dashboard: dashboard, confirmDeals: confirmDeals,
+    normalizeTargets: normalizeTargets, normalizeCampaigns: normalizeCampaigns, targetStatus: targetStatus, closeGap: closeGap, campaignLine: campaignLine, expiring: expiring, weeklyDigest: weeklyDigest, accountReview: accountReview, execSummary: execSummary, visitStats: visitStats, wrapUp: wrapUp, managerSummary: managerSummary, buildPitch: buildPitch, customerMarkdown: customerMarkdown, fileName: fileName, dashboard: dashboard, confirmDeals: confirmDeals,
     extractKeywords: extractKeywords, linkDocs: linkDocs, salespeople: salespeople, asOfDate: asOfDate,
     KEYWORDS: KEYWORDS, KW: KW, RULES: RULES, money: money, pct: pct, niceDate: niceDate, todayISO: todayISO, addDays: addDays, dayNum: dayNum, MONTHS: MONTHS
   };

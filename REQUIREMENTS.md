@@ -72,6 +72,14 @@ Status: Done = built and tested. Pilot limit = works within the limit described.
 | B11 | Today's 3 visits are a fixed plan for the day. Each can be marked visited, or skipped with a reason picked from a list. Saving a note or deal for a planned customer marks it visited. A new sales upload refreshes a plan nobody has started. | Done |
 | B12 | End-of-day wrap-up ("Wrap up my day"): visits done, skipped and still open, deals closed today, notes saved and notes still missing, and tomorrow's likely visits. | Done |
 
+| B19 | Clean first glance: replies lead with visuals and a few words (tiles, score meters, target bar, order rhythm bar, 12-month spend line); sentences and explanations open on tap. | Done |
+| B20 | Morning brief layout: one headline, target bar, three tappable tiles (at risk, ready to buy, ending soon), collapsed "How to close the gap" and "Offers to use today", then the visit cards. | Done |
+| B21 | Customer card: a + button beside the name adds a visit note; only "What to say" and "Why this customer" are text buttons; customer file and export are icons; "Done" records a closed deal. | Done |
+| B22 | "What to say" shows short numbered titles; each opens to the full sentence and its source. "Why this customer" shows three meters and short factor names with points; each opens to the sentence and calculation. | Done |
+| B23 | Orb states are clearly visible: stronger colours and glow; a fast spin with a pulsing halo while thinking; violet with ripples while listening to a voice note; a green flash on a closed deal. | Done |
+| B24 | Home page: the Upload, Insights, Export steps are a small, quiet row. | Done |
+| B25 | Menu wording: Export, Brief, Dashboard. No "use it like an app" section (the app can still be installed from the browser). | Done |
+
 ### 3.4 Customer notes and pitch
 
 | ID | Requirement | Status |
@@ -79,6 +87,8 @@ Status: Done = built and tested. Pilot limit = works within the limit described.
 | N1 | There is a .md file for each customer, holding performance, today's assessment with its working, the pitch, visit notes, deals and document excerpts. It can be viewed and downloaded (one file, or all as a .zip). | Done. Files are generated on the phone; examples are in `sample-data/customer-files/`. |
 | N2 | After a visit the salesperson records a note as keywords (tapped from a fixed list). | Done |
 | N3 | Notes can be recorded by voice or typed. The words are matched to the same keyword list, and the text is kept in the customer file. | Done. See risk R1. |
+| N6 | "Staying with us" keyword: the salesperson's judgement that a customer will not leave (tap, say or type, for example "won't churn", "staying", "renewed"). It takes 30 points off the risk score for 30 days, is shown as "Your judgement" in the audit trail, and fades unless an order arrives. | Done |
+| N7 | If a spoken or typed note matches no keyword, the note screen says so and asks the salesperson to tap one before saving; "Save anyway" keeps the text only. | Done |
 | N5 | Campaigns are linked to customers: the pitch, brief and customer file say which campaign applies, whether the customer has used it, and how much they would save on a typical order. | Done |
 | N4 | Notes work together with the uploaded data and documents to customise the pitch for that customer. | Done |
 
@@ -107,6 +117,7 @@ Status: Done = built and tested. Pilot limit = works within the limit described.
 | D7 | Visit plan completion per salesperson (today and last 7 days) is shown on the Revenue tab. | Pilot limit: counts visits marked on this device only (see R2). |
 | D8 | Saving a deal plays a short celebration (confetti, the orb turns green). The revenue card uses a drawn sky-and-hills picture; no outside image is loaded. | Done |
 | D9 | The Revenue tab shows month-to-date sales against each salesperson's monthly target, with a marker for where sales should be today. | Done |
+| D10 | Manager weekly digest: the last 7 days against the 7 before (sales, target, visits done, deals logged), with expandable lists of biggest orders, accounts at risk, customers ready to buy and campaigns ending. On the Dashboard and exportable as PDF or Word. | Done (visits, deals and notes are those on this device) |
 | D5 | The dashboard updates with every closed deal. | Done on the phone where the deal was logged (see R2). |
 
 ## 4. How the model works
@@ -121,6 +132,7 @@ All thresholds live in one place: `RULES` in `js/engine.js`. Each score is 0 to 
 | Falling spend | revenue last 90 days vs previous 90 days ≤ -10% / -25% / -50% | +8 / +20 / +30 |
 | Note keywords (last 60 days) | Unhappy +15, Competitor offer +15, Quality complaint +12, Delivery issue +10, Budget cut +10, Price too high +8, Not interested +8, Payment issue +5, Happy with us -10 | capped at ±25 |
 | Documents | a linked paragraph uses risk wording | +10 |
+| Your judgement | a note with "Staying with us" in the last 30 days | -30 (outside the notes cap) |
 
 **Chance to close a deal**
 
@@ -161,6 +173,7 @@ Lists: "Likely to close" and "May churn" show customers scoring 50 or more. A cu
 | R11 | After an update to the site, an installed copy picks up the new version the next time it is opened with a connection. |
 | R12 | Sharing a file hands it to another app chosen by the salesperson, so from that point it leaves the phone. Nudge itself still sends nothing. |
 | R13 | PDFs use a built-in font, so a few symbols are replaced with plain ones (for example the rupee sign becomes "Rs"). Non-Latin customer names will not print correctly in PDF; use Word for those. |
+| R14 | "Staying with us" is the salesperson's opinion, not data. It cannot take a customer's risk to zero on its own, it expires after 30 days, and managers can see it in the audit trail and the Excel export. |
 | R7 | The assistant look and typing animation are presentation only. The text is produced instantly by fixed rules; no AI model is involved. The header says "Private, runs on this phone". |
 | R4 | Clearing browser data erases notes and deals. Customer files can be downloaded as a backup. |
 | R5 | The site code on GitHub Pages is public (including the invented sample data). Real business data is never part of the site. |
@@ -182,3 +195,4 @@ Lists: "Likely to close" and "May churn" show customers scoring 50 or more. A cu
 | 15 Nov 2026 | Renamed to Nudge. Header simplified (no status dot or "private" label). Salesperson tabs became a dropdown. Bottom tab bar removed; views are in the three-dots menu. Home page added, opened by the orb. Orb colour follows target pace. Monthly targets, gap to target and which customers to approach. Campaigns linked to customers with saving amounts. Visit notes can be typed. Suggestion chips made smaller and lighter. |
 | 15 Nov 2026 | Positioned as an independent app: upload → insights → export. Added exports (customer one-pager in two versions, brief, portfolio workbook, review deck), "How I got this" under every response, campaign expiry nudges, target ring around the orb, abstract shaded orb, install to home screen with offline use, and a comparison with Salesforce AI. |
 | 15 Nov 2026 | Added PDF export, the meeting pack (one-pagers for today's visits in one file), Share and Save buttons after every export, and a visibly animated orb. |
+| 16 Nov 2026 | Decluttered every reply: visuals first (tiles, meters, bars, spend line), sentences behind expanders. New customer card with + for notes, icons for file and export, Done for a closed deal. More visible orb states. Manager weekly digest. "Staying with us" keyword (-30 risk for 30 days) and a warning when a note matches no keyword. Menu renamed to Export, Brief, Dashboard; install hint removed; home steps made smaller. |

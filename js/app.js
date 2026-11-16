@@ -46,8 +46,8 @@
   var reduced = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
   var Q = Promise.resolve(), pending = 0, fast = false, turnStart = null, skippers = [];
   function enqueue(fn) {
-    pending++;
-    Q = Q.then(fn).catch(function () {}).then(function () { if (!--pending) { fast = false; follow(); } });
+    if (!pending++) $('#app').dataset.state = 'thinking';
+    Q = Q.then(fn).catch(function () {}).then(function () { if (!--pending) { fast = false; follow(); if ($('#app').dataset.state === 'thinking') delete $('#app').dataset.state; } });
     return Q;
   }
   function pause(ms) {
@@ -65,7 +65,7 @@
     if (target > chat.scrollTop) chat.scrollTop = target;
   }
   function scroll() {}
-  var ATOMIC = 'button, .tag, details, .acts, .rowlist, .pitch-ask, .src-line, table, svg';
+  var ATOMIC = 'button, .tag, details, .acts, .rowlist, .pitch-ask, .src-line, table, svg, .tiles, .tp, .mtr, .viz, .tbar, .chead, .iconrow, .delta';
   function typeOut(el) {
     if (fast || reduced) return Promise.resolve();
     var steps = [], words = 0;
@@ -121,6 +121,36 @@
     return '<details class="audit"><summary>How I got this</summary>' + rows.map(function (r) { return '<div class="factor nopts"><span>' + esc(r[0]) + '<code>' + esc(r[1]) + '</code></span></div>'; }).join('') + '</details>';
   }
   function scoreTrail(c) { return c.factors.map(function (f) { return [f.bucket + ' ' + (f.pts > 0 ? '+' : '') + f.pts + ' (' + f.src + ')', f.tech]; }); }
+  // ---- small visuals: a few words and a picture first, the sentence on demand
+  var ICON = {
+    file: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l5 5v13H7zM14 3v5h5M10 13h6M10 17h6" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round" stroke-linecap="round"/></svg>',
+    out: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4m0 0l-4 4m4-4l4 4M5 13v6h14v-6" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    check: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+  };
+  function meter(label, v, kind, note) { return '<div class="mtr"><span>' + label + '</span><div class="bar"><i class="' + kind + '" style="width:' + Math.max(2, Math.min(100, v)) + '%"></i></div><b>' + (note || v) + '</b></div>'; }
+  function tiles(list) { return '<div class="tiles">' + list.map(function (t) { return '<div class="tile"><small>' + esc(t[0]) + '</small><b>' + esc(t[1]) + '</b>' + (t[2] ? '<span>' + esc(t[2]) + '</span>' : '') + '</div>'; }).join('') + '</div>'; }
+  function more(label, html) { return '<details class="more"><summary>' + esc(label) + '</summary>' + html + '</details>'; }
+  function tbar(ts) {
+    if (!ts.hasTarget) return '';
+    var w = Math.min(100, Math.round(100 * ts.mtd / ts.target)), pace = Math.min(100, Math.round(100 * ts.pace / ts.target));
+    return '<div class="tbar"><div class="row"><span>' + ts.month + ' target</span><b>' + $$(ts.mtd) + ' of ' + $$(ts.target) + '</b></div><div class="bar"><i class="' + (ts.ahead ? 'go' : 'warn') + '" style="width:' + w + '%"></i><u style="left:' + pace + '%"></u></div>' +
+      '<div class="row small"><span>' + (ts.gap > 0 ? $$(ts.gap) + ' to go' : 'Target reached') + '</span><span>' + (ts.gap > 0 ? ts.daysLeft + ' days left, ' + (ts.ahead ? 'on pace' : 'behind pace') : '') + '</span></div></div>';
+  }
+  function rhythm(c) {
+    var gap = c.gapUsed, max = Math.max(gap * 2.2, c.recency * 1.15) || 1; function p(v) { return Math.min(100, 100 * v / max); }
+    return '<div class="viz"><div class="row small"><span>Order rhythm</span><span>' + c.recency + ' days, usually ' + Math.round(gap) + '</span></div>' +
+      '<div class="rh"><i style="left:' + p(gap * 0.8) + '%;width:' + (p(gap * 1.5) - p(gap * 0.8)) + '%"></i><u class="' + (c.ratio >= 1.5 ? 'risk' : c.ratio >= 0.8 ? 'go' : '') + '" style="left:' + p(c.recency) + '%"></u></div>' +
+      '<div class="row small faint"><span>Just ordered</span><span>Overdue</span></div></div>';
+  }
+  function spark(c) {
+    var m = c.months12, max = Math.max.apply(null, m.map(function (x) { return x.amt; })) || 1, W = 300, H = 54;
+    var pts = m.map(function (x, i) { return [4 + i * (W - 8) / 11, H - 6 - (x.amt / max) * (H - 14)]; });
+    var line = pts.map(function (q, i) { return (i ? 'L' : 'M') + q[0].toFixed(1) + ' ' + q[1].toFixed(1); }).join('');
+    return '<div class="viz"><div class="row small"><span>Spend, last 12 months</span><span>' + (c.yoy == null ? $$(c.rev12) : NBA.pct(c.yoy) + ' on the year before') + '</span></div>' +
+      '<svg class="spark" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" role="img" aria-label="Monthly spend over the last 12 months"><path d="' + line + 'L' + (W - 4) + ' ' + H + 'L4 ' + H + 'z" fill="rgba(42,120,214,.13)" stroke="none"/><path d="' + line + '" fill="none" stroke="#2a78d6" stroke-width="2" stroke-linejoin="round" vector-effect="non-scaling-stroke"/></svg>' +
+      '<div class="row small faint"><span>' + m[0].label + '</span><span>' + m[11].label + ' so far</span></div></div>';
+  }
+  function names(a) { return a.length <= 1 ? a.join('') : a.slice(0, -1).join(', ') + ' and ' + a[a.length - 1]; }
   function tagClass(t) { return t === 'Likely to close' || t === 'Good chance' ? 'go' : t === 'May churn' ? 'risk' : t === 'Watch' ? 'watch' : ''; }
   function tag(c) { return '<span class="tag ' + tagClass(c.tag) + '">' + c.tag + '</span>'; }
   function acts(list) {
@@ -203,36 +233,43 @@
     enqueue(function () { return pause(260).then(function () { chat.appendChild(b); follow(); }); });
     return b;
   }
-  // Executive summary: fixed sentence templates filled with today's numbers.
+  // Morning brief: headline, target bar, tappable tiles, then the visits. Sentences sit behind the tiles.
   function brief() {
     refresh(); if (!an) return;
-    var P = plan(), L = { top3: P }, first = state.me.split(' ')[0], ex = NBA.execSummary(state, state.me, an, { plan: P });
-    var doneN = P.filter(function (c) { return visitOf(c.cid); }).length;
-    var d = new Date(), dayName = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][d.getDay()];
-    bot('<h3>' + greeting() + ', ' + esc(first) + '</h3><p class="small">' + (an.stale ? 'Based on sales up to ' + NBA.niceDate(an.dataTo) : dayName + ', ' + NBA.niceDate(an.asOf)) + '. I went through ' +
-      an.customers.length + ' customers, ' + state.notes.length + ' visit notes and ' + state.docs.length + ' documents.</p>' +
-      '<p class="lead">' + esc(ex.headline) + '</p><ul class="facts">' + ex.points.map(function (x) { return '<li><b>' + esc(x.label) + '</b>' + esc(x.text) + '</li>'; }).join('') + '</ul>' +
-      trail([['Headline', ex.headlineTech]].concat(ex.points.map(function (x) { return [x.label, x.tech]; })).concat([['Sources', state.tx.length.toLocaleString() + ' sales rows up to ' + (an.dataTo || an.asOf) + ', ' + state.notes.length + ' notes, ' + state.docs.length + ' documents, ' + state.targets.length + ' targets, ' + state.campaigns.length + ' campaigns. Fixed rules, no AI model.']])), 'wide');
-    if (an.stale) bot('Your sales data stops on ' + NBA.niceDate(an.dataTo) + '. Upload a newer sales file for an up-to-date brief.', 'notice');
-    if (ex.offers.length) bot('<p><b>Offers and renewals to use today</b></p><ul>' + ex.offers.map(function (o) { return '<li><b>' + esc(o.name) + '</b>' + (o.renewal ? ' (renewal)' : '') + ': ' + esc(o.text) + '</li>'; }).join('') + '</ul>' + trail(ex.offers.map(function (o) { return [o.name + ' (' + o.doc + ')', o.tech]; })), 'wide');
-    if (!L.top3.length) { bot('<p>You have no active customers in the uploaded data.</p>'); return; }
-    bot('<p>' + (doneN ? 'Your plan for today: ' + doneN + ' of ' + P.length + ' visits accounted for.' : 'My recommendation: visit these ' + P.length + ' customers today, in this order.') + ' Tap one for the pitch.</p>' +
-      trail([['Order', 'top ' + P.length + ' active customers by visit priority = ' + NBA.RULES.wMain + ' × higher of close and risk score + ' + NBA.RULES.wOther + ' × lower + ' + NBA.RULES.wValue + ' × value percentile; fixed for the day when first shown']].concat(P.map(function (c) { return [c.name, 'priority ' + c.priority + ' (close ' + c.close + ', risk ' + c.churn + ', value percentile ' + c.valuePct + ')']; }))));
-    L.top3.forEach(visitCard);
+    var P = plan(), first = state.me.split(' ')[0], ex = NBA.execSummary(state, state.me, an, { plan: P }), ts = ex.target, L = NBA.lists(an);
+    var d = NBA.dashboard(state, { sp: state.me }), by = {}; ex.points.forEach(function (x) { (by[x.kind] = by[x.kind] || []).push(x.text); });
+    var risk$ = L.churn.reduce(function (a, c) { return a + c.rev12; }, 0), visit$ = P.reduce(function (a, c) { return a + c.avgOrder; }, 0);
+    var tl = [['risk', 'At risk', String(L.churn.length), L.churn.length ? $$(risk$) + ' a year' : 'none today', 'churn', 'See these customers'],
+      ['close', 'Ready to buy', String(L.close.length), L.close.length ? 'led by ' + L.close[0].name.split(' ').slice(0, 2).join(' ') : 'none today', 'close', 'See these customers']];
+    if (ex.expiring.length) tl.push(['expiry', 'Ending soon', String(ex.expiring.length), 'offer ends in ' + ex.expiring[0].daysLeft + ' days', '', '']);
+    else tl.push(['value', 'Today\'s visits', $$(visit$), 'usual orders', '', '']);
+    var html = '<h3>' + greeting() + ', ' + esc(first) + '</h3>' +
+      '<p class="lead">' + $$(d.ytd.cur) + ' this year' + (d.hasPrev ? ' <span class="delta ' + (d.ytd.inc >= 0 ? 'up' : 'down') + '">' + (d.ytd.inc >= 0 ? '▲ ' : '▼ ') + NBA.pct(d.ytd.pct).replace(/^[+-]/, '') + ' on last year</span>' : '') + '</p>' +
+      tbar(ts) +
+      '<div class="tiles tap">' + tl.map(function (t) { return '<button class="tile" data-tile="' + t[0] + '" aria-expanded="false"><small>' + t[1] + '</small><b>' + esc(t[2]) + '</b><span>' + esc(t[3]) + '</span></button>'; }).join('') + '</div>' +
+      tl.map(function (t) { return '<div class="tp" data-tp="' + t[0] + '" hidden><p>' + esc((by[t[0]] || ['Nothing to report here today.']).join(' ')) + '</p>' + (t[4] ? '<button class="linkbtn" data-do="' + t[4] + '">' + t[5] + '</button>' : '') + '</div>'; }).join('') +
+      (by.gap ? more('How to close the gap', '<p>' + esc(by.gap.join(' ')) + '</p><button class="linkbtn" data-do="gap">Show me who to approach</button>') : '') +
+      (ex.offers.length ? more('Offers to use today (' + ex.offers.length + ')', '<ul>' + ex.offers.map(function (o) { return '<li><b>' + esc(o.name) + '</b>' + (o.renewal ? ' (renewal)' : '') + ': ' + esc(o.text) + '</li>'; }).join('') + '</ul>') : '') +
+      (an.stale ? '<p class="small notice-line">Sales data stops on ' + NBA.niceDate(an.dataTo) + '. Upload a newer file for an up-to-date brief.</p>' : '') +
+      trail([['Headline', ex.headlineTech]].concat(ex.points.map(function (x) { return [x.label, x.tech]; })).concat(ex.offers.map(function (o) { return ['Offer: ' + o.name, o.tech]; }))
+        .concat([['Visit order', 'top ' + P.length + ' active customers by visit priority = ' + NBA.RULES.wMain + ' × higher of close and risk score + ' + NBA.RULES.wOther + ' × lower + ' + NBA.RULES.wValue + ' × value percentile; fixed for the day when first shown'],
+          ['Sources', state.tx.length.toLocaleString() + ' sales rows up to ' + (an.dataTo || an.asOf) + ', ' + state.notes.length + ' notes, ' + state.docs.length + ' documents, ' + state.targets.length + ' targets, ' + state.campaigns.length + ' campaigns. Fixed rules, no AI model.']]));
+    bot(html, 'wide');
+    if (!P.length) { bot('<p>No active customers in the uploaded data.</p>' + trail([['Rule', 'a customer is active if they ordered within ' + NBA.RULES.lostDays + ' days or ' + NBA.RULES.lostRatio + ' times their usual gap']])); return; }
+    P.forEach(visitCard);
   }
   function showGap() {
     refresh(); if (!an) return;
     var ts = NBA.targetStatus(state, state.me, { asOf: an.asOf });
-    if (!ts.hasTarget) { bot('<p>I do not have a monthly target for you yet. Add a “Targets” sheet to the sales file with three columns: Salesperson, Month and Target.</p>'); return; }
-    if (ts.gap <= 0) { bot('<p>You have already reached your ' + ts.month + ' target of ' + $$(ts.target) + ' with ' + $$(ts.mtd) + ' closed. Anything more is a bonus.</p>' + trail([['Target', ts.tech]])); return; }
-    var g = NBA.closeGap(an, ts.gap);
-    bot('<h3>Closing your ' + ts.month + ' gap</h3><p>You have closed ' + $$(ts.mtd) + ' of ' + $$(ts.target) + '. You need <b>' + $$(ts.gap) + '</b> more in ' + ts.daysLeft + (ts.daysLeft === 1 ? ' day' : ' days') + '.</p>' +
-      '<p>These customers are your best chance. Their usual orders add up to ' + $$(g.covered) + (g.covered >= ts.gap ? ', enough to cover it.' : ', which covers ' + Math.round(100 * g.covered / ts.gap) + '% of the gap. Use the offers to lift order sizes.') + '</p>' +
+    if (!ts.hasTarget) { bot('<p>No monthly target loaded yet.</p>' + more('How to add one', '<p>Add a sheet called “Targets” to the sales file with three columns: Salesperson, Month and Target.</p>') + trail([['Checked', 'no Targets row for ' + state.me + ' in ' + an.asOf.slice(0, 7)]])); return; }
+    if (ts.gap <= 0) { bot('<h3>Target reached</h3>' + tbar(ts) + trail([['Target', ts.tech]])); return; }
+    var g = NBA.closeGap(an, ts.gap), cover = Math.min(100, Math.round(100 * g.covered / ts.gap));
+    bot('<h3>Close the ' + ts.month + ' gap</h3>' + tbar(ts) + meter('These ' + g.picks.length + ' cover', cover, cover >= 100 ? 'go' : 'warn', cover + '%') +
       '<div class="rowlist">' + g.picks.map(function (p) {
-        return '<button data-cid="' + esc(p.cid) + '"><span>' + esc(p.name) + '<span class="sub">About ' + $$(p.amount) + '. ' + esc(p.reason) + (p.offer ? ' Offer: ' + esc(p.offer.name) + ' saves them about ' + $$(p.offer.saving) + '.' : '') + '</span></span></button>';
+        return '<button data-cid="' + esc(p.cid) + '"><span>' + esc(p.name) + (p.offer ? '<span class="sub">Offer saves them ' + $$(p.offer.saving) + '</span>' : '') + '</span><b>' + $$(p.amount) + '</b></button>';
       }).join('') + '</div>' +
-      '<details class="audit"><summary>How I got this</summary><div class="factor"><span class="pts"></span><span>Target pace<code>' + esc(ts.tech) + '</code></span></div><div class="factor"><span class="pts"></span><span>Customer ranking<code>' + esc(g.tech) + '</code>' +
-      g.picks.map(function (p) { return '<code>' + esc(p.name) + ': close ' + p.close + ' × ' + $$(p.amount) + '</code>'; }).join('') + '</span></div></details>', 'wide');
+      more('Why these customers', '<ul>' + g.picks.map(function (p) { return '<li><b>' + esc(p.name) + '</b>: ' + esc(p.reason || 'Regular buyer.') + (p.offer ? ' ' + esc(p.offer.name) + ' applies.' : '') + '</li>'; }).join('') + '</ul>') +
+      trail([['Target pace', ts.tech], ['Ranking', g.tech]].concat(g.picks.map(function (p) { return [p.name, 'close ' + p.close + ' × usual order ' + $$(p.amount)]; }))), 'wide');
   }
   // ---- step 3: export
   var ready = {};
@@ -267,11 +304,13 @@
       '<button data-x="pack"><span>Meeting pack<span class="sub">One-pagers for today\'s ' + plan().length + ' visits in a single file. Word, PDF or PowerPoint.</span></span></button>' +
       '<button data-x="brief"><span>Today\'s brief<span class="sub">Word or PDF. The morning brief for ' + esc(state.me) + ' with how each figure was worked out.</span></span></button>' +
       '<button data-x="book"><span>Portfolio workbook<span class="sub">Excel. Every customer of ' + esc(state.me) + ' with status, scores, reasons, campaigns, notes and deals.</span></span></button>' +
+      '<button data-x="digest"><span>Weekly digest<span class="sub">PDF or Word. The last 7 days for a manager: sales, target, visits, deals, risks.</span></span></button>' +
       '<button data-x="deck"><span>Review deck<span class="sub">PowerPoint for a sales meeting: ' + esc(team && !dashSp ? 'whole team' : (team ? dashSp : state.me)) + '.</span></span></button>' +
       (NBA.salespeople(state).length > 1 && !(team && !dashSp) ? '<button data-x="deckall"><span>Review deck, whole team<span class="sub">PowerPoint covering all salespeople.</span></span></button>' : '') + '</div>');
     $('#sheet-body').onclick = function (e) {
       var b = e.target.closest('[data-x]'); if (!b) return; var k = b.dataset.x;
       if (k === 'one') { customersSheet('One-pager for which customer?', onePagerSheet); return; }
+      if (k === 'digest') { digestExport(); return; }
       if (k === 'brief' || k === 'pack') { /* opens a format sheet */ } else { closeSheet(); if (view !== 'brief') tab('brief'); }
       if (k === 'brief') { formatSheet('Today\'s brief', '', [['docx', 'Word'], ['pdf', 'PDF']], function (f) { said('Export today\'s brief'); deliver(window.NBAExport.briefDoc(state, state.me, an, plan(), f), 'your brief'); }); return; }
       if (k === 'pack') { formatSheet('Meeting pack', versionHTML('internal'), [['pdf', 'PDF'], ['docx', 'Word'], ['pptx', 'PowerPoint']], function (f, v) { said('Meeting pack for today\'s visits' + (v === 'customer' ? '' : ' (internal)')); deliver(window.NBAExport.pack(plan(), an, v, f, state.me), 'the meeting pack'); }); verNote(); return; }
@@ -279,6 +318,10 @@
       if (k === 'deck') { said('Export the review deck'); deliver(window.NBAExport.deck(state, team ? dashSp : state.me), 'the review deck'); }
       if (k === 'deckall') { said('Export the team review deck'); deliver(window.NBAExport.deck(state, null), 'the team review deck'); }
     };
+  }
+  function digestExport() {
+    var sp = view === 'dash' ? dashSp : state.me;
+    formatSheet('Weekly digest', '', [['pdf', 'PDF'], ['docx', 'Word']], function (f) { said('Export the weekly digest'); deliver(window.NBAExport.digest(state, sp, f), 'the weekly digest'); });
   }
   function onePagerSheet(cid) {
     var c = cust(cid); if (!c) return;
@@ -290,17 +333,16 @@
   function wrapUpDay() {
     refresh(); if (!an) return;
     var P = plan(), w = NBA.wrapUp(state, state.me, an, P.map(function (c) { return c.cid; })), li = [];
-    function names(a) { return a.length <= 1 ? a.join('') : a.slice(0, -1).join(', ') + ' and ' + a[a.length - 1]; }
-    li.push('<li><b>Visits</b>' + (w.planned ? 'You visited ' + w.visited.length + ' of your ' + w.planned + ' planned customers' + (w.visited.length ? ': ' + esc(names(w.visited)) : '') + '.' : 'No visits were planned today.') +
-      w.skipped.map(function (x) { return ' Skipped ' + esc(x.name) + ' (' + esc(x.reason.toLowerCase()) + ').'; }).join('') +
-      (w.open.length ? ' Not marked yet: ' + esc(names(w.open.map(function (x) { return x.name; }))) + '.' : '') + '</li>');
-    li.push('<li><b>Deals</b>' + (w.deals.n ? 'You closed ' + w.deals.n + (w.deals.n === 1 ? ' deal' : ' deals') + ' worth ' + $$(w.deals.total) + ' today.' : 'No deals logged today.') + '</li>');
-    li.push('<li><b>Notes</b>' + (w.noted.length ? 'Saved for ' + esc(names(w.noted)) + '.' : 'No visit notes saved today.') +
-      (w.missingNotes.length ? ' Still missing for ' + esc(names(w.missingNotes.map(function (x) { return x.name; }))) + '. Add it while the visit is fresh.' : '') + '</li>');
+    if (w.visited.length) li.push('<li><b>Visited</b>' + esc(names(w.visited)) + '</li>');
+    w.skipped.forEach(function (x) { li.push('<li><b>Skipped</b>' + esc(x.name) + ' (' + esc(x.reason.toLowerCase()) + ')</li>'); });
+    if (w.open.length) li.push('<li><b>Not marked yet</b>' + esc(names(w.open.map(function (x) { return x.name; }))) + '</li>');
+    if (w.noted.length) li.push('<li><b>Notes saved</b>' + esc(names(w.noted)) + '</li>');
     var tm = NBA.lists(NBA.analyze(state, state.me, { asOf: NBA.addDays(an.asOf, 1) })).top3;
-    if (tm.length) li.push('<li><b>Tomorrow</b>Likely visits: ' + esc(names(tm.map(function (c) { return c.name; }))) + '.</li>');
-    bot('<h3>Your day, ' + esc(state.me.split(' ')[0]) + '</h3><ul class="facts">' + li.join('') + '</ul>' +
-      (w.missingNotes.length ? '<div class="acts">' + w.missingNotes.slice(0, 3).map(function (x) { return '<button class="full" data-do="note" data-for="' + esc(x.cid) + '">Add note for ' + esc(x.name) + '</button>'; }).join('') + '</div>' : '') +
+    if (tm.length) li.push('<li><b>Tomorrow\'s likely visits</b>' + esc(names(tm.map(function (c) { return c.name; }))) + '</li>');
+    bot('<h3>Your day, ' + esc(state.me.split(' ')[0]) + '</h3>' +
+      tiles([['Visits', w.visited.length + ' of ' + w.planned, w.skipped.length ? w.skipped.length + ' skipped' : w.open.length ? w.open.length + ' open' : 'all done'], ['Deals', String(w.deals.n), w.deals.n ? $$(w.deals.total) : 'none logged'], ['Notes', String(w.noted.length), w.missingNotes.length ? w.missingNotes.length + ' missing' : 'up to date']]) +
+      (w.missingNotes.length ? '<div class="acts">' + w.missingNotes.slice(0, 3).map(function (x) { return '<button class="full" data-do="note" data-for="' + esc(x.cid) + '">+ Note for ' + esc(x.name) + '</button>'; }).join('') + '</div>' : '') +
+      (li.length ? more('Details', '<ul class="facts">' + li.join('') + '</ul>') : '') +
       trail([['Visits', 'today\'s plan of ' + w.planned + ' against visits marked on this phone for ' + an.asOf], ['Deals', 'deals logged in the app dated ' + an.asOf + ', summed'], ['Notes', 'notes saved today; “missing” = visited or closed a deal today with no note'], ['Tomorrow', 'the same visit priority ranking, calculated for ' + NBA.addDays(an.asOf, 1) + ' (customers contacted in the last ' + NBA.RULES.visitedDays + ' days are held back)']]), 'wide');
   }
   function celebrate() {
@@ -322,10 +364,17 @@
     var m = NBA.managerSummary(state, dashSp), card = document.createElement('div'); card.className = 'panel mbrief';
     card.innerHTML = '<div class="typing"><span class="orb xs"></span><span class="dots"><i></i><i></i><i></i></span></div>';
     el.insertBefore(card, el.firstChild);
+    // this week, at a glance
+    var D = NBA.weeklyDigest(state, dashSp), wk = document.createElement('div'); wk.className = 'panel digest';
+    wk.innerHTML = '<div class="row"><h3>This week</h3><button class="linkbtn" data-act="digest">Export</button></div><p class="small">' + esc(D.period) + '</p>' +
+      '<div class="tiles two">' + D.tiles.map(function (t) { return '<div class="tile"><small>' + esc(t.label) + '</small><b>' + esc(t.value) + '</b><span class="' + (t.dir === 'up' ? 'delta up' : t.dir === 'down' ? 'delta down' : '') + '">' + (t.dir === 'up' ? '▲ ' : t.dir === 'down' ? '▼ ' : '') + esc(t.sub) + '</span></div>'; }).join('') + '</div>' +
+      D.sections.map(function (s) { return more(s.heading, '<ul>' + s.bullets.map(function (b) { return '<li>' + esc(b) + '</li>'; }).join('') + '</ul>'); }).join('') + trail(D.audit);
+    el.insertBefore(wk, card.nextSibling);
     card.addEventListener('pointerdown', function () { fast = true; skippers.splice(0).forEach(function (f) { f(); }); });
     pause(900).then(function () {
       if (run !== dashRun) return;
-      card.innerHTML = '<p class="small">Manager brief</p><p class="lead">' + esc(m.headline) + '</p><ul class="facts">' + m.points.map(function (x) { return '<li><b>' + esc(x.label) + '</b>' + esc(x.text) + '</li>'; }).join('') + '</ul>' +
+      card.innerHTML = '<p class="lead">' + esc(m.headline) + '</p>' +
+        more('More from the manager brief', '<ul class="facts">' + m.points.map(function (x) { return '<li><b>' + esc(x.label) + '</b>' + esc(x.text) + '</li>'; }).join('') + '</ul>') +
         trail([['Revenue', 'this year to date against the same dates last year, from all uploaded sales rows plus deals logged in the app'], ['Accounts at risk', 'customers with a risk score of ' + NBA.RULES.listThreshold + ' or more, largest 12-month revenue first'], ['Target', (m.target || {}).tech], ['Visit plans', 'planned visits and those marked done on this device, last 7 days']].concat(m.points.filter(function (x) { return x.kind === 'expiry'; }).map(function (x) { return [x.label, x.tech]; })));
       return typeOut(card);
     }).then(function () { if (!pending) fast = false; });
@@ -334,49 +383,42 @@
   function showList(kind) {
     refresh(); if (!an) return;
     var L = NBA.lists(an), list = L[kind], close = kind === 'close';
-    if (!list.length) { scroll(bot((close ? '<p>No customer stands out as ready to buy right now. Your top 3 visits are still your best bets.</p>' : '<p>Good news: none of your customers shows a strong sign of leaving right now.</p>') + trail([['Rule', 'no active customer has a ' + (close ? 'close' : 'risk') + ' score of ' + NBA.RULES.listThreshold + ' or more']]))); return; }
-    var m = bot('<p>' + (close ? 'These customers are most likely to close a deal now. Strongest first.' : 'These customers may be slipping away. Most at risk first.') + '</p><div class="rowlist">' +
+    if (!list.length) { bot('<p>' + (close ? 'No customer stands out as ready to buy today.' : 'No customer shows a strong sign of leaving today.') + '</p>' + trail([['Rule', 'no active customer has a ' + (close ? 'close' : 'risk') + ' score of ' + NBA.RULES.listThreshold + ' or more']])); return; }
+    bot('<h3>' + (close ? 'Likely to close' : 'May churn') + '</h3><div class="rowlist">' +
       list.map(function (c) {
-        var f = c.factors.filter(function (x) { return x.bucket === kind && x.pts > 0; }).sort(function (a, b) { return b.pts - a.pts; })[0];
-        return '<button data-cid="' + esc(c.cid) + '"><span>' + esc(c.name) + '<span class="sub">' + esc(f ? f.plain : '') + '</span></span></button>';
-      }).join('') + '</div>' + trail([['Rule', (close ? 'close' : 'risk') + ' score of ' + NBA.RULES.listThreshold + ' or more, highest first, at most 5']].concat(list.map(function (c) { return [c.name + ': ' + (close ? c.close : c.churn) + ' / 100', c.factors.filter(function (x) { return x.bucket === kind; }).map(function (x) { return x.tech; }).join(' | ')]; }))), 'wide');
-    scroll(m);
+        var f = c.factors.filter(function (x) { return x.bucket === kind && x.pts > 0; }).sort(function (a, b) { return b.pts - a.pts; })[0], v = close ? c.close : c.churn;
+        return '<button data-cid="' + esc(c.cid) + '"><span>' + esc(c.name) + '<span class="sub">' + esc(f ? f.label : '') + '</span></span><span class="mini"><i class="' + (close ? 'go' : 'risk') + '" style="width:' + v + '%"></i></span><b>' + v + '</b></button>';
+      }).join('') + '</div>' +
+      trail([['Rule', (close ? 'close' : 'risk') + ' score of ' + NBA.RULES.listThreshold + ' or more, highest first, at most 5']].concat(list.map(function (c) { return [c.name + ': ' + (close ? c.close : c.churn) + ' / 100', c.factors.filter(function (x) { return x.bucket === kind; }).map(function (x) { return x.tech; }).join(' | ')]; }))), 'wide');
   }
   function showCustomer(cid, echo) {
     refresh(); var c = cust(cid); if (!c) return;
     if (echo !== false) said(c.name);
-    var reasons = NBA.topReasons(c, 3);
-    var facts = c.lost ? 'No order for ' + c.recency + ' days.' :
-      'Last order ' + (c.recency === 0 ? 'today' : c.recency === 1 ? 'yesterday' : c.recency + ' days ago') + '. Usual order about ' + $$(c.avgOrder) + '. ' + $$(c.rev12) + ' in the last 12 months.';
-    var m = bot('<h3>' + esc(c.name) + '</h3>' + tag(c) + '<p style="margin-top:8px">' + facts + '</p>' +
-      (reasons.length ? '<ul>' + reasons.map(function (r) { return '<li>' + esc(r.plain) + '</li>'; }).join('') + '</ul>' : '') +
-      '<div data-cid="' + esc(c.cid) + '">' + acts([['pitch', 'What to say', 'pri'], ['why', 'Why this customer'], ['note', 'Add visit note'], ['deal', 'Deal closed'], ['file', 'Customer file'], ['export1', 'Export one-pager']]) + '</div>' +
-      trail([['Facts', 'last order ' + c.last + '; usual order = average of ' + c.nOrders + ' orders; 12-month revenue = sales from ' + NBA.addDays(an.asOf, -364) + ' to ' + an.asOf], ['Status “' + c.tag + '”', 'close ' + c.close + ', risk ' + c.churn + ', priority ' + c.priority]].concat(scoreTrail(c))), 'wide');
-    scroll(m);
+    bot('<div data-cid="' + esc(c.cid) + '"><div class="chead"><div><h3>' + esc(c.name) + '</h3>' + tag(c) + '</div><button class="plus" data-do="note" aria-label="Add visit note">+</button></div>' +
+      tiles([['Last order', c.recency === 0 ? 'Today' : c.recency + ' days', 'ago'], ['Usual order', $$(c.avgOrder), 'every ' + Math.round(c.gapUsed) + ' days'], ['12 months', $$(c.rev12), c.yoy == null ? '' : NBA.pct(c.yoy)]]) +
+      (c.lost ? '' : meter('Chance to close', c.close, 'go') + meter('Risk of leaving', c.churn, 'risk')) + rhythm(c) + spark(c) +
+      acts([['pitch', 'What to say', 'pri'], ['why', 'Why this customer']]) +
+      '<div class="iconrow"><button data-do="file" aria-label="Customer file" title="Customer file">' + ICON.file + '</button><button data-do="export1" aria-label="Export one-pager" title="Export one-pager">' + ICON.out + '</button><button class="done" data-do="deal" aria-label="Deal closed">' + ICON.check + 'Done</button></div></div>' +
+      trail([['Tiles', 'last order ' + c.last + '; usual order = average of ' + c.nOrders + ' orders; 12-month revenue = sales from ' + NBA.addDays(an.asOf, -364) + ' to ' + an.asOf], ['Order rhythm', 'days since last order ' + c.recency + ' against median gap ' + Math.round(c.gapUsed) + ' (ratio ' + c.ratio.toFixed(2) + '); shaded band = due window ' + NBA.RULES.reorderWindow[0] + ' to ' + NBA.RULES.reorderWindow[1] + ' × gap'], ['Spend line', 'sales summed by calendar month, ' + c.months12[0].key + ' to ' + c.months12[11].key], ['Status “' + c.tag + '”', 'close ' + c.close + ', risk ' + c.churn + ', priority ' + c.priority]].concat(scoreTrail(c))), 'wide');
   }
   function showPitch(cid) {
     var c = cust(cid); if (!c) return; said('What to say to ' + c.name);
     var p = NBA.buildPitch(c, an);
-    var m = bot('<h3>Pitch for ' + esc(c.name) + '</h3><p>' + esc(p.open) + '</p><ul>' + p.points.map(function (x) { return '<li>' + esc(x.text) + '</li>'; }).join('') + '</ul>' +
-      '<div class="pitch-ask">' + esc(p.ask) + '</div><div class="src-line">Built from: ' + esc(p.sources.join(', ')) + '. Fixed rules, no AI.</div>' +
-      '<div data-cid="' + esc(c.cid) + '">' + acts([['note', 'Add visit note'], ['deal', 'Deal closed']]) + '</div>' +
+    bot('<h3>What to say</h3><p class="small">' + esc(c.name) + '</p>' +
+      p.points.map(function (x, i) { return '<details class="pt"><summary><b>' + (i + 1) + '</b>' + esc(x.title) + '</summary><p>' + esc(x.text) + '</p><span class="src">From: ' + esc(x.src) + '</span></details>'; }).join('') +
+      '<div class="pitch-ask">' + esc(p.ask) + '</div>' + more('How to open', '<p>' + esc(p.open) + '</p>') +
       trail([['Opening and ask', p.openTech]].concat(p.points.map(function (x, i) { return ['Point ' + (i + 1) + ' (' + x.src + ')', x.tech]; }))), 'wide');
-    scroll(m);
   }
   function showWhy(cid) {
     var c = cust(cid); if (!c) return; said('Why ' + c.name + '?');
-    function block(bucket, title, score) {
-      var f = c.factors.filter(function (x) { return x.bucket === bucket; });
-      return '<div class="score"><span>' + title + '</span><span>' + score + ' / 100</span></div>' + (f.length ? f.map(function (x) {
-        return '<div class="factor"><span class="pts ' + (x.pts < 0 ? 'neg' : '') + '">' + (x.pts > 0 ? '+' : '') + x.pts + '</span><span>' + esc(x.plain) + '<code>' + esc(x.tech) + '</code><span class="src">Source: ' + esc(x.src) + '</span></span></div>';
-      }).join('') : '<div class="small">Nothing counted here.</div>');
+    function rows(bucket) {
+      return c.factors.filter(function (x) { return x.bucket === bucket; }).map(function (x) {
+        return '<details class="fx"><summary><span class="pts ' + (x.pts < 0 ? 'neg' : '') + '">' + (x.pts > 0 ? '+' : '') + x.pts + '</span>' + esc(x.label) + '</summary><p>' + esc(x.plain) + '</p><code>' + esc(x.tech) + '</code><span class="src">Source: ' + esc(x.src) + '</span></details>';
+      }).join('') || '<p class="small">Nothing counted here.</p>';
     }
-    var plain = c.factors.filter(function (x) { return x.pts !== 0; }).sort(function (a, b) { return Math.abs(b.pts) - Math.abs(a.pts); });
-    var m = bot('<h3>Why ' + esc(c.name) + '</h3><ul>' + plain.map(function (x) { return '<li>' + esc(x.plain) + '</li>'; }).join('') + '</ul>' +
-      '<details class="audit"><summary>How I got this</summary>' +
-      block('priority', 'Visit priority', c.priority) + block('close', 'Chance to close a deal', c.close) + block('churn', 'Risk of losing them', c.churn) +
-      '<p class="small" style="margin-top:10px">Scores are sums of the points shown, limited to 0–100. Calculated on ' + NBA.niceDate(an.asOf) + ' from sales up to ' + NBA.niceDate(an.dataTo) + '. The same working is saved in the customer file.</p></details>', 'wide');
-    scroll(m);
+    bot('<h3>Why ' + esc(c.name) + '</h3>' +
+      meter('Visit priority', c.priority, 'ink') + rows('priority') + meter('Chance to close', c.close, 'go') + rows('close') + meter('Risk of leaving', c.churn, 'risk') + rows('churn') +
+      trail([['Scores', 'each score is the sum of the points shown, limited to 0–100; tap a row for the sentence and the calculation'], ['When', 'calculated on ' + an.asOf + ' from sales up to ' + (an.dataTo || an.asOf) + '; the same working is saved in the customer file']]), 'wide');
   }
 
   // ------------------------------------------------------------ bottom sheet
@@ -398,7 +440,7 @@
     var groups = {}; NBA.KEYWORDS.forEach(function (k) { (groups[k.group] = groups[k.group] || []).push([k.id, k.label]); });
     var SR = window.SpeechRecognition || window.webkitSpeechRecognition, voice = SR && state.settings.voice;
     var h = '';
-    if (voice) h += '<button class="mic" id="mic"><svg viewBox="0 0 24 24"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3zM5 11a7 7 0 0 0 14 0M12 18v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Speak your note</span></button>' +
+    if (voice) h += '<button class="mic" id="mic"><svg viewBox="0 0 24 24"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3zM5 11a7 7 0 0 0 14 0M12 18v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span class="orb xs"></span><span>Speak your note</span></button>' +
       '<div class="heard" id="heard" hidden></div><p class="small">I pick out the keywords below from what you say or type. Voice uses your phone\'s own speech service, which on some phones sends the audio to Apple or Google. For sensitive visits, tap the keywords instead.</p>';
     else if (!SR && state.settings.voice) h += '<p class="small">Voice notes are not available in this browser. Tap the keywords instead.</p>';
     h += '<textarea class="typed" id="typed" rows="3" placeholder="Or type your note here" aria-label="Type your note"></textarea>';
@@ -420,7 +462,7 @@
     };
     if (voice) {
       var mic = $('#mic'), heard = $('#heard'), finalText = '';
-      var stop = function () { if (rec) { try { rec.stop(); } catch (e) {} rec = null; } mic.classList.remove('on'); mic.lastChild.textContent = transcript ? 'Speak again to add more' : 'Speak your note'; };
+      var stop = function () { if (rec) { try { rec.stop(); } catch (e) {} rec = null; } mic.classList.remove('on'); if ($('#app').dataset.state === 'listening') delete $('#app').dataset.state; mic.lastChild.textContent = transcript ? 'Speak again to add more' : 'Speak your note'; };
       mic.onclick = function () {
         if (rec) { stop(); return; }
         try {
@@ -436,24 +478,30 @@
           };
           rec.onerror = function (ev) { heard.hidden = false; if (!transcript) heard.textContent = ev.error === 'not-allowed' ? 'Microphone is blocked. Allow it in your browser settings, or tap the keywords.' : 'I could not hear that. Try again, or tap the keywords.'; stop(); };
           rec.onend = function () { rec = null; stop(); };
-          rec.start(); mic.classList.add('on'); mic.lastChild.textContent = 'Listening… tap to stop';
+          rec.start(); mic.classList.add('on'); $('#app').dataset.state = 'listening'; mic.lastChild.textContent = 'Listening… tap to stop';
         } catch (e) { rec = null; }
       };
       onClose = stop;
     }
     saveBtn.onclick = function () {
+      var said0 = (transcript + ' ' + typed.value).trim();
+      if (said0 && !sel('data-kw').length && !saveBtn.dataset.warned) {
+        saveBtn.dataset.warned = 1; saveBtn.textContent = 'Save anyway';
+        var wn = document.createElement('p'); wn.className = 'warn-box'; wn.textContent = 'I did not pick up a keyword from that, so the scores will not move. Tap a keyword below if one fits, for example “Staying with us”.';
+        var firstGroup = body.querySelector('.group'); body.insertBefore(wn, firstGroup); body.classList.add('nudge-kw'); wn.scrollIntoView({ block: 'center' }); return;
+      }
       var before = { close: c.close, churn: c.churn };
       var tv = typed.value.trim();
       var note = { id: uid(), cid: c.cid, ts: stamp(), keywords: sel('data-kw'), cats: sel('data-cat'), transcript: [transcript, tv].filter(Boolean).join(' '), typed: !!tv && !transcript };
       state.notes.push(note); save(); closeSheet(); refresh(); autoVisited(c.cid);
       var n = cust(c.cid);
       said('Note for ' + c.name + ': ' + (note.keywords.map(function (id) { return NBA.KW[id].label; }).concat(note.cats).join(', ') || (note.typed ? 'typed note' : 'spoken note')));
-      var ch = [];
-      if (n.close !== before.close) ch.push('Chance to close went from ' + before.close + ' to ' + n.close + ' out of 100.');
-      if (n.churn !== before.churn) ch.push('Risk of losing them went from ' + before.churn + ' to ' + n.churn + ' out of 100.');
-      var m = bot('<p>Saved to the file for ' + esc(c.name) + '. ' + (ch.join(' ') || 'The scores did not change.') + ' The pitch is updated with what you learned.</p><div data-cid="' + esc(c.cid) + '">' +
-        acts([['pitch', 'See updated pitch', 'pri'], ['deal', 'Deal closed'], ['brief', 'Back to today\'s visits', 'full']]) + '</div>' +
-        trail([['Keywords saved', note.keywords.map(function (id) { return id + ' (close ' + NBA.KW[id].close + ', risk ' + NBA.KW[id].churn + ')'; }).join(', ') || 'none'], ['Scores', 'close ' + before.close + ' → ' + n.close + ', risk ' + before.churn + ' → ' + n.churn + '; note points are capped at ±' + NBA.RULES.notePosCap + ' (close) and ±' + NBA.RULES.noteNegCap + ' (risk)']].concat(note.transcript ? [['Text', 'only the fixed keywords found in your words affect scores; the text itself is stored in the customer file']] : [])));
+      var moved = n.close !== before.close || n.churn !== before.churn;
+      var why = !note.keywords.length ? 'No keyword was picked, so the scores stay as they were. The note text is kept in the customer file.' : 'These keywords carry no points right now, or the score is already at its limit.';
+      var m = bot('<p><b>Saved</b> to ' + esc(c.name) + '.</p>' +
+        (moved ? (n.close !== before.close ? meter('Chance to close', n.close, 'go', before.close + ' → ' + n.close) : '') + (n.churn !== before.churn ? meter('Risk of leaving', n.churn, 'risk', before.churn + ' → ' + n.churn) : '') : '<p class="small">Scores did not change.</p>' + more('Why not?', '<p>' + why + '</p>')) +
+        '<div data-cid="' + esc(c.cid) + '">' + acts([['pitch', 'See updated pitch', 'pri full']]) + '</div>' +
+        trail([['Keywords saved', note.keywords.map(function (id) { return id === 'staying' ? 'staying (risk −' + NBA.RULES.stayingPts + ' for ' + NBA.RULES.stayingDays + ' days)' : id + ' (close ' + NBA.KW[id].close + ', risk ' + NBA.KW[id].churn + ')'; }).join(', ') || 'none'], ['Scores', 'close ' + before.close + ' → ' + n.close + ', risk ' + before.churn + ' → ' + n.churn + '; note points are capped at ±' + NBA.RULES.notePosCap + ' (close) and ±' + NBA.RULES.noteNegCap + ' (risk)'], ['Text', note.transcript ? 'only the fixed keywords found in your words affect scores; the text itself is stored in the customer file' : '']]));
       scroll(m);
     };
   }
@@ -486,10 +534,8 @@
       state.deals.push(deal); save(); closeSheet(); refresh(); autoVisited(c.cid); celebrate();
       said('Deal closed with ' + c.name + ': ' + $$(deal.amt));
       var d = NBA.dashboard(state), me = d.people.filter(function (p) { return p.name === state.me; })[0], cc = d.customers.filter(function (x) { return x.cid === c.cid; })[0];
-      var line = d.hasPrev && me ? 'Your sales this year are now ' + $$(me.cur) + ', which is ' + $$(Math.abs(me.inc)) + (me.inc >= 0 ? ' ahead of' : ' behind') + ' the same time last year.' : 'Your sales this year are now ' + $$(me ? me.cur : deal.amt) + '.';
-      var cl = cc && d.hasPrev ? ' ' + esc(c.name) + ' is ' + $$(Math.abs(cc.inc)) + (cc.inc >= 0 ? ' up' : ' down') + ' on last year.' : '';
-      var m = bot('<h3>Well done</h3><p>' + $$(deal.amt) + ' is logged for ' + esc(c.name) + ' and added to the revenue dashboard.</p><p>' + line + cl + '</p>' +
-        acts([['dash', 'Open dashboard'], ['brief', 'Back to today\'s visits']]) +
+      var m = bot('<h3>Well done</h3>' + tiles([['Deal', $$(deal.amt), c.name.split(' ').slice(0, 2).join(' ')], ['Your year', $$(me ? me.cur : deal.amt), 'so far'], ['On last year', d.hasPrev && me ? (me.inc >= 0 ? '+' : '-') + $$(Math.abs(me.inc)) : 'n/a', d.hasPrev && me ? (me.inc >= 0 ? 'ahead' : 'behind') : '']]) +
+        acts([['dash', 'Open dashboard', 'full']]) +
         trail([['Your year', me ? 'sales ' + d.year + ' to date ' + $$(me.cur) + ' (including this deal) against ' + $$(me.prev) + ' for the same dates in ' + d.prevYear : ''], ['Customer', cc ? 'this year ' + $$(cc.cur) + ' against ' + $$(cc.prev) + ' last year' : ''], ['Double counting', 'the deal is counted from the app until an uploaded sales file covers it']]));
       scroll(m);
     };
@@ -542,8 +588,7 @@
     var cs = ['$', '€', '£', 'RM', 'S$', '₹', 'Rp', '¥'];
     var when = NBA.asOfDate(state), nCust = {}; state.tx.forEach(function (t) { nCust[t.cid] = 1; });
     openSheet('Menu',
-      '<div class="rowlist" style="margin:0 0 6px"><button data-act="export"><span>Export to Word, PDF, PowerPoint or Excel</span></button><button data-act="tab-brief"><span>My brief</span>' + (view === 'brief' ? '<span class="tag">Open</span>' : '') + '</button><button data-act="tab-dash"><span>Revenue dashboard</span>' + (view === 'dash' ? '<span class="tag">Open</span>' : '') + '</button></div>' +
-      '<div class="group">Use it like an app</div><p class="small" style="margin:0 0 8px">' + (installEvt ? '' : 'On iPhone: tap Share, then “Add to Home Screen”. On Android: browser menu, then “Install app”. ') + 'Once installed, Nudge opens full screen and works without signal.</p>' + (installEvt ? '<button class="btn pri" data-act="install" style="width:100%">Install Nudge</button>' : '') +
+      '<div class="rowlist" style="margin:0 0 6px"><button data-act="export"><span>Export</span></button><button data-act="tab-brief"><span>Brief</span>' + (view === 'brief' ? '<span class="tag">Open</span>' : '') + '</button><button data-act="tab-dash"><span>Dashboard</span>' + (view === 'dash' ? '<span class="tag">Open</span>' : '') + '</button></div>' +
       '<div class="group">On this phone</div><p class="small" style="margin:0 0 8px">' + state.tx.length.toLocaleString() + ' sales rows for ' + Object.keys(nCust).length + ' customers, up to ' + (when.dataTo ? NBA.niceDate(when.dataTo) : 'n/a') + '. ' +
       state.targets.length + ' monthly targets. ' + state.campaigns.length + ' campaigns. ' + state.docs.length + ' document' + (state.docs.length === 1 ? '' : 's') + (state.docs.length ? ' (' + state.docs.map(function (d) { return esc(d.name); }).join(', ') + ')' : '') + '. ' + state.notes.length + ' visit notes. ' + state.deals.length + ' deals logged.</p>' +
       '<div class="rowlist"><button data-m="zip">Download all my customer files (.zip)</button><button data-m="sample">Load sample data</button></div>' +
@@ -621,7 +666,7 @@
         var tx = rs[0].tx, max = tx.reduce(function (m, t) { return t.d > m ? t.d : m; }, ''), shift = NBA.dayNum(NBA.todayISO()) - 1 - NBA.dayNum(max);
         tx.forEach(function (t) { t.d = NBA.addDays(t.d, shift); });
         rs[0].targets.forEach(function (t) { t.month = NBA.addDays(t.month + '-15', shift).slice(0, 7); });
-        rs[0].campaigns.forEach(function (c) { if (c.end) c.end = NBA.addDays(c.end, shift); });
+        rs[0].campaigns.forEach(function (c) { if (c.end && NBA.dayNum(c.end) - NBA.dayNum(max) <= 30) c.end = NBA.addDays(c.end, shift); }); // keep the soon-to-end sample offer soon-to-end
         state = blank(); dashSp = null; chat.innerHTML = ''; ingest(rs);
       })
       .catch(function () { wait.innerHTML = '<p>I could not load the sample files. Check your connection and try again.</p>'; });
@@ -640,6 +685,7 @@
     else if (name === 'home') home();
     else if (name === 'export') exportSheet();
     else if (name === 'export1') onePagerSheet(cid);
+    else if (name === 'digest') digestExport();
     else if (name === 'share') shareFile(cid);
     else if (name === 'save') { if (ready[cid]) download(ready[cid].name, ready[cid].blob); }
     else if (name === 'wrap') { said('Wrap up my day'); wrapUpDay(); }
@@ -654,6 +700,10 @@
     else if (name === 'file') fileSheet(cid);
   }
   chat.addEventListener('click', function (e) {
+    var tile = e.target.closest('[data-tile]');
+    if (tile) { var msg = tile.closest('.msg'), open = tile.getAttribute('aria-expanded') === 'true';
+      [].forEach.call(msg.querySelectorAll('[data-tile]'), function (b) { b.setAttribute('aria-expanded', 'false'); }); [].forEach.call(msg.querySelectorAll('.tp'), function (x) { x.hidden = true; });
+      if (!open) { tile.setAttribute('aria-expanded', 'true'); msg.querySelector('.tp[data-tp="' + tile.dataset.tile + '"]').hidden = false; follow(); } return; }
     var v = e.target.closest('[data-v]');
     if (v) { var id = v.closest('.vfoot').dataset.visit; if (v.dataset.v === 'skip') skipSheet(id); else markVisit(id, v.dataset.v === 'done' ? 'done' : null); return; }
     var d = e.target.closest('[data-do]');

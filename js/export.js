@@ -235,5 +235,16 @@
     return pptx.write({ outputType: 'blob' }).then(function (b) { return { name: 'Sales-review-' + slug(who) + '-' + an.asOf + '.pptx', blob: b }; });
   }
 
-  root.NBAExport = { pack: pack, onePager: onePager, briefDoc: briefDoc, workbook: workbook, deck: deck };
+  // ------------------------------------------------------------ manager weekly digest (Word or PDF)
+  function digest(state, sp, fmt) {
+    var D = NBA.weeklyDigest(state, sp), d = new Doc();
+    d.p('Weekly digest: ' + D.who, { b: true, size: 40, after: 40 }).p(D.period, { color: GREY, size: 19, after: 160 });
+    d.table(null, [D.tiles.map(function (t) { return [t.label, t.value + ' (' + t.sub + ')']; })], null);
+    D.sections.forEach(function (s) { d.h(s.heading); d.bullets(s.bullets); });
+    d.h('How I got this'); d.table(['Item', 'Calculation'], D.audit.filter(function (r) { return r[1]; }), [0.25, 0.75], { size: 15 });
+    d.p('Produced by Nudge from fixed rules. No AI model was used. Visits, deals and notes are those recorded on this device.', { color: GREY, size: 16, i: true, before: 160 });
+    return d.out(fmt).then(function (b) { return { name: 'Weekly-digest-' + slug(D.who) + '-' + D.asOf + '.' + fmt, blob: b }; });
+  }
+
+  root.NBAExport = { digest: digest, pack: pack, onePager: onePager, briefDoc: briefDoc, workbook: workbook, deck: deck };
 })(window);

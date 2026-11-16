@@ -50,6 +50,19 @@ const ab = b => b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength);
     assert(/behind|ahead/.test(ex.headline)); assert(ex.points.some(x => x.kind === 'risk' && /Blue Harbor/.test(x.text))); assert(ex.offers.length >= 1);
     const all = NBA.dashboard(state, { today }), one = NBA.dashboard(state, { today, sp: 'Aisha Rahman' });
     assert(one.ytd.cur < all.ytd.cur && one.people.length === 1); console.log(ex); }
+  // 'staying' judgement, labels, sparkline data, weekly digest
+  { const a = NBA.analyze(state, 'Aisha Rahman', { today }), bh = a.customers.find(c => c.name === 'Blue Harbor Stores');
+    assert.deepStrictEqual(NBA.extractKeywords("they won't churn anymore", []).keywords, ['staying']);
+    assert.deepStrictEqual(NBA.extractKeywords('customer is staying with us and happy', []).keywords.sort(), ['happy', 'staying']);
+    const st = Object.assign({}, state, { notes: [{ id: 's', cid: bh.cid, ts: today + 'T09:00:00', keywords: ['staying'], cats: [], transcript: "won't churn anymore" }] });
+    const b2 = NBA.analyze(st, 'Aisha Rahman', { today }).customers.find(c => c.cid === bh.cid);
+    assert.strictEqual(b2.churn, bh.churn - 30); assert(b2.factors.some(f => f.label === 'Your judgement' && f.pts === -30));
+    const old = Object.assign({}, state, { notes: [{ id: 's', cid: bh.cid, ts: NBA.addDays(today, -31) + 'T09:00:00', keywords: ['staying'], cats: [] }] });
+    assert.strictEqual(NBA.analyze(old, 'Aisha Rahman', { today }).customers.find(c => c.cid === bh.cid).churn, bh.churn, 'fades after 30 days');
+    assert(bh.factors.every(f => f.label && f.label !== 'Other'), JSON.stringify(bh.factors.map(f => f.label)));
+    assert(a.customers.every(c => NBA.buildPitch(c, a).points.every(q => q.title && q.title !== 'Talking point')));
+    assert.strictEqual(bh.months12.length, 12); assert.strictEqual(bh.months12[11].key, '2026-11');
+    const w = NBA.weeklyDigest(state, null, { today }); assert.strictEqual(w.tiles.length, 4); assert(w.sections.length === 4 && w.audit.length); console.log(w.tiles, w.sections[1]); }
   // visit plan, wrap-up and manager brief
   { const a = NBA.analyze(state, 'Aisha Rahman', { today }), plan = NBA.lists(a).top3.map(c => c.cid);
     const st = Object.assign({}, state, { plans: { ['Aisha Rahman|' + today]: plan }, visits: [{ cid: plan[0], sp: 'Aisha Rahman', date: today, status: 'done' }, { cid: plan[1], sp: 'Aisha Rahman', date: today, status: 'skipped', reason: 'Ran out of time' }] });
