@@ -5,7 +5,7 @@
 - Segment: Retail
 - Status on 15 Nov 2026: **May churn**
 - File generated on this device by fixed rules. No AI language model was used.
-- Version: rules 1.6 (2026-11-17); data sample_transactions.xlsx, 2024-11-01 to 2026-11-14
+- Version: rules 1.7 (2026-11-17); data sample_transactions.xlsx, 2024-11-01 to 2026-11-14
 
 ## Performance
 
@@ -30,37 +30,37 @@
 
 ## Today's assessment
 
-- They usually order about every 14 days, but it has been 50 days since the last order.
-- Their spending is down 65% in the last 3 months compared with the 3 months before.
-- Your documents flag a risk on this account (sample_account_plans.docx).
+- Usually orders every 14 days, now 50.
+- Spending down 65% on the 3 months before.
+- Your documents flag a risk (sample_account_plans.docx).
 
 ### Visit priority: 76 / 100
 
 | Points | In plain English | Technical trace | Source |
 |---:|---|---|---|
-| +68 | They are a mid-sized customer for you ($32,510 in the last 12 months). | 0.6 × max(churn 85, close 20) + 0.1 × min(…) 20 + 0.3 × value percentile 50 (12-month revenue $32,510 ranked among your 36 customers) = 68.0 | Sales data |
-| +8 | Your account plan marks them as a priority account (sample_account_plans.docx). | document paragraph with priority wording: “Blue Harbor Stores is a key account in the Retail segment and a priority for retention…” → +8 priority | Documents |
+| +68 | A mid-sized customer ($32,510 a year). | 0.6 × max(churn 85, close 20) + 0.1 × min(…) 20 + 0.3 × value percentile 50 (12-month revenue $32,510 ranked among your 36 customers) = 68.0 | Sales data |
+| +8 | Your account plan marks them as a priority (sample_account_plans.docx). | document paragraph with priority wording: “Blue Harbor Stores is a key account in the Retail segment and a priority for retention…” → +8 priority | Documents |
 
 ### Chance to close a deal: 20 / 100
 
 | Points | In plain English | Technical trace | Source |
 |---:|---|---|---|
-| +10 | Most similar Retail customers buy Accessories, but they never have. | Accessories bought by 8 of 15 Retail customers in the last 12 months (≥ 50%), 0 purchases by this customer → +10 close | Sales data |
-| +10 | Your documents say the Year-end Retail campaign applies to them and they have not used it (sample_account_plans.docx). | document signals: campaign +10 = 10, capped at 20 → +10 close | Documents |
+| +10 | Similar Retail customers buy Accessories; they never have. | Accessories bought by 8 of 15 Retail customers in the last 12 months (≥ 50%), 0 purchases by this customer → +10 close | Sales data |
+| +10 | Your documents: unused offer (sample_account_plans.docx). | document signals: campaign +10 (Year-end Retail campaign not used) = 10, capped at 20 → +10 close | Documents |
 
 ### Risk of losing them: 85 / 100
 
 | Points | In plain English | Technical trace | Source |
 |---:|---|---|---|
-| +45 | They usually order about every 14 days, but it has been 50 days since the last order. | recency 50d ÷ median gap between orders 14d = 3.57 ≥ 3 → +45 churn | Sales data |
-| +30 | Their spending is down 65% in the last 3 months compared with the 3 months before. | revenue last 90d $3,210 vs previous 90d $9,105 = -65% ≤ -50% → +30 churn | Sales data |
-| +10 | Your documents flag a risk on this account (sample_account_plans.docx). | document paragraph linked to customer with risk wording: “Risk: a competitor opened a depot nearby and has been offering lower prices. We are at…” → +10 churn | Documents |
+| +45 | Usually orders every 14 days, now 50. | recency 50d ÷ median gap between orders 14d = 3.57 ≥ 3 → +45 churn | Sales data |
+| +30 | Spending down 65% on the 3 months before. | revenue last 90d $3,210 vs previous 90d $9,105 = -65% ≤ -50% → +30 churn | Sales data |
+| +10 | Your documents flag a risk (sample_account_plans.docx). | document paragraph linked to customer with risk wording: “Risk: a competitor opened a depot nearby and has been offering lower prices. We are at…” → +10 churn | Documents |
 
 ## Suggested pitch
 
 Go in to listen first. Ask how things are going with their orders before you talk about products.
 
-- The Year-end Retail campaign applies to them and they have not used it yet. On a $633 order of Consumables they save about $58 (buy 10 get 1 free, worth about 9%). Valid until 31 Dec 2026. _(sample_account_plans.docx)_
+- The Year-end Retail campaign applies to them and they have not used it yet. On a $633 order of Consumables they save about $58 (buy 10 get 1 free, worth about 9%). Valid until Thu 31 Dec. _(sample_account_plans.docx)_
 - They normally order every 14 days and it has been 50. Ask openly: “I noticed we have not had an order for a while. Did something change?” _(Sales data)_
 - Customers like them usually buy Accessories too. Introduce it as something similar Retail customers find useful. _(Sales data)_
 - From the account plan: “Blue Harbor Stores is a key account in the Retail segment and a priority for retention this quarter.” _(sample_account_plans.docx)_

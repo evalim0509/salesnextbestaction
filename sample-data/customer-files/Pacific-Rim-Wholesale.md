@@ -5,7 +5,7 @@
 - Segment: Wholesale
 - Status on 15 Nov 2026: **Good chance**
 - File generated on this device by fixed rules. No AI language model was used.
-- Version: rules 1.6 (2026-11-17); data sample_transactions.xlsx, 2024-11-01 to 2026-11-14
+- Version: rules 1.7 (2026-11-17); data sample_transactions.xlsx, 2024-11-01 to 2026-11-14
 
 ## Performance
 
@@ -31,22 +31,22 @@
 
 ## Today's assessment
 
-- They are due to reorder now: they usually order about every 21 days and the last order was 17 days ago.
-- Your documents say a campaign or offer applies to them (sample_campaign_deck.pptx).
-- They are one of your biggest customers ($74,260 in the last 12 months).
+- Usually orders every 21 days, now 17: reorder due.
+- Your documents: campaign applies (sample_campaign_deck.pptx).
+- One of your biggest customers ($74,260 a year).
 
 ### Visit priority: 53 / 100
 
 | Points | In plain English | Technical trace | Source |
 |---:|---|---|---|
-| +53 | They are one of your biggest customers ($74,260 in the last 12 months). | 0.6 × max(churn 0, close 40) + 0.1 × min(…) 0 + 0.3 × value percentile 97 (12-month revenue $74,260 ranked among your 36 customers) = 53.1 | Sales data |
+| +53 | One of your biggest customers ($74,260 a year). | 0.6 × max(churn 0, close 40) + 0.1 × min(…) 0 + 0.3 × value percentile 97 (12-month revenue $74,260 ranked among your 36 customers) = 53.1 | Sales data |
 
 ### Chance to close a deal: 40 / 100
 
 | Points | In plain English | Technical trace | Source |
 |---:|---|---|---|
-| +30 | They are due to reorder now: they usually order about every 21 days and the last order was 17 days ago. | recency 17d ÷ median gap between orders 21d = 0.81 in [0.8, 1.5) → +30 close | Sales data |
-| +10 | Your documents say a campaign or offer applies to them (sample_campaign_deck.pptx). | document signals: campaign +10 = 10, capped at 20 → +10 close | Documents |
+| +30 | Usually orders every 21 days, now 17: reorder due. | recency 17d ÷ median gap between orders 21d = 0.81 in [0.8, 1.5) → +30 close | Sales data |
+| +10 | Your documents: campaign applies (sample_campaign_deck.pptx). | document signals: campaign +10 = 10, capped at 20 → +10 close | Documents |
 
 ### Risk of losing them: 0 / 100
 

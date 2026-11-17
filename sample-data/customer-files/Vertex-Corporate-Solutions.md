@@ -5,7 +5,7 @@
 - Segment: Corporate
 - Status on 15 Nov 2026: **Good chance**
 - File generated on this device by fixed rules. No AI language model was used.
-- Version: rules 1.6 (2026-11-17); data sample_transactions.xlsx, 2024-11-01 to 2026-11-14
+- Version: rules 1.7 (2026-11-17); data sample_transactions.xlsx, 2024-11-01 to 2026-11-14
 
 ## Performance
 
@@ -30,23 +30,23 @@
 
 ## Today's assessment
 
-- They are buying more: spending is up 23% in the last 3 months.
-- Most similar Corporate customers buy Core Products, but they never have.
-- Your documents say a campaign or offer applies to them (sample_account_plans.docx).
+- Spending up 23% on the 3 months before.
+- Similar Corporate customers buy Core Products; they never have.
+- Your documents: campaign applies (sample_account_plans.docx).
 
 ### Visit priority: 29 / 100
 
 | Points | In plain English | Technical trace | Source |
 |---:|---|---|---|
-| +29 | They are a mid-sized customer for you ($25,950 in the last 12 months). | 0.6 × max(churn 0, close 30) + 0.1 × min(…) 0 + 0.3 × value percentile 36 (12-month revenue $25,950 ranked among your 36 customers) = 28.8 | Sales data |
+| +29 | A mid-sized customer ($25,950 a year). | 0.6 × max(churn 0, close 30) + 0.1 × min(…) 0 + 0.3 × value percentile 36 (12-month revenue $25,950 ranked among your 36 customers) = 28.8 | Sales data |
 
 ### Chance to close a deal: 30 / 100
 
 | Points | In plain English | Technical trace | Source |
 |---:|---|---|---|
-| +10 | They are buying more: spending is up 23% in the last 3 months. | revenue last 90d $7,800 vs previous 90d $6,320 = +23% ≥ +10% → +10 close | Sales data |
-| +10 | Most similar Corporate customers buy Core Products, but they never have. | Core Products bought by 8 of 9 Corporate customers in the last 12 months (≥ 50%), 0 purchases by this customer → +10 close | Sales data |
-| +10 | Your documents say a campaign or offer applies to them (sample_account_plans.docx). | document signals: campaign +10 = 10, capped at 20 → +10 close | Documents |
+| +10 | Spending up 23% on the 3 months before. | revenue last 90d $7,800 vs previous 90d $6,320 = +23% ≥ +10% → +10 close | Sales data |
+| +10 | Similar Corporate customers buy Core Products; they never have. | Core Products bought by 8 of 9 Corporate customers in the last 12 months (≥ 50%), 0 purchases by this customer → +10 close | Sales data |
+| +10 | Your documents: campaign applies (sample_account_plans.docx). | document signals: campaign +10 = 10, capped at 20 → +10 close | Documents |
 
 ### Risk of losing them: 0 / 100
 

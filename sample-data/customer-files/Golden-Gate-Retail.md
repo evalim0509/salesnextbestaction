@@ -5,7 +5,7 @@
 - Segment: Retail
 - Status on 15 Nov 2026: **Good chance**
 - File generated on this device by fixed rules. No AI language model was used.
-- Version: rules 1.6 (2026-11-17); data sample_transactions.xlsx, 2024-11-01 to 2026-11-14
+- Version: rules 1.7 (2026-11-17); data sample_transactions.xlsx, 2024-11-01 to 2026-11-14
 
 ## Performance
 
@@ -31,22 +31,22 @@
 
 ## Today's assessment
 
-- They are buying more: spending is up 74% in the last 3 months.
-- Your documents say a campaign or offer applies to them (sample_account_plans.docx).
-- They are one of your smaller customers ($15,565 in the last 12 months).
+- Spending up 74% on the 3 months before.
+- Your documents: campaign applies (sample_account_plans.docx).
+- One of your smaller customers ($15,565 a year).
 
 ### Visit priority: 24 / 100
 
 | Points | In plain English | Technical trace | Source |
 |---:|---|---|---|
-| +24 | They are one of your smaller customers ($15,565 in the last 12 months). | 0.6 × max(churn 0, close 30) + 0.1 × min(…) 0 + 0.3 × value percentile 19 (12-month revenue $15,565 ranked among your 36 customers) = 23.7 | Sales data |
+| +24 | One of your smaller customers ($15,565 a year). | 0.6 × max(churn 0, close 30) + 0.1 × min(…) 0 + 0.3 × value percentile 19 (12-month revenue $15,565 ranked among your 36 customers) = 23.7 | Sales data |
 
 ### Chance to close a deal: 30 / 100
 
 | Points | In plain English | Technical trace | Source |
 |---:|---|---|---|
-| +20 | They are buying more: spending is up 74% in the last 3 months. | revenue last 90d $5,115 vs previous 90d $2,945 = +74% ≥ +25% → +20 close | Sales data |
-| +10 | Your documents say a campaign or offer applies to them (sample_account_plans.docx). | document signals: campaign +10 = 10, capped at 20 → +10 close | Documents |
+| +20 | Spending up 74% on the 3 months before. | revenue last 90d $5,115 vs previous 90d $2,945 = +74% ≥ +25% → +20 close | Sales data |
+| +10 | Your documents: campaign applies (sample_account_plans.docx). | document signals: campaign +10 = 10, capped at 20 → +10 close | Documents |
 
 ### Risk of losing them: 0 / 100
 
@@ -56,7 +56,7 @@ No factors applied.
 
 Go in ready to take an order today.
 
-- They used to buy Core Products (last time 6 Jun 2026) and then stopped. Ask why and whether they still need it. _(Sales data)_
+- They used to buy Core Products (last time Sat 6 Jun) and then stopped. Ask why and whether they still need it. _(Sales data)_
 - Their spending is up 74% in 3 months. Thank them and suggest a regular standing order. _(Sales data)_
 - Use the current offer: “Campaign for all Retail customers: buy 10 cases of Consumables and get 1 case free, valid until 31 December. Salespeople can offer this promotion on the spot without approval.” _(sample_account_plans.docx)_
 

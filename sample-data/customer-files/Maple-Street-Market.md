@@ -5,7 +5,7 @@
 - Segment: Retail
 - Status on 15 Nov 2026: **Good chance**
 - File generated on this device by fixed rules. No AI language model was used.
-- Version: rules 1.6 (2026-11-17); data sample_transactions.xlsx, 2024-11-01 to 2026-11-14
+- Version: rules 1.7 (2026-11-17); data sample_transactions.xlsx, 2024-11-01 to 2026-11-14
 
 ## Performance
 
@@ -31,29 +31,29 @@
 
 ## Today's assessment
 
-- They are due to reorder now: they usually order about every 15 days and the last order was 17 days ago.
-- Your documents say a campaign or offer applies to them (sample_campaign_deck.pptx).
-- Their spending is down 14% in the last 3 months compared with the 3 months before.
+- Usually orders every 15 days, now 17: reorder due.
+- Your documents: campaign applies (sample_campaign_deck.pptx).
+- Spending down 14% on the 3 months before.
 
 ### Visit priority: 50 / 100
 
 | Points | In plain English | Technical trace | Source |
 |---:|---|---|---|
-| +42 | They are a mid-sized customer for you ($33,255 in the last 12 months). | 0.6 × max(churn 8, close 40) + 0.1 × min(…) 8 + 0.3 × value percentile 58 (12-month revenue $33,255 ranked among your 36 customers) = 42.2 | Sales data |
-| +8 | Your account plan marks them as a priority account (sample_campaign_deck.pptx). | document paragraph with priority wording: “Maple Street Market: strategic Retail account; offer the Consumables promotion on the…” → +8 priority | Documents |
+| +42 | A mid-sized customer ($33,255 a year). | 0.6 × max(churn 8, close 40) + 0.1 × min(…) 8 + 0.3 × value percentile 58 (12-month revenue $33,255 ranked among your 36 customers) = 42.2 | Sales data |
+| +8 | Your account plan marks them as a priority (sample_campaign_deck.pptx). | document paragraph with priority wording: “Maple Street Market: strategic Retail account; offer the Consumables promotion on the…” → +8 priority | Documents |
 
 ### Chance to close a deal: 40 / 100
 
 | Points | In plain English | Technical trace | Source |
 |---:|---|---|---|
-| +30 | They are due to reorder now: they usually order about every 15 days and the last order was 17 days ago. | recency 17d ÷ median gap between orders 15d = 1.17 in [0.8, 1.5) → +30 close | Sales data |
-| +10 | Your documents say a campaign or offer applies to them (sample_campaign_deck.pptx). | document signals: campaign +10 = 10, capped at 20 → +10 close | Documents |
+| +30 | Usually orders every 15 days, now 17: reorder due. | recency 17d ÷ median gap between orders 15d = 1.17 in [0.8, 1.5) → +30 close | Sales data |
+| +10 | Your documents: campaign applies (sample_campaign_deck.pptx). | document signals: campaign +10 = 10, capped at 20 → +10 close | Documents |
 
 ### Risk of losing them: 8 / 100
 
 | Points | In plain English | Technical trace | Source |
 |---:|---|---|---|
-| +8 | Their spending is down 14% in the last 3 months compared with the 3 months before. | revenue last 90d $7,265 vs previous 90d $8,485 = -14% ≤ -10% → +8 churn | Sales data |
+| +8 | Spending down 14% on the 3 months before. | revenue last 90d $7,265 vs previous 90d $8,485 = -14% ≤ -10% → +8 churn | Sales data |
 
 ## Suggested pitch
 

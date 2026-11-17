@@ -5,7 +5,7 @@
 - Segment: Retail
 - Status on 15 Nov 2026: **Steady**
 - File generated on this device by fixed rules. No AI language model was used.
-- Version: rules 1.6 (2026-11-17); data sample_transactions.xlsx, 2024-11-01 to 2026-11-14
+- Version: rules 1.7 (2026-11-17); data sample_transactions.xlsx, 2024-11-01 to 2026-11-14
 
 ## Performance
 
@@ -31,20 +31,20 @@
 
 ## Today's assessment
 
-- Your documents say a campaign or offer applies to them (sample_account_plans.docx).
-- They are one of your smaller customers ($25,600 in the last 12 months).
+- Your documents: campaign applies (sample_account_plans.docx).
+- One of your smaller customers ($25,600 a year).
 
 ### Visit priority: 16 / 100
 
 | Points | In plain English | Technical trace | Source |
 |---:|---|---|---|
-| +16 | They are one of your smaller customers ($25,600 in the last 12 months). | 0.6 × max(churn 0, close 10) + 0.1 × min(…) 0 + 0.3 × value percentile 33 (12-month revenue $25,600 ranked among your 36 customers) = 15.9 | Sales data |
+| +16 | One of your smaller customers ($25,600 a year). | 0.6 × max(churn 0, close 10) + 0.1 × min(…) 0 + 0.3 × value percentile 33 (12-month revenue $25,600 ranked among your 36 customers) = 15.9 | Sales data |
 
 ### Chance to close a deal: 10 / 100
 
 | Points | In plain English | Technical trace | Source |
 |---:|---|---|---|
-| +10 | Your documents say a campaign or offer applies to them (sample_account_plans.docx). | document signals: campaign +10 = 10, capped at 20 → +10 close | Documents |
+| +10 | Your documents: campaign applies (sample_account_plans.docx). | document signals: campaign +10 = 10, capped at 20 → +10 close | Documents |
 
 ### Risk of losing them: 0 / 100
 

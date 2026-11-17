@@ -5,7 +5,7 @@
 - Segment: Retail
 - Status on 15 Nov 2026: **Steady**
 - File generated on this device by fixed rules. No AI language model was used.
-- Version: rules 1.6 (2026-11-17); data sample_transactions.xlsx, 2024-11-01 to 2026-11-14
+- Version: rules 1.7 (2026-11-17); data sample_transactions.xlsx, 2024-11-01 to 2026-11-14
 
 ## Performance
 
@@ -30,28 +30,28 @@
 
 ## Today's assessment
 
-- Their spending is down 41% in the last 3 months compared with the 3 months before.
-- Most similar Retail customers buy Accessories, but they never have.
-- Your documents say a campaign or offer applies to them (sample_account_plans.docx).
+- Spending down 41% on the 3 months before.
+- Similar Retail customers buy Accessories; they never have.
+- Your documents: campaign applies (sample_account_plans.docx).
 
 ### Visit priority: 28 / 100
 
 | Points | In plain English | Technical trace | Source |
 |---:|---|---|---|
-| +28 | They are a mid-sized customer for you ($32,200 in the last 12 months). | 0.6 × max(churn 20, close 20) + 0.1 × min(…) 20 + 0.3 × value percentile 47 (12-month revenue $32,200 ranked among your 36 customers) = 28.1 | Sales data |
+| +28 | A mid-sized customer ($32,200 a year). | 0.6 × max(churn 20, close 20) + 0.1 × min(…) 20 + 0.3 × value percentile 47 (12-month revenue $32,200 ranked among your 36 customers) = 28.1 | Sales data |
 
 ### Chance to close a deal: 20 / 100
 
 | Points | In plain English | Technical trace | Source |
 |---:|---|---|---|
-| +10 | Most similar Retail customers buy Accessories, but they never have. | Accessories bought by 8 of 15 Retail customers in the last 12 months (≥ 50%), 0 purchases by this customer → +10 close | Sales data |
-| +10 | Your documents say a campaign or offer applies to them (sample_account_plans.docx). | document signals: campaign +10 = 10, capped at 20 → +10 close | Documents |
+| +10 | Similar Retail customers buy Accessories; they never have. | Accessories bought by 8 of 15 Retail customers in the last 12 months (≥ 50%), 0 purchases by this customer → +10 close | Sales data |
+| +10 | Your documents: campaign applies (sample_account_plans.docx). | document signals: campaign +10 = 10, capped at 20 → +10 close | Documents |
 
 ### Risk of losing them: 20 / 100
 
 | Points | In plain English | Technical trace | Source |
 |---:|---|---|---|
-| +20 | Their spending is down 41% in the last 3 months compared with the 3 months before. | revenue last 90d $6,645 vs previous 90d $11,335 = -41% ≤ -25% → +20 churn | Sales data |
+| +20 | Spending down 41% on the 3 months before. | revenue last 90d $6,645 vs previous 90d $11,335 = -41% ≤ -25% → +20 churn | Sales data |
 
 ## Suggested pitch
 

@@ -5,7 +5,7 @@
 - Segment: Wholesale
 - Status on 15 Nov 2026: **Steady**
 - File generated on this device by fixed rules. No AI language model was used.
-- Version: rules 1.6 (2026-11-17); data sample_transactions.xlsx, 2024-11-01 to 2026-11-14
+- Version: rules 1.7 (2026-11-17); data sample_transactions.xlsx, 2024-11-01 to 2026-11-14
 
 ## Performance
 
@@ -30,22 +30,22 @@
 
 ## Today's assessment
 
-- Most similar Wholesale customers buy Accessories, but they never have.
-- Your documents say the Wholesale growth campaign applies to them and they have not used it (sample_campaign_deck.pptx).
-- They are one of your biggest customers ($43,370 in the last 12 months).
+- Similar Wholesale customers buy Accessories; they never have.
+- Your documents: unused offer (sample_campaign_deck.pptx).
+- One of your biggest customers ($43,370 a year).
 
 ### Visit priority: 35 / 100
 
 | Points | In plain English | Technical trace | Source |
 |---:|---|---|---|
-| +35 | They are one of your biggest customers ($43,370 in the last 12 months). | 0.6 × max(churn 0, close 20) + 0.1 × min(…) 0 + 0.3 × value percentile 75 (12-month revenue $43,370 ranked among your 36 customers) = 34.5 | Sales data |
+| +35 | One of your biggest customers ($43,370 a year). | 0.6 × max(churn 0, close 20) + 0.1 × min(…) 0 + 0.3 × value percentile 75 (12-month revenue $43,370 ranked among your 36 customers) = 34.5 | Sales data |
 
 ### Chance to close a deal: 20 / 100
 
 | Points | In plain English | Technical trace | Source |
 |---:|---|---|---|
-| +10 | Most similar Wholesale customers buy Accessories, but they never have. | Accessories bought by 9 of 12 Wholesale customers in the last 12 months (≥ 50%), 0 purchases by this customer → +10 close | Sales data |
-| +10 | Your documents say the Wholesale growth campaign applies to them and they have not used it (sample_campaign_deck.pptx). | document signals: campaign +10 = 10, capped at 20 → +10 close | Documents |
+| +10 | Similar Wholesale customers buy Accessories; they never have. | Accessories bought by 9 of 12 Wholesale customers in the last 12 months (≥ 50%), 0 purchases by this customer → +10 close | Sales data |
+| +10 | Your documents: unused offer (sample_campaign_deck.pptx). | document signals: campaign +10 (Wholesale growth campaign not used) = 10, capped at 20 → +10 close | Documents |
 
 ### Risk of losing them: 0 / 100
 

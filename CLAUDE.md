@@ -11,3 +11,5 @@
 - The rules must never change themselves. Tuning comes only from `state.tuning`, which is written when a manager taps Apply.
 - When any rule or threshold in `RULES` changes, bump `RULES.version` and `RULES.date`.
 - Recommendation replies call `trail(rows, true)` so the blind-spots line is added; sales-data facts pass `orders(c, key)` as a third trail element.
+- Every new screen label or engine sentence needs a Malay pair in `js/i18n-pairs.js` (use {x} for names, numbers and dates). `node tests/engine.test.js` fails on engine sentences without one; user text and document quotes go in an element with class `nt`.
+- Rep screens show bands (Likely/Maybe/Unlikely, At risk/Watch/Steady), never raw scores or points; those live in the trail.

@@ -55,11 +55,58 @@ const ab = b => b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength);
     const doc = NBA.rulesDoc(state); assert(doc.length >= 5 && doc.every(s => s.rows.length));
     assert(JSON.stringify(doc).includes('+30')); assert(JSON.stringify(NBA.rulesDoc(Object.assign({}, state, { tuning: { 'Due to reorder': { delta: 5, date: '2026-11-16' } } }))).includes('35 (30 +5, approved 2026-11-16)'));
     state.uploads = [{ name: 'sample_transactions.xlsx', lines: 2219 }];
-    assert(/^rules 1\.6 \(2026-11-17\); data sample_transactions\.xlsx, 20\d\d-\d\d-\d\d to 2026-11-14$/.test(NBA.stamp(state)), NBA.stamp(state));
+    assert(/^rules 1\.7 \(2026-11-17\); data sample_transactions\.xlsx, 20\d\d-\d\d-\d\d to 2026-11-14$/.test(NBA.stamp(state)), NBA.stamp(state));
     assert(/credit holds/.test(NBA.blindSpots(state)));
     // same file, same answer
     const run = () => { const z = NBA.analyze(state, 'Aisha Rahman', { today: '2026-11-15' }); return JSON.stringify([NBA.lists(z).top3.map(c => c.cid), NBA.execSummary(state, 'Aisha Rahman', z, { today: '2026-11-15' }), z.customers.map(c => [c.cid, c.priority, c.close, c.churn, c.factors, NBA.buildPitch(c, z)])]); };
     assert.strictEqual(run(), run(), 'same state, same brief');
+  }
+  { // PHASE 2: wording, bands, "Wrong, because…", notes visibly used
+    const T = '2026-11-15', a = NBA.analyze(state, 'Aisha Rahman', { today: T }), bh = a.customers.find(c => c.name === 'Blue Harbor Stores');
+    assert(/^Usually orders every 14 days, now \d+\.$/.test(bh.factors.find(f => f.label === 'Overdue').plain));
+    assert(a.customers.every(c => c.factors.every(f => !/\bmust\b/i.test(f.plain))), 'no "must"');
+    assert.strictEqual(bh.riskBand, 'At risk'); assert(['Likely', 'Maybe', 'Unlikely'].includes(bh.closeBand));
+    a.customers.forEach(c => { assert.strictEqual(c.closeBand, c.close >= 50 ? 'Likely' : c.close >= 30 ? 'Maybe' : 'Unlikely'); assert.strictEqual(c.riskBand, c.churn >= 50 ? 'At risk' : c.churn >= 30 ? 'Watch' : 'Steady'); });
+    const top = NBA.lists(a).top3[0];
+    const fb = r => Object.assign({}, state, { feedback: [{ id: 'f', cid: top.cid, sp: top.sp, date: T, ts: T + 'T09:00:00', reason: r }] });
+    // shop closed / not mine: out until a new order
+    for (const r of ['closed', 'notmine']) { const z = NBA.analyze(fb(r), 'Aisha Rahman', { today: T }), c = z.customers.find(x => x.cid === top.cid); assert(c.blocked && !c.eligible); assert(!NBA.lists(z).top3.some(x => x.cid === top.cid)); }
+    const withOrder = fb('closed'); withOrder.tx = [...state.tx, { d: '2026-11-16', cid: top.cid, cname: top.name, sp: top.sp, amt: 100, qty: 1, cat: 'Core Products', prod: '', seg: top.seg, inv: 'NEWORDER', src: 'upload' }];
+    assert(!NBA.analyze(withOrder, 'Aisha Rahman', { today: '2026-11-17' }).customers.find(x => x.cid === top.cid).blocked, 'a new order lifts it');
+    // credit hold: 30 days
+    assert(NBA.analyze(fb('credit'), 'Aisha Rahman', { asOf: '2026-12-14' }).customers.find(x => x.cid === top.cid).blocked);
+    assert(!NBA.analyze(fb('credit'), 'Aisha Rahman', { asOf: '2026-12-15' }).customers.find(x => x.cid === top.cid).blocked);
+    // visited recently: the recently-contacted penalty
+    assert(NBA.analyze(fb('recent'), 'Aisha Rahman', { today: T }).customers.find(x => x.cid === top.cid).factors.some(f => f.label === 'Recently contacted'));
+    // a note that moved a score is quoted back
+    const nt = Object.assign({}, state, { notes: [{ id: 'n', cid: bh.cid, ts: '2026-11-03T10:00:00', keywords: ['budget_ok', 'happy'], cats: [] }] });
+    const said = NBA.analyze(nt, 'Aisha Rahman', { today: T }).customers.find(x => x.cid === bh.cid).noteSays;
+    assert.deepStrictEqual(said, { date: '2026-11-03', labels: ['Budget approved', 'Happy with us'] });
+    assert.strictEqual(bh.noteSays, null);
+    assert(JSON.stringify(NBA.rulesDoc(state)).includes('Likely at 50 or more'));
+  }
+  { // PHASE 2: every sentence the engine shows has a Malay pair (one table keeps both languages in step)
+    const I = require('../js/i18n.js'), T = '2026-11-15', out = new Set(), add = v => v && out.add(String(v));
+    const st = Object.assign({}, state, { settings: { currency: 'RM' }, notes: [] });
+    const kws = NBA.KEYWORDS.map(k => k.id), a0 = NBA.analyze(st, null, { today: T });
+    a0.customers.slice(0, 18).forEach((c, i) => st.notes.push({ id: 'n' + i, cid: c.cid, ts: '2026-11-1' + (i % 5) + 'T09:00:00', keywords: [kws[i % kws.length], kws[(i + 7) % kws.length]], cats: i % 3 ? [] : ['Accessories'] }));
+    for (const sp of [null, ...NBA.salespeople(st)]) {
+      const z = NBA.analyze(st, sp, { today: T });
+      z.customers.forEach(c => { c.factors.forEach(f => { add(f.plain); add(f.label); }); const pi = NBA.buildPitch(c, z); [pi.open, pi.ask].forEach(add); pi.points.forEach(q => { add(q.text); add(q.title); add(q.src); }); c.campaigns.forEach(k => add(NBA.campaignLine(k, 'RM'))); [c.closeBand, c.riskBand, c.tag].forEach(add); });
+      if (sp) { const ex = NBA.execSummary(st, sp, z, { today: T }); add(ex.headline); ex.points.forEach(q => { add(q.label); add(q.text); }); ex.offers.filter(o => !o.quote).forEach(o => add(o.text)); }
+      const m = NBA.managerSummary(st, sp, { today: T }); add(m.headline); m.points.forEach(q => { add(q.label); add(q.text); });
+      const w = NBA.weeklyDigest(st, sp, { today: T }); w.tiles.forEach(t => [t.label, t.value, t.sub].forEach(add)); w.sections.forEach(s => { add(s.heading); s.bullets.forEach(add); });
+    }
+    NBA.rulesDoc(st).forEach(s => { add(s.heading); s.rows.forEach(r => r.forEach(add)); }); NBA.KEYWORDS.forEach(k => { add(k.label); add(k.group); });
+    const known = []; st.tx.forEach(t => known.push(t.cname, t.sp, t.cat, t.seg, t.prod)); st.campaigns.forEach(k => known.push(k.name)); st.docs.forEach(d => known.push(d.name));
+    I.setKnown(known); I.setLang('ms'); Object.keys(I.misses).forEach(k => { I.misses[k] = 0; });
+    out.forEach(v => I.t(v)); const miss = Object.keys(I.misses).filter(k => I.misses[k] > 0);
+    assert.strictEqual(miss.length, 0, 'sentences without Malay:\n' + miss.slice(0, 15).join('\n'));
+    assert.strictEqual(I.t('Usually orders every 14 days, now 50.'), 'Biasanya memesan setiap 14 hari, kini 50.');
+    assert.strictEqual(I.t('Tue 17 Nov'), 'Sel 17 Nov'); assert.strictEqual(I.t('Blue Harbor Stores'), 'Blue Harbor Stores', 'names pass through');
+    const enCount = I.pairs.filter(p => !p[1] || !p[0]).length; assert.strictEqual(enCount, 0, 'every pair has both languages');
+    I.setLang('en'); assert.strictEqual(I.t('Mark visited'), 'Mark visited');
+    console.log('Malay pairs:', I.pairs.length, '| engine sentences checked:', out.size);
   }
   { // targets, gap and campaigns
     const a = NBA.analyze(state, 'Aisha Rahman', { today: '2026-11-15' }), ts = NBA.targetStatus(state, 'Aisha Rahman', { today: '2026-11-15' });
@@ -110,7 +157,7 @@ const ab = b => b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength);
     assert(bh.factors.every(f => f.label && f.label !== 'Other'), JSON.stringify(bh.factors.map(f => f.label)));
     assert(a.customers.every(c => NBA.buildPitch(c, a).points.every(q => q.title && q.title !== 'Talking point')));
     assert.strictEqual(bh.months12.length, 12); assert.strictEqual(bh.months12[11].key, '2026-11');
-    const w = NBA.weeklyDigest(state, null, { today }); assert.strictEqual(w.tiles.length, 4); assert(w.sections.length === 4 && w.audit.length); console.log(w.tiles, w.sections[1]); }
+    const w = NBA.weeklyDigest(state, null, { today }); assert.strictEqual(w.tiles.length, 4); assert(w.sections.length === 5 && w.audit.length); console.log(w.tiles, w.sections[1]); }
   // context notes, tone, learning from outcomes and tuning
   { const a = NBA.analyze(state, 'Aisha Rahman', { today }), bh = a.customers.find(c => c.name === 'Blue Harbor Stores');
     const st = Object.assign({}, state, { notes: [{ id: 'c1', cid: bh.cid, ts: today + 'T09:00:00', type: 'context', keywords: [], cats: [], transcript: 'Owner is unhappy about a competitor but his daughter takes over in January and prefers us.' }] });

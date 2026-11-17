@@ -1,6 +1,6 @@
 /* Nudge offline support. Caches the app's own files only; your data never passes through here. */
-var CACHE = 'nudge-v5';
-var FILES = ['./', 'index.html', 'css/style.css', 'js/engine.js', 'js/parsers.js', 'js/dashboard.js', 'js/export.js', 'js/app.js',
+var CACHE = 'nudge-v7';
+var FILES = ['./', 'index.html', 'css/style.css', 'js/i18n-pairs.js', 'js/i18n.js', 'js/engine.js', 'js/parsers.js', 'js/dashboard.js', 'js/export.js', 'js/app.js',
   'vendor/xlsx.full.min.js', 'vendor/jszip.min.js', 'vendor/pptxgen.min.js', 'vendor/jspdf.umd.min.js', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-180.png',
   'sample-data/sample_transactions.xlsx', 'sample-data/sample_account_plans.docx', 'sample-data/sample_campaign_deck.pptx'];
 self.addEventListener('install', function (e) { e.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(FILES); }).then(function () { return self.skipWaiting(); })); });

@@ -5,7 +5,7 @@
 - Segment: Retail
 - Status on 15 Nov 2026: **Likely to close**
 - File generated on this device by fixed rules. No AI language model was used.
-- Version: rules 1.6 (2026-11-17); data sample_transactions.xlsx, 2024-11-01 to 2026-11-14
+- Version: rules 1.7 (2026-11-17); data sample_transactions.xlsx, 2024-11-01 to 2026-11-14
 
 ## Performance
 
@@ -31,23 +31,23 @@
 
 ## Today's assessment
 
-- They are due to reorder now: they usually order about every 13 days and the last order was 11 days ago.
-- They are buying more: spending is up 37% in the last 3 months.
-- Your documents say a campaign or offer applies to them (sample_account_plans.docx).
+- Usually orders every 13 days, now 11: reorder due.
+- Spending up 37% on the 3 months before.
+- Your documents: campaign applies (sample_account_plans.docx).
 
 ### Visit priority: 53 / 100
 
 | Points | In plain English | Technical trace | Source |
 |---:|---|---|---|
-| +53 | They are a mid-sized customer for you ($32,710 in the last 12 months). | 0.6 × max(churn 0, close 60) + 0.1 × min(…) 0 + 0.3 × value percentile 56 (12-month revenue $32,710 ranked among your 36 customers) = 52.8 | Sales data |
+| +53 | A mid-sized customer ($32,710 a year). | 0.6 × max(churn 0, close 60) + 0.1 × min(…) 0 + 0.3 × value percentile 56 (12-month revenue $32,710 ranked among your 36 customers) = 52.8 | Sales data |
 
 ### Chance to close a deal: 60 / 100
 
 | Points | In plain English | Technical trace | Source |
 |---:|---|---|---|
-| +30 | They are due to reorder now: they usually order about every 13 days and the last order was 11 days ago. | recency 11d ÷ median gap between orders 13d = 0.85 in [0.8, 1.5) → +30 close | Sales data |
-| +20 | They are buying more: spending is up 37% in the last 3 months. | revenue last 90d $9,785 vs previous 90d $7,150 = +37% ≥ +25% → +20 close | Sales data |
-| +10 | Your documents say a campaign or offer applies to them (sample_account_plans.docx). | document signals: campaign +10 = 10, capped at 20 → +10 close | Documents |
+| +30 | Usually orders every 13 days, now 11: reorder due. | recency 11d ÷ median gap between orders 13d = 0.85 in [0.8, 1.5) → +30 close | Sales data |
+| +20 | Spending up 37% on the 3 months before. | revenue last 90d $9,785 vs previous 90d $7,150 = +37% ≥ +25% → +20 close | Sales data |
+| +10 | Your documents: campaign applies (sample_account_plans.docx). | document signals: campaign +10 = 10, capped at 20 → +10 close | Documents |
 
 ### Risk of losing them: 0 / 100
 

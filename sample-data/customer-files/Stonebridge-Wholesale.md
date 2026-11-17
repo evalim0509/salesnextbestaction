@@ -5,7 +5,7 @@
 - Segment: Wholesale
 - Status on 15 Nov 2026: **Good chance**
 - File generated on this device by fixed rules. No AI language model was used.
-- Version: rules 1.6 (2026-11-17); data sample_transactions.xlsx, 2024-11-01 to 2026-11-14
+- Version: rules 1.7 (2026-11-17); data sample_transactions.xlsx, 2024-11-01 to 2026-11-14
 
 ## Performance
 
@@ -31,23 +31,23 @@
 
 ## Today's assessment
 
-- They are buying more: spending is up 34% in the last 3 months.
-- Their next order is coming up soon (they usually order about every 31 days; last order 22 days ago).
-- Your documents say a campaign or offer applies to them (sample_campaign_deck.pptx).
+- Spending up 34% on the 3 months before.
+- Usually orders every 31 days, now 22: order coming up.
+- Your documents: campaign applies (sample_campaign_deck.pptx).
 
 ### Visit priority: 47 / 100
 
 | Points | In plain English | Technical trace | Source |
 |---:|---|---|---|
-| +47 | They are one of your biggest customers ($41,845 in the last 12 months). | 0.6 × max(churn 0, close 42) + 0.1 × min(…) 0 + 0.3 × value percentile 72 (12-month revenue $41,845 ranked among your 36 customers) = 46.8 | Sales data |
+| +47 | One of your biggest customers ($41,845 a year). | 0.6 × max(churn 0, close 42) + 0.1 × min(…) 0 + 0.3 × value percentile 72 (12-month revenue $41,845 ranked among your 36 customers) = 46.8 | Sales data |
 
 ### Chance to close a deal: 42 / 100
 
 | Points | In plain English | Technical trace | Source |
 |---:|---|---|---|
-| +12 | Their next order is coming up soon (they usually order about every 31 days; last order 22 days ago). | recency 22d ÷ 31d = 0.72 in [0.6, 0.8) → +12 close | Sales data |
-| +20 | They are buying more: spending is up 34% in the last 3 months. | revenue last 90d $10,585 vs previous 90d $7,925 = +34% ≥ +25% → +20 close | Sales data |
-| +10 | Your documents say a campaign or offer applies to them (sample_campaign_deck.pptx). | document signals: campaign +10 = 10, capped at 20 → +10 close | Documents |
+| +12 | Usually orders every 31 days, now 22: order coming up. | recency 22d ÷ 31d = 0.72 in [0.6, 0.8) → +12 close | Sales data |
+| +20 | Spending up 34% on the 3 months before. | revenue last 90d $10,585 vs previous 90d $7,925 = +34% ≥ +25% → +20 close | Sales data |
+| +10 | Your documents: campaign applies (sample_campaign_deck.pptx). | document signals: campaign +10 = 10, capped at 20 → +10 close | Documents |
 
 ### Risk of losing them: 0 / 100
 

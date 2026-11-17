@@ -5,7 +5,7 @@
 - Segment: Corporate
 - Status on 15 Nov 2026: **Good chance**
 - File generated on this device by fixed rules. No AI language model was used.
-- Version: rules 1.6 (2026-11-17); data sample_transactions.xlsx, 2024-11-01 to 2026-11-14
+- Version: rules 1.7 (2026-11-17); data sample_transactions.xlsx, 2024-11-01 to 2026-11-14
 
 ## Performance
 
@@ -30,23 +30,23 @@
 
 ## Today's assessment
 
-- They are buying more: spending is up 265% in the last 3 months.
-- Most similar Corporate customers buy Service Plans, but they never have.
-- Your documents say a campaign or offer applies to them (sample_account_plans.docx).
+- Spending up 265% on the 3 months before.
+- Similar Corporate customers buy Service Plans; they never have.
+- Your documents: campaign applies (sample_account_plans.docx).
 
 ### Visit priority: 28 / 100
 
 | Points | In plain English | Technical trace | Source |
 |---:|---|---|---|
-| +28 | They are one of your smaller customers ($11,620 in the last 12 months). | 0.6 × max(churn 0, close 40) + 0.1 × min(…) 0 + 0.3 × value percentile 14 (12-month revenue $11,620 ranked among your 36 customers) = 28.2 | Sales data |
+| +28 | One of your smaller customers ($11,620 a year). | 0.6 × max(churn 0, close 40) + 0.1 × min(…) 0 + 0.3 × value percentile 14 (12-month revenue $11,620 ranked among your 36 customers) = 28.2 | Sales data |
 
 ### Chance to close a deal: 40 / 100
 
 | Points | In plain English | Technical trace | Source |
 |---:|---|---|---|
-| +20 | They are buying more: spending is up 265% in the last 3 months. | revenue last 90d $9,120 vs previous 90d $2,500 = +265% ≥ +25% → +20 close | Sales data |
-| +10 | Most similar Corporate customers buy Service Plans, but they never have. | Service Plans bought by 6 of 9 Corporate customers in the last 12 months (≥ 50%), 0 purchases by this customer → +10 close | Sales data |
-| +10 | Your documents say a campaign or offer applies to them (sample_account_plans.docx). | document signals: campaign +10 = 10, capped at 20 → +10 close | Documents |
+| +20 | Spending up 265% on the 3 months before. | revenue last 90d $9,120 vs previous 90d $2,500 = +265% ≥ +25% → +20 close | Sales data |
+| +10 | Similar Corporate customers buy Service Plans; they never have. | Service Plans bought by 6 of 9 Corporate customers in the last 12 months (≥ 50%), 0 purchases by this customer → +10 close | Sales data |
+| +10 | Your documents: campaign applies (sample_account_plans.docx). | document signals: campaign +10 = 10, capped at 20 → +10 close | Documents |
 
 ### Risk of losing them: 0 / 100
 

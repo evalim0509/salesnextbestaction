@@ -5,7 +5,7 @@
 - Segment: Retail
 - Status on 15 Nov 2026: **Watch**
 - File generated on this device by fixed rules. No AI language model was used.
-- Version: rules 1.6 (2026-11-17); data sample_transactions.xlsx, 2024-11-01 to 2026-11-14
+- Version: rules 1.7 (2026-11-17); data sample_transactions.xlsx, 2024-11-01 to 2026-11-14
 
 ## Performance
 
@@ -30,36 +30,36 @@
 
 ## Today's assessment
 
-- Their spending is down 52% in the last 3 months compared with the 3 months before.
-- Your documents flag a risk on this account (sample_account_plans.docx).
-- Most similar Retail customers buy Accessories, but they never have.
+- Spending down 52% on the 3 months before.
+- Your documents flag a risk (sample_account_plans.docx).
+- Similar Retail customers buy Accessories; they never have.
 
 ### Visit priority: 39 / 100
 
 | Points | In plain English | Technical trace | Source |
 |---:|---|---|---|
-| +39 | They are a mid-sized customer for you ($27,265 in the last 12 months). | 0.6 × max(churn 40, close 20) + 0.1 × min(…) 20 + 0.3 × value percentile 42 (12-month revenue $27,265 ranked among your 36 customers) = 38.6 | Sales data |
+| +39 | A mid-sized customer ($27,265 a year). | 0.6 × max(churn 40, close 20) + 0.1 × min(…) 20 + 0.3 × value percentile 42 (12-month revenue $27,265 ranked among your 36 customers) = 38.6 | Sales data |
 
 ### Chance to close a deal: 20 / 100
 
 | Points | In plain English | Technical trace | Source |
 |---:|---|---|---|
-| +10 | Most similar Retail customers buy Accessories, but they never have. | Accessories bought by 8 of 15 Retail customers in the last 12 months (≥ 50%), 0 purchases by this customer → +10 close | Sales data |
-| +10 | Your documents say the Year-end Retail campaign applies to them and they have not used it (sample_account_plans.docx). | document signals: campaign +10 = 10, capped at 20 → +10 close | Documents |
+| +10 | Similar Retail customers buy Accessories; they never have. | Accessories bought by 8 of 15 Retail customers in the last 12 months (≥ 50%), 0 purchases by this customer → +10 close | Sales data |
+| +10 | Your documents: unused offer (sample_account_plans.docx). | document signals: campaign +10 (Year-end Retail campaign not used) = 10, capped at 20 → +10 close | Documents |
 
 ### Risk of losing them: 40 / 100
 
 | Points | In plain English | Technical trace | Source |
 |---:|---|---|---|
-| +30 | Their spending is down 52% in the last 3 months compared with the 3 months before. | revenue last 90d $3,480 vs previous 90d $7,200 = -52% ≤ -50% → +30 churn | Sales data |
-| +10 | Your documents flag a risk on this account (sample_account_plans.docx). | document paragraph linked to customer with risk wording: “Greenfield Stores told us a competitor offered free delivery. We should match with the…” → +10 churn | Documents |
+| +30 | Spending down 52% on the 3 months before. | revenue last 90d $3,480 vs previous 90d $7,200 = -52% ≤ -50% → +30 churn | Sales data |
+| +10 | Your documents flag a risk (sample_account_plans.docx). | document paragraph linked to customer with risk wording: “Greenfield Stores told us a competitor offered free delivery. We should match with the…” → +10 churn | Documents |
 
 ## Suggested pitch
 
 Go in to listen first. Ask how things are going with their orders before you talk about products.
 
-- The Year-end Retail campaign applies to them and they have not used it yet. On a $626 order of Consumables they save about $57 (buy 10 get 1 free, worth about 9%). Valid until 31 Dec 2026. _(sample_account_plans.docx)_
-- They used to buy Consumables (last time 2 May 2026) and then stopped. Ask why and whether they still need it. _(Sales data)_
+- The Year-end Retail campaign applies to them and they have not used it yet. On a $626 order of Consumables they save about $57 (buy 10 get 1 free, worth about 9%). Valid until Thu 31 Dec. _(sample_account_plans.docx)_
+- They used to buy Consumables (last time Sat 2 May) and then stopped. Ask why and whether they still need it. _(Sales data)_
 - Customers like them usually buy Accessories too. Introduce it as something similar Retail customers find useful. _(Sales data)_
 - Their spending is down 52% in 3 months. Ask if they are buying part of their needs elsewhere. _(Sales data)_
 

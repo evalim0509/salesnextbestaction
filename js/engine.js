@@ -221,7 +221,7 @@
   function campaignLine(k, cur) {
     var what = k.cats.length ? k.cats.join(' and ') : 'goods';
     return 'The ' + k.name + ' applies to them and they have not used it yet. On a ' + money(k.basis, cur) + ' order of ' + what + ' they save about ' + money(k.saving, cur) +
-      ' (' + (k.mech && k.fromText ? k.mech + ', worth about ' : '') + Math.round(k.pct * 100) + '%).' + (k.end ? ' Valid until ' + niceDate(k.end) + '.' : '');
+      ' (' + (k.mech && k.fromText ? k.mech + ', worth about ' : '') + Math.round(k.pct * 100) + '%).' + (k.end ? ' Valid until ' + shortDate(k.end) + '.' : '');
   }
 
   // ---- customer names that look like the same customer ("Lakeside Mart" and "Lakeside Mart Sdn Bhd")
@@ -362,9 +362,9 @@
   }
 
   // short names for factors and pitch points, so screens can show a few words first and the sentence on demand
-  var FLABELS = [[/^They usually order about every/, 'Overdue'], [/^Their spending is down/, 'Spending down'], [/^They are due to reorder/, 'Due to reorder'], [/^Their next order is coming/, 'Order coming up'],
-    [/^They are buying more/, 'Spending up'], [/^Most similar/, 'Category gap'], [/^Your visit notes/, 'Your notes'], [/^You told me they are staying/, 'Your judgement'], [/^Your documents flag/, 'Risk in documents'], [/^Your documents say/, 'Offer or renewal'],
-    [/^They are (one of your|a mid)/, 'Customer size'], [/^Your account plan/, 'Priority account'], [/^You were in touch/, 'Recently contacted'], [/^They have not ordered/, 'Inactive']];
+  var FLABELS = [[/reorder due\.$/, 'Due to reorder'], [/order coming up\.$/, 'Order coming up'], [/^Usually orders every/, 'Overdue'], [/^Spending down/, 'Spending down'],
+    [/^Spending up/, 'Spending up'], [/^Similar /, 'Category gap'], [/^Your notes/, 'Your notes'], [/^You said they are staying/, 'Your judgement'], [/^Your documents flag/, 'Risk in documents'], [/^Your documents:/, 'Offer or renewal'],
+    [/^(One of your|A mid-sized)/, 'Customer size'], [/^Your account plan/, 'Priority account'], [/^You were in touch/, 'Recently contacted'], [/^No order for \d+ days: treated/, 'Inactive']];
   function factorLabel(plain) { for (var i = 0; i < FLABELS.length; i++) if (FLABELS[i][0].test(plain)) return FLABELS[i][1]; return 'Other'; }
   var PTITLES = [[/^Start with the delivery/, 'Fix the delivery issue'], [/^They complained about quality/, 'Address the quality complaint'], [/^They were unhappy/, 'Ask what would help'], [/^A competitor/, 'Counter the competitor'], [/^Price was a concern/, 'Talk value, not discount'],
     [/^They asked for a quote/, 'Bring the quote'], [/^Their budget is approved/, 'Confirm the order'], [/^They wanted a sample/, 'Follow up the sample'], [/^They mentioned a bigger/, 'Offer a standing order'], [/^They are expanding/, 'Supply the new site'],
@@ -375,8 +375,8 @@
 
   // ---------------------------------------------------------------- analysis
   var RULES = {
-    version: '1.6', date: '2026-11-17', // change both whenever a rule or threshold below changes
-    fewOrders: 2, roughOrders: 4, dataAgeWarn: 7,
+    version: '1.7', date: '2026-11-17', // change both whenever a rule or threshold below changes
+    fewOrders: 2, roughOrders: 4, dataAgeWarn: 7, bandHigh: 50, bandMid: 30, creditHoldDays: 30,
     staleDays: 14, lostDays: 180, lostRatio: 6, expiryDays: 7, stayingPts: 30, stayingDays: 30, outcomeDays: 14, backtestWeeks: 12, tuneStep: 5, tuneMax: 10, tuneMinN: 20, tuneUp: 1.3, tuneDown: 0.9, tuneRestDays: 30,
     overdue: [[3, 45], [2, 35], [1.5, 20]],
     decline: [[-0.5, 30], [-0.25, 20], [-0.1, 8]],
@@ -502,7 +502,7 @@
       for (i = 0; i < RULES.overdue.length; i++) {
         r = RULES.overdue[i];
         if (ratio >= r[0]) {
-          add('churn', r[1], 'They usually order about every ' + Math.round(gap) + ' days, but it has been ' + c.recency + ' days since the last order.',
+          add('churn', r[1], 'Usually orders every ' + Math.round(gap) + ' days, now ' + c.recency + '.',
             'recency ' + c.recency + 'd ÷ ' + gapNote + ' ' + Math.round(gap) + 'd = ' + ratio.toFixed(2) + ' ≥ ' + r[0] + ' → +' + r[1] + ' churn', null, 'orders');
           break;
         }
@@ -511,7 +511,7 @@
       if (c.revPrev90 > 0) for (i = 0; i < RULES.decline.length; i++) {
         r = RULES.decline[i];
         if (c.trend <= r[0]) {
-          add('churn', r[1], 'Their spending is down ' + Math.round(-c.trend * 100) + '% in the last 3 months compared with the 3 months before.',
+          add('churn', r[1], 'Spending down ' + Math.round(-c.trend * 100) + '% on the 3 months before.',
             'revenue last 90d ' + money(c.rev90, cur) + ' vs previous 90d ' + money(c.revPrev90, cur) + ' = ' + pct(c.trend) + ' ≤ ' + pct(r[0]) + ' → +' + r[1] + ' churn', null, 'trend');
           break;
         }
@@ -519,16 +519,16 @@
       // --- close: reorder window
       var w = RULES.reorderWindow, e = RULES.reorderEarly;
       if (ratio >= w[0] && ratio < w[1] && c.nOrders >= 2)
-        add('close', w[2], 'They are due to reorder now: they usually order about every ' + Math.round(gap) + ' days and the last order was ' + c.recency + ' days ago.',
+        add('close', w[2], 'Usually orders every ' + Math.round(gap) + ' days, now ' + c.recency + ': reorder due.',
           'recency ' + c.recency + 'd ÷ ' + gapNote + ' ' + Math.round(gap) + 'd = ' + ratio.toFixed(2) + ' in [' + w[0] + ', ' + w[1] + ') → +' + w[2] + ' close', null, 'orders');
       else if (ratio >= e[0] && ratio < e[1] && c.nOrders >= 2)
-        add('close', e[2], 'Their next order is coming up soon (they usually order about every ' + Math.round(gap) + ' days; last order ' + c.recency + ' days ago).',
+        add('close', e[2], 'Usually orders every ' + Math.round(gap) + ' days, now ' + c.recency + ': order coming up.',
           'recency ' + c.recency + 'd ÷ ' + Math.round(gap) + 'd = ' + ratio.toFixed(2) + ' in [' + e[0] + ', ' + e[1] + ') → +' + e[2] + ' close', null, 'orders');
       // --- close: growth
       if (c.revPrev90 > 0) for (i = 0; i < RULES.growth.length; i++) {
         r = RULES.growth[i];
         if (c.trend >= r[0]) {
-          add('close', r[1], 'They are buying more: spending is up ' + Math.round(c.trend * 100) + '% in the last 3 months.',
+          add('close', r[1], 'Spending up ' + Math.round(c.trend * 100) + '% on the 3 months before.',
             'revenue last 90d ' + money(c.rev90, cur) + ' vs previous 90d ' + money(c.revPrev90, cur) + ' = ' + pct(c.trend) + ' ≥ ' + pct(r[0]) + ' → +' + r[1] + ' close', null, 'trend');
           break;
         }
@@ -539,7 +539,7 @@
         .sort(function (a, b) { return st.cats[b] - st.cats[a]; }) : [];
       c.lapsed = Object.keys(c.cats).filter(function (k) { return c.cats[k].n >= 2 && A - dayNum(c.cats[k].last) > Math.max(120, 3 * gap) && !c.lost; });
       if (c.peerGap.length && !c.lost)
-        add('close', RULES.crossSell, 'Most similar ' + c.seg + ' customers buy ' + c.peerGap[0] + ', but they never have.',
+        add('close', RULES.crossSell, 'Similar ' + c.seg + ' customers buy ' + c.peerGap[0] + '; they never have.',
           c.peerGap[0] + ' bought by ' + st.cats[c.peerGap[0]] + ' of ' + st.n + ' ' + c.seg + ' customers in the last 12 months (≥ 50%), 0 purchases by this customer → +' + RULES.crossSell + ' close', null, 'w365');
 
       // --- notes
@@ -554,39 +554,53 @@
         });
       });
       c.deals.forEach(function (d) { var age = A - dayNum(d.date); if (lastVisit === null || age < lastVisit) lastVisit = age; });
+      // the rep said "Wrong, because…": closed or not mine = no suggestions until a new order; credit hold = 30 days; visited recently = counts as contact
+      c.feedback = (state.feedback || []).filter(function (f) { return f.cid === c.cid && f.date <= asOf; }).sort(function (a, b) { return a.ts < b.ts ? 1 : -1; });
+      c.blocked = null;
+      c.feedback.forEach(function (f) {
+        if (f.reason === 'recent') { var fa = A - dayNum(f.date); if (lastVisit === null || fa < lastVisit) lastVisit = fa; }
+        if (c.blocked) return;
+        if ((f.reason === 'closed' || f.reason === 'notmine') && c.last <= f.date) c.blocked = { reason: f.reason, date: f.date, until: 'a new order', tech: 'rep feedback “' + f.reason + '” on ' + f.date + '; last order ' + c.last + ' is not after it → left out of suggestions until a new order' };
+        else if (f.reason === 'credit' && A - dayNum(f.date) < RULES.creditHoldDays) c.blocked = { reason: 'credit', date: f.date, until: addDays(f.date, RULES.creditHoldDays), tech: 'rep feedback “credit hold” on ' + f.date + ' → left out of suggestions for ' + RULES.creditHoldDays + ' days, until ' + addDays(f.date, RULES.creditHoldDays) };
+      });
       (state.visits || []).forEach(function (v) { if (v.cid !== c.cid || v.status !== 'done') return; var age = A - dayNum(v.date); if (age >= 0 && (lastVisit === null || age < lastVisit)) lastVisit = age; });
       c.lastVisit = lastVisit; c.noteNeg = Object.keys(neg); c.notePos = Object.keys(pos);
+      // the latest note that moved a score, so screens can say "You told me on 3 Nov: budget approved"
+      var told = null;
+      Object.keys(neg).forEach(function (id) { if (KW[id].churn && (!told || neg[id].ts > told.ts)) told = neg[id]; });
+      Object.keys(pos).forEach(function (id) { if (KW[id].close && (!told || pos[id].ts > told.ts)) told = pos[id]; });
       function noteFactor(bucket, map, field, cap, days) {
         var ids = Object.keys(map); if (!ids.length) return;
         var raw = sum(ids, function (id) { return KW[id][field]; });
         var pts = raw > cap ? cap : raw < -cap ? -cap : raw;
         if (!pts) return;
-        var labels = ids.map(function (id) { return '“' + KW[id].label + '”'; }).join(', ');
-        var up = bucket === 'churn' ? (pts > 0 ? 'This raises the risk of losing them.' : 'This lowers the risk of losing them.') : (pts > 0 ? 'This makes a deal more likely.' : 'This makes a deal less likely.');
-        add(bucket, pts, 'Your visit notes say: ' + labels + '. ' + up,
+        var labels = ids.map(function (id) { return KW[id].label; }).join(', ');
+        add(bucket, pts, 'Your notes: ' + labels + '.',
           'note keywords in last ' + days + 'd: ' + ids.map(function (id) { return id + ' (' + (KW[id][field] > 0 ? '+' : '') + KW[id][field] + ')'; }).join(', ') + ' = ' + raw + ', capped at ±' + cap + ' → ' + (pts > 0 ? '+' : '') + pts + ' ' + bucket, 'Visit notes');
       }
       noteFactor('churn', neg, 'churn', RULES.noteNegCap, RULES.noteNegDays);
       // the salesperson's own judgement that the customer is staying: counts for a limited time, shown separately
       var stay = c.notes.filter(function (n) { return (n.keywords || []).indexOf('staying') >= 0 && A - dayNum(n.ts.slice(0, 10)) <= RULES.stayingDays && A - dayNum(n.ts.slice(0, 10)) >= 0; })[0];
       c.staying = !!stay;
+      if (stay && (!told || stay.ts > told.ts)) told = stay;
+      c.noteSays = told ? { date: told.ts.slice(0, 10), labels: (told.keywords || []).filter(function (id) { return KW[id] && (id === 'staying' || ((id in neg) && KW[id].churn) || ((id in pos) && KW[id].close)); }).map(function (id) { return KW[id].label; }) } : null;
       if (stay) { var sAge = A - dayNum(stay.ts.slice(0, 10));
-        add('churn', -RULES.stayingPts, 'You told me they are staying with you. I am trusting that for ' + (RULES.stayingDays - sAge) + ' more days; an order would confirm it.',
+        add('churn', -RULES.stayingPts, 'You said they are staying; I trust that for ' + (RULES.stayingDays - sAge) + ' more days.',
           'note keyword “staying” saved ' + sAge + 'd ago ≤ ' + RULES.stayingDays + 'd → −' + RULES.stayingPts + ' churn (salesperson judgement, not sales data)', 'Your judgement'); }
       noteFactor('close', pos, 'close', RULES.notePosCap, RULES.notePosDays);
 
       // --- documents
       function has(tag) { return c.docs.filter(function (s) { return s.tags.indexOf(tag) >= 0; }); }
       var dRisk = has('risk'), dRen = has('renewal'), dCamp = has('campaign').concat(c.segDocs), dGrow = has('growth'), dPri = has('priority');
-      if (dRisk.length) add('churn', RULES.docRisk, 'Your documents flag a risk on this account (' + dRisk[0].doc + ').',
+      if (dRisk.length) add('churn', RULES.docRisk, 'Your documents flag a risk (' + dRisk[0].doc + ').',
         'document paragraph linked to customer with risk wording: “' + shorten(dRisk[0].text, 90) + '” → +' + RULES.docRisk + ' churn', 'Documents');
       var docPts = 0, docBits = [], docTech = [];
-      if (dRen.length) { docPts += RULES.docRenewal; docBits.push('a renewal is coming up'); docTech.push('renewal +' + RULES.docRenewal); }
-      if (dCamp.length || c.offer) { docPts += RULES.docCampaign; docBits.push(c.offer ? 'the ' + c.offer.name + ' applies to them and they have not used it' : 'a campaign or offer applies to them'); docTech.push('campaign +' + RULES.docCampaign); }
-      if (dGrow.length) { docPts += RULES.docGrowth; docBits.push('the account plan sees room to grow'); docTech.push('growth +' + RULES.docGrowth); }
+      if (dRen.length) { docPts += RULES.docRenewal; docBits.push('renewal coming up'); docTech.push('renewal +' + RULES.docRenewal); }
+      if (dCamp.length || c.offer) { docPts += RULES.docCampaign; docBits.push(c.offer ? 'unused offer' : 'campaign applies'); docTech.push('campaign +' + RULES.docCampaign + (c.offer ? ' (' + c.offer.name + ' not used)' : '')); }
+      if (dGrow.length) { docPts += RULES.docGrowth; docBits.push('room to grow'); docTech.push('growth +' + RULES.docGrowth); }
       if (docPts) {
         var capped = Math.min(docPts, RULES.docCap);
-        add('close', capped, 'Your documents say ' + docBits.join(' and ') + ' (' + (dRen[0] || dCamp[0] || dGrow[0] || { doc: c.offer.src }).doc + ').',
+        add('close', capped, 'Your documents: ' + docBits.join(', ') + ' (' + (dRen[0] || dCamp[0] || dGrow[0] || { doc: c.offer.src }).doc + ').',
           'document signals: ' + docTech.join(', ') + ' = ' + docPts + ', capped at ' + RULES.docCap + ' → +' + capped + ' close', 'Documents');
       }
 
@@ -596,13 +610,13 @@
       c.valuePct = revs.length ? Math.round(100 * revs.filter(function (x) { return x <= c.rev12; }).length / revs.length) : 0;
       var main = Math.max(c.churn, c.close), other = Math.min(c.churn, c.close);
       var base = RULES.wMain * main + RULES.wOther * other + RULES.wValue * c.valuePct;
-      add('priority', Math.round(base), c.valuePct >= 67 ? 'They are one of your biggest customers (' + money(c.rev12, cur) + ' in the last 12 months).' : c.valuePct >= 34 ? 'They are a mid-sized customer for you (' + money(c.rev12, cur) + ' in the last 12 months).' : 'They are one of your smaller customers (' + money(c.rev12, cur) + ' in the last 12 months).',
+      add('priority', Math.round(base), c.valuePct >= 67 ? 'One of your biggest customers (' + money(c.rev12, cur) + ' a year).' : c.valuePct >= 34 ? 'A mid-sized customer (' + money(c.rev12, cur) + ' a year).' : 'One of your smaller customers (' + money(c.rev12, cur) + ' a year).',
         RULES.wMain + ' × max(churn ' + c.churn + ', close ' + c.close + ') + ' + RULES.wOther + ' × min(…) ' + other + ' + ' + RULES.wValue + ' × value percentile ' + c.valuePct + ' (12-month revenue ' + money(c.rev12, cur) + ' ranked among your ' + revs.length + ' customers) = ' + base.toFixed(1), null, 'w365');
-      if (dPri.length) add('priority', RULES.docPriority, 'Your account plan marks them as a priority account (' + dPri[0].doc + ').',
+      if (dPri.length) add('priority', RULES.docPriority, 'Your account plan marks them as a priority (' + dPri[0].doc + ').',
         'document paragraph with priority wording: “' + shorten(dPri[0].text, 90) + '” → +' + RULES.docPriority + ' priority', 'Documents');
       if (lastVisit !== null && lastVisit <= RULES.visitedDays) add('priority', -RULES.visitedPenalty, 'You were in touch ' + (lastVisit <= 0 ? 'today' : lastVisit === 1 ? 'yesterday' : lastVisit + ' days ago') + ', so they can wait.',
         'last logged visit, note or deal ' + lastVisit + 'd ago ≤ ' + RULES.visitedDays + 'd → −' + RULES.visitedPenalty + ' priority', 'Visit notes');
-      if (c.lost) add('priority', -30, 'They have not ordered for ' + c.recency + ' days, so they are treated as inactive.',
+      if (c.lost) add('priority', -30, 'No order for ' + c.recency + ' days: treated as inactive.',
         'recency ' + c.recency + 'd > max(' + RULES.lostDays + 'd, ' + RULES.lostRatio + ' × gap ' + Math.round(gap) + 'd) → inactive: churn and close set to 0, −30 priority', null, 'orders');
       c.priority = Math.max(0, Math.min(100, sum(F.filter(function (f) { return f.bucket === 'priority'; }), function (f) { return f.pts; })));
       c.factors = F;
@@ -610,7 +624,9 @@
       c.rough = c.nOrders < RULES.roughOrders;
       // a customer with fewer than 2 orders only joins today's visits when a note or document makes them a priority
       c.boost = c.notes.some(function (n) { return (n.keywords || []).length && A - dayNum(n.ts.slice(0, 10)) <= RULES.notePosDays; }) || dPri.length > 0 || dRen.length > 0;
-      c.eligible = !c.lost && (c.nOrders >= RULES.fewOrders || c.boost);
+      c.eligible = !c.lost && !c.blocked && (c.nOrders >= RULES.fewOrders || c.boost);
+      c.closeBand = c.close >= RULES.bandHigh ? 'Likely' : c.close >= RULES.bandMid ? 'Maybe' : 'Unlikely';
+      c.riskBand = c.churn >= RULES.bandHigh ? 'At risk' : c.churn >= RULES.bandMid ? 'Watch' : 'Steady';
       c.asOfN = A;
       var topCat = Object.keys(c.cats).sort(function (a, b) { return c.cats[b].amt12 - c.cats[a].amt12 || c.cats[b].amt - c.cats[a].amt; })[0];
       c.topCat = topCat;
@@ -629,7 +645,7 @@
     return f.concat(pr).slice(0, n || 3);
   }
   function lists(an) {
-    var T = RULES.listThreshold, cs = an.customers.filter(function (c) { return !c.lost; });
+    var T = RULES.listThreshold, cs = an.customers.filter(function (c) { return !c.lost && !c.blocked; });
     return {
       top3: cs.filter(function (c) { return c.eligible; }).slice(0, 3),
       close: cs.filter(function (c) { return c.close >= T; }).sort(function (a, b) { return b.close - a.close || b.rev12 - a.rev12; }).slice(0, 5),
@@ -672,7 +688,7 @@
     // 2. what the numbers say
     if (!c.lost && c.ratio >= 1.5) pt('They normally order every ' + every + ' days and it has been ' + c.recency + '. Ask openly: “I noticed we have not had an order for a while. Did something change?”', 'Sales data');
     else if (!c.lost && c.ratio >= 0.6 && c.nOrders >= 2) pt('They normally reorder ' + top + ' about every ' + every + ' days and the last order was ' + c.recency + ' days ago. Ask for the reorder' + (c.avgOrder ? ' (usual size about ' + money(c.avgOrder, cur) + ').' : '.'), 'Sales data');
-    if (c.lapsed.length) pt('They used to buy ' + c.lapsed[0] + ' (last time ' + niceDate(c.cats[c.lapsed[0]].last) + ') and then stopped. Ask why and whether they still need it.', 'Sales data');
+    if (c.lapsed.length) pt('They used to buy ' + c.lapsed[0] + ' (last time ' + shortDate(c.cats[c.lapsed[0]].last) + ') and then stopped. Ask why and whether they still need it.', 'Sales data');
     if (c.peerGap.length && !c.lost) pt('Customers like them usually buy ' + c.peerGap[0] + ' too. Introduce it as something similar ' + c.seg + ' customers find useful.', 'Sales data');
     if (c.revPrev90 > 0 && c.trend >= 0.1) pt('Their spending is up ' + Math.round(c.trend * 100) + '% in 3 months. Thank them and suggest a regular standing order.', 'Sales data');
     else if (c.revPrev90 > 0 && c.trend <= -0.25 && c.ratio < 1.5) pt('Their spending is down ' + Math.round(-c.trend * 100) + '% in 3 months. Ask if they are buying part of their needs elsewhere.', 'Sales data');
@@ -928,7 +944,7 @@
     L.top3.forEach(function (c) {
       if (c.offer) { offers.push({ name: c.name, renewal: false, text: campaignLine(c.offer, cur), doc: c.offer.src, tech: c.offer.tech }); return; }
       var s = c.docs.concat(c.segDocs).filter(function (x) { return x.tags.indexOf('renewal') >= 0 || x.tags.indexOf('campaign') >= 0; })[0];
-      if (s) offers.push({ name: c.name, renewal: s.tags.indexOf('renewal') >= 0, text: shorten(s.text, 120), doc: s.doc, tech: 'paragraph in ' + s.doc + ' linked to this customer; wording tagged ' + s.tags.join(', ') });
+      if (s) offers.push({ name: c.name, renewal: s.tags.indexOf('renewal') >= 0, text: shorten(s.text, 120), quote: true, doc: s.doc, tech: 'paragraph in ' + s.doc + ' linked to this customer; wording tagged ' + s.tags.join(', ') });
     });
     out.offers = offers;
     return out;
@@ -1012,7 +1028,10 @@
     var risks = live.filter(function (c) { return c.churn >= RULES.listThreshold; }).sort(function (a, b) { return b.rev12 - a.rev12; });
     var ready = live.filter(function (c) { return c.close >= RULES.listThreshold; }).sort(function (a, b) { return b.close * b.avgOrder - a.close * a.avgOrder; });
     var ex = expiring(an), owner = function (c) { return sp ? '' : ', ' + c.sp.split(' ')[0]; };
-    var D = { who: sp || 'All salespeople', period: niceDate(from) + ' to ' + niceDate(an.asOf), asOf: an.asOf, week: wk, prev: prev, change: prev ? (wk - prev) / prev : null, target: ts, visits: vs.week, deals: { n: deals.length, total: sum(deals, function (d) { return d.amt; }) }, notes: notes.length };
+    var WR = { closed: 'shop closed', credit: 'on credit hold', recent: 'visited recently', notmine: 'not my customer', other: 'other' };
+    var fbk = (state.feedback || []).filter(function (f) { return (!sp || f.sp === sp) && A - dayNum(f.date) < 7; }).map(function (f) { return (f.cname || f.cid) + ': wrong, because ' + WR[f.reason] + (sp ? '' : ' (' + f.sp.split(' ')[0] + ')'); })
+      .concat((state.swaps || []).filter(function (x) { return (!sp || x.sp === sp) && A - dayNum(x.date) < 7; }).map(function (x) { return 'Swapped ' + x.outName + ' for ' + x.inName + (sp ? '' : ' (' + x.sp.split(' ')[0] + ')'); }));
+    var D = { who: sp || 'All salespeople', period: shortDate(from) + ' to ' + shortDate(an.asOf), asOf: an.asOf, week: wk, prev: prev, change: prev ? (wk - prev) / prev : null, target: ts, visits: vs.week, deals: { n: deals.length, total: sum(deals, function (d) { return d.amt; }) }, notes: notes.length };
     D.tiles = [
       { label: 'Sales this week', value: money(wk, cur), sub: prev ? pct(D.change) + ' on the week before' : 'no sales the week before', dir: wk >= prev ? 'up' : 'down' },
       { label: ts.hasTarget ? ts.month + ' target' : 'Target', value: ts.hasTarget ? Math.round(100 * ts.mtd / ts.target) + '%' : 'Not set', sub: ts.hasTarget ? (ts.gap > 0 ? money(ts.gap, cur) + ' to go, ' + (ts.ahead ? 'on pace' : 'behind pace') : 'reached') : 'add a Targets sheet', dir: ts.hasTarget ? (ts.ahead ? 'up' : 'down') : '' },
@@ -1023,6 +1042,7 @@
       { heading: 'Biggest orders this week', bullets: wins.length ? wins.map(function (w) { return w.name + ': ' + money(w.amt, cur) + (sp ? '' : ' (' + w.sp.split(' ')[0] + ')'); }) : ['No sales recorded this week.'] },
       { heading: 'Accounts at risk (' + risks.length + ')', bullets: risks.length ? risks.slice(0, 5).map(function (c) { return c.name + ': ' + money(c.rev12, cur) + ' a year, ' + c.recency + ' days since last order' + owner(c); }) : ['No account shows a strong sign of leaving.'] },
       { heading: 'Ready to buy next week (' + ready.length + ')', bullets: ready.length ? ready.slice(0, 5).map(function (c) { return c.name + ': usual order ' + money(c.avgOrder, cur) + (c.offer ? ', offer: ' + c.offer.name : '') + owner(c); }) : ['No customer stands out as ready to buy.'] },
+      { heading: 'Feedback from reps (' + fbk.length + ')', bullets: fbk.length ? fbk.slice(0, 8) : ['No “Wrong, because…” or swaps this week.'] },
       { heading: 'Campaigns ending soon (' + ex.length + ')', bullets: ex.length ? ex.map(function (k) { return k.name + ': ends in ' + k.daysLeft + ' days, ' + k.customers.length + ' eligible customers have not used it'; }) : ['No campaign ends in the next ' + RULES.expiryDays + ' days.'] }
     ];
     D.audit = [['Sales this week', 'sum of sales dated ' + from + ' to ' + an.asOf + ' = ' + money(wk, cur) + '; the 7 days before = ' + money(prev, cur)], ['Target', ts.tech], ['Visits', 'planned visits in the last 7 days and those marked done on this device: ' + vs.week.done + ' of ' + vs.week.planned],
@@ -1134,7 +1154,10 @@
       { heading: 'Today\'s visits', rows: [['The 3 active customers with the highest visit priority, fixed for the day once shown', 'top 3'],
           ['Customers with fewer than ' + RULES.fewOrders + ' orders are left out, unless a recent note or an account plan (priority or renewal) makes them a priority', 'rule'],
           ['Lists “Likely to close” and “May churn”: score of ' + RULES.listThreshold + ' or more', String(RULES.listThreshold)],
-          ['Fewer than ' + RULES.roughOrders + ' orders: shown as a rough guess', 'label']] },
+          ['Fewer than ' + RULES.roughOrders + ' orders: shown as a rough guess', 'label'],
+          ['You said shop closed or not my customer: left out until a new order arrives', 'rule'], ['You said on credit hold: left out for ' + RULES.creditHoldDays + ' days', RULES.creditHoldDays + ' days'], ['You said visited recently: counts as recent contact', '−' + RULES.visitedPenalty]] },
+      { heading: 'Bands shown to reps', rows: [['Chance to close: Likely at ' + RULES.bandHigh + ' or more, Maybe ' + RULES.bandMid + ' to ' + (RULES.bandHigh - 1) + ', Unlikely below ' + RULES.bandMid, RULES.bandHigh + ' / ' + RULES.bandMid],
+          ['Risk of leaving: At risk at ' + RULES.bandHigh + ' or more, Watch ' + RULES.bandMid + ' to ' + (RULES.bandHigh - 1) + ', Steady below ' + RULES.bandMid, RULES.bandHigh + ' / ' + RULES.bandMid]] },
       { heading: 'Other rules', rows: [['A campaign counts as unused when they have not bought its categories in the last 30 days; saving = discount × their typical order', 'rule'],
           ['Ending soon: an unused campaign ends within ' + RULES.expiryDays + ' days', RULES.expiryDays + ' days'], ['Target pace: target × day of the month ÷ days in the month', 'rule'],
           ['Sales data older than ' + RULES.dataAgeWarn + ' days is flagged in amber; older than ' + RULES.staleDays + ' days, the brief is worked out as of the day after the last sale', RULES.dataAgeWarn + ' / ' + RULES.staleDays + ' days'],

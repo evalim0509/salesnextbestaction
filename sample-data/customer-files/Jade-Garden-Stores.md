@@ -5,7 +5,7 @@
 - Segment: Retail
 - Status on 15 Nov 2026: **Steady**
 - File generated on this device by fixed rules. No AI language model was used.
-- Version: rules 1.6 (2026-11-17); data sample_transactions.xlsx, 2024-11-01 to 2026-11-14
+- Version: rules 1.7 (2026-11-17); data sample_transactions.xlsx, 2024-11-01 to 2026-11-14
 
 ## Performance
 
@@ -31,22 +31,22 @@
 
 ## Today's assessment
 
-- Your documents say a campaign or offer applies to them and the account plan sees room to grow (sample_account_plans.docx).
-- They are buying more: spending is up 18% in the last 3 months.
-- They are one of your biggest customers ($45,845 in the last 12 months).
+- Your documents: campaign applies, room to grow (sample_account_plans.docx).
+- Spending up 18% on the 3 months before.
+- One of your biggest customers ($45,845 a year).
 
 ### Visit priority: 40 / 100
 
 | Points | In plain English | Technical trace | Source |
 |---:|---|---|---|
-| +40 | They are one of your biggest customers ($45,845 in the last 12 months). | 0.6 × max(churn 0, close 28) + 0.1 × min(…) 0 + 0.3 × value percentile 78 (12-month revenue $45,845 ranked among your 36 customers) = 40.2 | Sales data |
+| +40 | One of your biggest customers ($45,845 a year). | 0.6 × max(churn 0, close 28) + 0.1 × min(…) 0 + 0.3 × value percentile 78 (12-month revenue $45,845 ranked among your 36 customers) = 40.2 | Sales data |
 
 ### Chance to close a deal: 28 / 100
 
 | Points | In plain English | Technical trace | Source |
 |---:|---|---|---|
-| +10 | They are buying more: spending is up 18% in the last 3 months. | revenue last 90d $14,305 vs previous 90d $12,090 = +18% ≥ +10% → +10 close | Sales data |
-| +18 | Your documents say a campaign or offer applies to them and the account plan sees room to grow (sample_account_plans.docx). | document signals: campaign +10, growth +8 = 18, capped at 20 → +18 close | Documents |
+| +10 | Spending up 18% on the 3 months before. | revenue last 90d $14,305 vs previous 90d $12,090 = +18% ≥ +10% → +10 close | Sales data |
+| +18 | Your documents: campaign applies, room to grow (sample_account_plans.docx). | document signals: campaign +10, growth +8 = 18, capped at 20 → +18 close | Documents |
 
 ### Risk of losing them: 0 / 100
 

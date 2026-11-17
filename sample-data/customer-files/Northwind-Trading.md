@@ -5,7 +5,7 @@
 - Segment: Wholesale
 - Status on 15 Nov 2026: **Good chance**
 - File generated on this device by fixed rules. No AI language model was used.
-- Version: rules 1.6 (2026-11-17); data sample_transactions.xlsx, 2024-11-01 to 2026-11-14
+- Version: rules 1.7 (2026-11-17); data sample_transactions.xlsx, 2024-11-01 to 2026-11-14
 
 ## Performance
 
@@ -31,29 +31,29 @@
 
 ## Today's assessment
 
-- They are due to reorder now: they usually order about every 21 days and the last order was 25 days ago.
-- Your documents say a campaign or offer applies to them and the account plan sees room to grow (sample_account_plans.docx).
-- Their spending is down 21% in the last 3 months compared with the 3 months before.
+- Usually orders every 21 days, now 25: reorder due.
+- Your documents: campaign applies, room to grow (sample_account_plans.docx).
+- Spending down 21% on the 3 months before.
 
 ### Visit priority: 66 / 100
 
 | Points | In plain English | Technical trace | Source |
 |---:|---|---|---|
-| +58 | They are one of your biggest customers ($66,585 in the last 12 months). | 0.6 × max(churn 8, close 48) + 0.1 × min(…) 8 + 0.3 × value percentile 94 (12-month revenue $66,585 ranked among your 36 customers) = 57.8 | Sales data |
-| +8 | Your account plan marks them as a priority account (sample_account_plans.docx). | document paragraph with priority wording: “Northwind Trading is a top account for Wholesale. Opportunity to grow Accessories volume…” → +8 priority | Documents |
+| +58 | One of your biggest customers ($66,585 a year). | 0.6 × max(churn 8, close 48) + 0.1 × min(…) 8 + 0.3 × value percentile 94 (12-month revenue $66,585 ranked among your 36 customers) = 57.8 | Sales data |
+| +8 | Your account plan marks them as a priority (sample_account_plans.docx). | document paragraph with priority wording: “Northwind Trading is a top account for Wholesale. Opportunity to grow Accessories volume…” → +8 priority | Documents |
 
 ### Chance to close a deal: 48 / 100
 
 | Points | In plain English | Technical trace | Source |
 |---:|---|---|---|
-| +30 | They are due to reorder now: they usually order about every 21 days and the last order was 25 days ago. | recency 25d ÷ median gap between orders 21d = 1.19 in [0.8, 1.5) → +30 close | Sales data |
-| +18 | Your documents say a campaign or offer applies to them and the account plan sees room to grow (sample_account_plans.docx). | document signals: campaign +10, growth +8 = 18, capped at 20 → +18 close | Documents |
+| +30 | Usually orders every 21 days, now 25: reorder due. | recency 25d ÷ median gap between orders 21d = 1.19 in [0.8, 1.5) → +30 close | Sales data |
+| +18 | Your documents: campaign applies, room to grow (sample_account_plans.docx). | document signals: campaign +10, growth +8 = 18, capped at 20 → +18 close | Documents |
 
 ### Risk of losing them: 8 / 100
 
 | Points | In plain English | Technical trace | Source |
 |---:|---|---|---|
-| +8 | Their spending is down 21% in the last 3 months compared with the 3 months before. | revenue last 90d $14,055 vs previous 90d $17,755 = -21% ≤ -10% → +8 churn | Sales data |
+| +8 | Spending down 21% on the 3 months before. | revenue last 90d $14,055 vs previous 90d $17,755 = -21% ≤ -10% → +8 churn | Sales data |
 
 ## Suggested pitch
 

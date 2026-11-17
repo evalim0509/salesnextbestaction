@@ -5,7 +5,7 @@
 - Segment: Corporate
 - Status on 15 Nov 2026: **Good chance**
 - File generated on this device by fixed rules. No AI language model was used.
-- Version: rules 1.6 (2026-11-17); data sample_transactions.xlsx, 2024-11-01 to 2026-11-14
+- Version: rules 1.7 (2026-11-17); data sample_transactions.xlsx, 2024-11-01 to 2026-11-14
 
 ## Performance
 
@@ -31,23 +31,23 @@
 
 ## Today's assessment
 
-- Your documents say a renewal is coming up and a campaign or offer applies to them and the account plan sees room to grow (sample_account_plans.docx).
-- They are buying more: spending is up 20% in the last 3 months.
-- They are one of your biggest customers ($61,570 in the last 12 months).
+- Your documents: renewal coming up, campaign applies, room to grow (sample_account_plans.docx).
+- Spending up 20% on the 3 months before.
+- One of your biggest customers ($61,570 a year).
 
 ### Visit priority: 53 / 100
 
 | Points | In plain English | Technical trace | Source |
 |---:|---|---|---|
-| +45 | They are one of your biggest customers ($61,570 in the last 12 months). | 0.6 × max(churn 0, close 30) + 0.1 × min(…) 0 + 0.3 × value percentile 89 (12-month revenue $61,570 ranked among your 36 customers) = 44.7 | Sales data |
-| +8 | Your account plan marks them as a priority account (sample_account_plans.docx). | document paragraph with priority wording: “Summit Office Group is expanding to a second office in the new year. This is a strategic…” → +8 priority | Documents |
+| +45 | One of your biggest customers ($61,570 a year). | 0.6 × max(churn 0, close 30) + 0.1 × min(…) 0 + 0.3 × value percentile 89 (12-month revenue $61,570 ranked among your 36 customers) = 44.7 | Sales data |
+| +8 | Your account plan marks them as a priority (sample_account_plans.docx). | document paragraph with priority wording: “Summit Office Group is expanding to a second office in the new year. This is a strategic…” → +8 priority | Documents |
 
 ### Chance to close a deal: 30 / 100
 
 | Points | In plain English | Technical trace | Source |
 |---:|---|---|---|
-| +10 | They are buying more: spending is up 20% in the last 3 months. | revenue last 90d $18,430 vs previous 90d $15,320 = +20% ≥ +10% → +10 close | Sales data |
-| +20 | Your documents say a renewal is coming up and a campaign or offer applies to them and the account plan sees room to grow (sample_account_plans.docx). | document signals: renewal +15, campaign +10, growth +8 = 33, capped at 20 → +20 close | Documents |
+| +10 | Spending up 20% on the 3 months before. | revenue last 90d $18,430 vs previous 90d $15,320 = +20% ≥ +10% → +10 close | Sales data |
+| +20 | Your documents: renewal coming up, campaign applies, room to grow (sample_account_plans.docx). | document signals: renewal +15, campaign +10, growth +8 = 33, capped at 20 → +20 close | Documents |
 
 ### Risk of losing them: 0 / 100
 

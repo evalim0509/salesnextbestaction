@@ -5,7 +5,7 @@
 - Segment: Wholesale
 - Status on 15 Nov 2026: **Inactive**
 - File generated on this device by fixed rules. No AI language model was used.
-- Version: rules 1.6 (2026-11-17); data sample_transactions.xlsx, 2024-11-01 to 2026-11-14
+- Version: rules 1.7 (2026-11-17); data sample_transactions.xlsx, 2024-11-01 to 2026-11-14
 
 ## Performance
 
@@ -29,28 +29,28 @@
 
 ## Today's assessment
 
-- They usually order about every 28 days, but it has been 287 days since the last order.
-- Your documents say a campaign or offer applies to them (sample_campaign_deck.pptx).
-- They are one of your smaller customers ($6,060 in the last 12 months).
+- Usually orders every 28 days, now 287.
+- Your documents: campaign applies (sample_campaign_deck.pptx).
+- One of your smaller customers ($6,060 a year).
 
 ### Visit priority: 0 / 100
 
 | Points | In plain English | Technical trace | Source |
 |---:|---|---|---|
-| +2 | They are one of your smaller customers ($6,060 in the last 12 months). | 0.6 × max(churn 0, close 0) + 0.1 × min(…) 0 + 0.3 × value percentile 8 (12-month revenue $6,060 ranked among your 36 customers) = 2.4 | Sales data |
-| -30 | They have not ordered for 287 days, so they are treated as inactive. | recency 287d > max(180d, 6 × gap 28d) → inactive: churn and close set to 0, −30 priority | Sales data |
+| +2 | One of your smaller customers ($6,060 a year). | 0.6 × max(churn 0, close 0) + 0.1 × min(…) 0 + 0.3 × value percentile 8 (12-month revenue $6,060 ranked among your 36 customers) = 2.4 | Sales data |
+| -30 | No order for 287 days: treated as inactive. | recency 287d > max(180d, 6 × gap 28d) → inactive: churn and close set to 0, −30 priority | Sales data |
 
 ### Chance to close a deal: 0 / 100
 
 | Points | In plain English | Technical trace | Source |
 |---:|---|---|---|
-| +10 | Your documents say a campaign or offer applies to them (sample_campaign_deck.pptx). | document signals: campaign +10 = 10, capped at 20 → +10 close | Documents |
+| +10 | Your documents: campaign applies (sample_campaign_deck.pptx). | document signals: campaign +10 = 10, capped at 20 → +10 close | Documents |
 
 ### Risk of losing them: 0 / 100
 
 | Points | In plain English | Technical trace | Source |
 |---:|---|---|---|
-| +45 | They usually order about every 28 days, but it has been 287 days since the last order. | recency 287d ÷ median gap between orders 28d = 10.25 ≥ 3 → +45 churn | Sales data |
+| +45 | Usually orders every 28 days, now 287. | recency 287d ÷ median gap between orders 28d = 10.25 ≥ 3 → +45 churn | Sales data |
 
 ## Suggested pitch
 

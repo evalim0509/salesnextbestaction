@@ -5,7 +5,7 @@
 - Segment: Retail
 - Status on 15 Nov 2026: **Steady**
 - File generated on this device by fixed rules. No AI language model was used.
-- Version: rules 1.6 (2026-11-17); data sample_transactions.xlsx, 2024-11-01 to 2026-11-14
+- Version: rules 1.7 (2026-11-17); data sample_transactions.xlsx, 2024-11-01 to 2026-11-14
 
 ## Performance
 
@@ -30,22 +30,22 @@
 
 ## Today's assessment
 
-- Most similar Retail customers buy Accessories, but they never have.
-- Your documents say a campaign or offer applies to them (sample_account_plans.docx).
-- They are a mid-sized customer for you ($31,640 in the last 12 months).
+- Similar Retail customers buy Accessories; they never have.
+- Your documents: campaign applies (sample_account_plans.docx).
+- A mid-sized customer ($31,640 a year).
 
 ### Visit priority: 25 / 100
 
 | Points | In plain English | Technical trace | Source |
 |---:|---|---|---|
-| +25 | They are a mid-sized customer for you ($31,640 in the last 12 months). | 0.6 × max(churn 0, close 20) + 0.1 × min(…) 0 + 0.3 × value percentile 44 (12-month revenue $31,640 ranked among your 36 customers) = 25.2 | Sales data |
+| +25 | A mid-sized customer ($31,640 a year). | 0.6 × max(churn 0, close 20) + 0.1 × min(…) 0 + 0.3 × value percentile 44 (12-month revenue $31,640 ranked among your 36 customers) = 25.2 | Sales data |
 
 ### Chance to close a deal: 20 / 100
 
 | Points | In plain English | Technical trace | Source |
 |---:|---|---|---|
-| +10 | Most similar Retail customers buy Accessories, but they never have. | Accessories bought by 8 of 15 Retail customers in the last 12 months (≥ 50%), 0 purchases by this customer → +10 close | Sales data |
-| +10 | Your documents say a campaign or offer applies to them (sample_account_plans.docx). | document signals: campaign +10 = 10, capped at 20 → +10 close | Documents |
+| +10 | Similar Retail customers buy Accessories; they never have. | Accessories bought by 8 of 15 Retail customers in the last 12 months (≥ 50%), 0 purchases by this customer → +10 close | Sales data |
+| +10 | Your documents: campaign applies (sample_account_plans.docx). | document signals: campaign +10 = 10, capped at 20 → +10 close | Documents |
 
 ### Risk of losing them: 0 / 100
 

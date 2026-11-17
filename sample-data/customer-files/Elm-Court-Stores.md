@@ -5,7 +5,7 @@
 - Segment: Retail
 - Status on 15 Nov 2026: **Likely to close**
 - File generated on this device by fixed rules. No AI language model was used.
-- Version: rules 1.6 (2026-11-17); data sample_transactions.xlsx, 2024-11-01 to 2026-11-14
+- Version: rules 1.7 (2026-11-17); data sample_transactions.xlsx, 2024-11-01 to 2026-11-14
 
 ## Performance
 
@@ -30,24 +30,24 @@
 
 ## Today's assessment
 
-- They are buying more: spending is up 34% in the last 3 months.
-- Their next order is coming up soon (they usually order about every 22 days; last order 15 days ago).
-- Most similar Retail customers buy Consumables, but they never have.
+- Spending up 34% on the 3 months before.
+- Usually orders every 22 days, now 15: order coming up.
+- Similar Retail customers buy Consumables; they never have.
 
 ### Visit priority: 38 / 100
 
 | Points | In plain English | Technical trace | Source |
 |---:|---|---|---|
-| +38 | They are one of your smaller customers ($24,120 in the last 12 months). | 0.6 × max(churn 0, close 52) + 0.1 × min(…) 0 + 0.3 × value percentile 22 (12-month revenue $24,120 ranked among your 36 customers) = 37.8 | Sales data |
+| +38 | One of your smaller customers ($24,120 a year). | 0.6 × max(churn 0, close 52) + 0.1 × min(…) 0 + 0.3 × value percentile 22 (12-month revenue $24,120 ranked among your 36 customers) = 37.8 | Sales data |
 
 ### Chance to close a deal: 52 / 100
 
 | Points | In plain English | Technical trace | Source |
 |---:|---|---|---|
-| +12 | Their next order is coming up soon (they usually order about every 22 days; last order 15 days ago). | recency 15d ÷ 22d = 0.68 in [0.6, 0.8) → +12 close | Sales data |
-| +20 | They are buying more: spending is up 34% in the last 3 months. | revenue last 90d $6,615 vs previous 90d $4,940 = +34% ≥ +25% → +20 close | Sales data |
-| +10 | Most similar Retail customers buy Consumables, but they never have. | Consumables bought by 12 of 15 Retail customers in the last 12 months (≥ 50%), 0 purchases by this customer → +10 close | Sales data |
-| +10 | Your documents say the Year-end Retail campaign applies to them and they have not used it (sample_account_plans.docx). | document signals: campaign +10 = 10, capped at 20 → +10 close | Documents |
+| +12 | Usually orders every 22 days, now 15: order coming up. | recency 15d ÷ 22d = 0.68 in [0.6, 0.8) → +12 close | Sales data |
+| +20 | Spending up 34% on the 3 months before. | revenue last 90d $6,615 vs previous 90d $4,940 = +34% ≥ +25% → +20 close | Sales data |
+| +10 | Similar Retail customers buy Consumables; they never have. | Consumables bought by 12 of 15 Retail customers in the last 12 months (≥ 50%), 0 purchases by this customer → +10 close | Sales data |
+| +10 | Your documents: unused offer (sample_account_plans.docx). | document signals: campaign +10 (Year-end Retail campaign not used) = 10, capped at 20 → +10 close | Documents |
 
 ### Risk of losing them: 0 / 100
 
@@ -57,7 +57,7 @@ No factors applied.
 
 Go in ready to take an order today.
 
-- The Year-end Retail campaign applies to them and they have not used it yet. On a $1,296 order of Consumables they save about $118 (buy 10 get 1 free, worth about 9%). Valid until 31 Dec 2026. _(sample_account_plans.docx)_
+- The Year-end Retail campaign applies to them and they have not used it yet. On a $1,296 order of Consumables they save about $118 (buy 10 get 1 free, worth about 9%). Valid until Thu 31 Dec. _(sample_account_plans.docx)_
 - They normally reorder Core Products about every 22 days and the last order was 15 days ago. Ask for the reorder (usual size about $1,296). _(Sales data)_
 - Customers like them usually buy Consumables too. Introduce it as something similar Retail customers find useful. _(Sales data)_
 - Their spending is up 34% in 3 months. Thank them and suggest a regular standing order. _(Sales data)_

@@ -65,6 +65,21 @@ Status: Done = built and tested. Pilot limit = works within the limit described.
 | T11 | Rules version stamp (currently 1.6, 17 Nov 2026). Every trail and export records the rules version, approved changes, data file names and date range. | Done |
 | T12 | Test: the same state run twice gives exactly the same brief. | Done |
 
+### 3.2b The rep stays in charge, and easier reading (Phase 2)
+
+| ID | Requirement | Status |
+|---|---|---|
+| C1 | Suggestions say "worth a visit" or "worth a check", never "must". Visit cards lead with the action: "Visit Lakeside Mart today: 12 days late" (or "reorder due", "ready to buy"). | Done |
+| C2 | Compare with the customer's normal: "Usually orders every 14 days, now 26." Ratios and points appear only in "How I got this". | Done |
+| C3 | Bands on rep screens instead of 0–100 scores: chance to close Likely / Maybe / Unlikely; risk of leaving At risk / Watch / Steady. Each band word carries a shape, never colour alone. | Done |
+| C4 | "Wrong, because…" on every visit card and customer card: shop closed, on credit hold, visited recently, not my customer, other. Closed or not mine: no suggestions until a new order. Credit hold: 30 days. Visited recently: the recently-contacted penalty. Confirmed in one line; the customer is replaced in today's visits; logged for the manager (Dashboard, weekly digest) and the Excel export. | Done |
+| C5 | Swap a visit: replace any of today's visits with a customer picked from the list, with a reason. Recorded as feedback, not as a skipped visit. | Done |
+| C6 | When a note changed a suggestion, the card says "You told me on Tue 3 Nov: budget approved". | Done |
+| C7 | The note screen says who can see notes. | Done |
+| C8 | Readability: currency RM by default (a setting); screen dates as "Tue 12 Nov" (technical dates stay in the trail); one number per tile and one sentence per card; every colour paired with a word or arrow; body text at least 16px; main buttons within thumb reach; checked on a 360px-wide screen. | Done |
+| C9 | Animations and motion stay on (owner decision, 17 Nov 2026, overriding "animation off by default"). Confetti and the note-screen tone orb are kept. A Motion switch in the menu turns all motion off; the phone's reduce-motion setting is respected. | Done |
+| C10 | Malay interface, switched in the menu. Every fixed label and every sentence template in engine.js has an English–Malay pair in one table (`js/i18n-pairs.js`). Names, numbers and dates are carried over; day and month names are translated. Technical calculations in "How I got this", the customer .md file and exports stay in English for now. A test fails when an engine sentence has no Malay pair. | Done (Malay drafted for native-speaker review) |
+
 ### 3.3 Morning brief (main tab)
 
 | ID | Requirement | Status |
@@ -170,7 +185,11 @@ All thresholds live in one place: `RULES` in `js/engine.js`. Each score is 0 to 
 | Note keywords (last 45 days) | Asked for a quote +25, Budget approved +25, Interested +15, Wants a bigger order +15, Wants a sample +12, Expanding +12, Wants a follow-up +12, Met the decision maker +10, Happy +5, Budget cut -10, Not interested -20 | capped at ±40 |
 | Documents | renewal +15, campaign or offer +10, growth opportunity +8 | capped at +20 |
 
-**Rules version**: `RULES.version` and `RULES.date` in `js/engine.js` (now 1.6, 17 Nov 2026). Change both whenever a rule or threshold changes; the version is stamped on every trail and export.
+**Rules version**: `RULES.version` and `RULES.date` in `js/engine.js` (now 1.7, 17 Nov 2026). Change both whenever a rule or threshold changes; the version is stamped on every trail and export.
+
+**Bands (rep screens)**: chance to close: Likely at 50 or more, Maybe 30 to 49, Unlikely below 30. Risk of leaving: At risk at 50 or more, Watch 30 to 49, Steady below 30 (`RULES.bandHigh`, `RULES.bandMid`). The same cut-offs drive the "Likely to close" and "May churn" lists.
+
+**Rep feedback**: "Shop closed" or "Not my customer" leaves a customer out of suggestions until an order dated after the feedback arrives. "On credit hold" leaves them out for 30 days (`RULES.creditHoldDays`). "Visited recently" counts as contact that day (−40 priority for 2 days). Every reason removes the customer from today's visits and puts the next eligible customer in its place.
 
 **Few orders**: customers with fewer than 2 orders are left out of today's visits unless a scoring note in the last 45 days, or an account plan paragraph tagged priority or renewal, makes them a priority. Under 4 orders, screens say "rough guess, few orders".
 
@@ -212,6 +231,7 @@ Lists: "Likely to close" and "May churn" show customers scoring 50 or more. A cu
 | R16 | Tuning is stored on the phone where a manager approved it. Another phone keeps the original points until the same change is approved there. |
 | R17 | Context notes are free text and may hold sensitive remarks. They stay on the phone and in internal exports; salespeople should not write anything they would not want a colleague to read. |
 | R18 | Text dates in CSV files are now kept as text and checked, instead of being read by the spreadsheet library in US month/day order. Older uploads loaded before this change were not re-checked. |
+| R19 | Malay text was drafted without a native-speaker review; terms such as "berkemungkinan membeli" and "beralih" should be checked with the sales team. |
 | R7 | The assistant look and typing animation are presentation only. The text is produced instantly by fixed rules; no AI model is involved. The header says "Private, runs on this phone". |
 | R4 | Clearing browser data erases notes and deals. Customer files can be downloaded as a backup. |
 | R5 | The site code on GitHub Pages is public (including the invented sample data). Real business data is never part of the site. |
@@ -236,3 +256,4 @@ Lists: "Likely to close" and "May churn" show customers scoring 50 or more. A cu
 | 16 Nov 2026 | Decluttered every reply: visuals first (tiles, meters, bars, spend line), sentences behind expanders. New customer card with + for notes, icons for file and export, Done for a closed deal. More visible orb states. Manager weekly digest. "Staying with us" keyword (-30 risk for 30 days) and a warning when a note matches no keyword. Menu renamed to Export, Brief, Dashboard; install hint removed; home steps made smaller. |
 | 16 Nov 2026 | Note screen: orb turns green or red with the tone of what is said, voice note can be deleted and re-recorded in place, and two save options (for scores, or as context). Context notes shown on the customer card, above "What to say" and in internal exports. Trend dot on visit cards. Outcome tracking with manager-approved tuning proposals on the Dashboard. |
 | 17 Nov 2026 | Phase 1, trust foundation: upload health check with confirm button, duplicate/negative/no-salesperson/future/unreadable counts, name-variant merge, date-format check with question, hard stop; "Show me the orders" evidence; data date line; confidence in words and the fewer-than-2-orders rule; blind-spots line; How Nudge decides page; rules version stamp on trails and exports; same-answer test. |
+| 17 Nov 2026 | Phase 2, the rep stays in charge: action-led visit cards, "usually every 14 days, now 26", Likely/Maybe/Unlikely and At risk/Watch/Steady bands, "Wrong, because…" with effects and manager log, swap a visit, notes quoted back, who-can-see-notes line, RM default, "Tue 12 Nov" dates, one number per tile, 16px text, 360px check, Motion switch (animations kept on by owner decision), Malay interface. Rules version 1.7. |
