@@ -5,6 +5,7 @@
 - Segment: Retail
 - Status on 15 Nov 2026: **Likely to close**
 - File generated on this device by fixed rules. No AI language model was used.
+- Version: rules 1.6 (2026-11-17); data sample_transactions.xlsx, 2024-11-01 to 2026-11-14
 
 ## Performance
 
@@ -16,7 +17,7 @@
 | Usual time between orders | 22 days |
 | Usual order size | $1,296 |
 | Revenue, last 12 months | $24,120 |
-| Revenue, 12 months before | $19,950 (+21%) |
+| Revenue, 12 months before | $19,725 (+22%) |
 | Revenue, last 90 days | $6,615 |
 | Revenue, previous 90 days | $4,940 |
 

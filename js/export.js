@@ -159,7 +159,7 @@
     var audit = [['Headline', ex.headlineTech, 'Sales data']].concat(ex.points.map(function (q) { return [q.label, q.tech || '', 'Sales data']; }));
     plan.forEach(function (c) { c.factors.forEach(function (f) { audit.push([c.name + ' (' + f.bucket + ' ' + (f.pts > 0 ? '+' : '') + f.pts + ')', f.tech, f.src]); }); });
     d.table(['Item', 'Calculation', 'Source'], audit, [0.26, 0.58, 0.16], { size: 15 });
-    d.p('Produced by Nudge from fixed rules. No AI model was used. Amounts in ' + cur + '.', { color: GREY, size: 16, i: true, before: 160 });
+    d.p('Produced by Nudge from fixed rules. No AI model was used. Amounts in ' + cur + '. Version: ' + an.stamp + '.', { color: GREY, size: 16, i: true, before: 160 });
     return d.out(fmt).then(function (b) { return { name: 'Morning-brief-' + slug(me) + '-' + an.asOf + '.' + fmt, blob: b }; });
   }
 
@@ -180,6 +180,7 @@
     sheet('Visit notes', ['Date', 'Customer', 'Keywords', 'Talked about', 'Note text'], (state.notes || []).filter(function (n) { return names[n.cid]; }).map(function (n) { return [n.ts.slice(0, 10), names[n.cid], (n.keywords || []).map(function (id) { return NBA.KW[id] ? NBA.KW[id].label : id; }).join(', '), (n.cats || []).join(', '), n.transcript || '']; }), [12, 28, 40, 24, 70]);
     sheet('Deals', ['Date', 'Customer', 'Amount', 'Category', 'Status'], (state.deals || []).filter(function (d) { return d.sp === me; }).map(function (d) { return [d.date, d.cname, d.amt, d.cat, d.confirmed ? 'Confirmed by uploaded sales file' : 'Logged in app']; }), [12, 28, 12, 20, 30]);
     sheet('Visits', ['Date', 'Customer', 'Status', 'Reason'], (state.visits || []).filter(function (v) { return v.sp === me && names[v.cid]; }).map(function (v) { return [v.date, names[v.cid], v.status === 'done' ? 'Visited' : 'Skipped', v.reason || '']; }), [12, 28, 12, 30]);
+    sheet('About', ['Item', 'Value'], [['Produced by', 'Nudge, fixed rules, no AI model'], ['Version', NBA.stamp(state)], ['Salesperson', me], ['Worked out as of', an.asOf]], [18, 90]);
     var out = X.write(wb, { type: 'array', bookType: 'xlsx' });
     return Promise.resolve({ name: 'Portfolio-' + slug(me) + '-' + an.asOf + '.xlsx', blob: new Blob([out], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }) });
   }
@@ -230,7 +231,8 @@
       'Risk score: overdue against the customer\'s usual gap between orders, falling 90-day spend, concerns in visit notes, risk wording in documents.',
       'Close score: due-to-reorder window, growing spend, buying signals in notes, category gaps against similar customers, campaigns and renewals.',
       'Target pace: target × day of month ÷ days in month. Savings: discount × the customer\'s typical order in the campaign categories.',
-      'Every figure comes from fixed rules and arithmetic. No AI model was used. The full calculation for each customer is in the Excel portfolio export.'
+      'Every figure comes from fixed rules and arithmetic. No AI model was used. The full calculation for each customer is in the Excel portfolio export.',
+      'Version: ' + NBA.stamp(state) + '.'
     ].map(function (t) { return { text: t, options: { bullet: { indent: 14 }, breakLine: true, paraSpaceAfter: 10 } }; }), { x: 0.5, y: 1.4, w: 12.3, h: 5, fontSize: 14, color: INK, fontFace: 'Calibri', valign: 'top' });
     return pptx.write({ outputType: 'blob' }).then(function (b) { return { name: 'Sales-review-' + slug(who) + '-' + an.asOf + '.pptx', blob: b }; });
   }
@@ -242,7 +244,7 @@
     d.table(null, [D.tiles.map(function (t) { return [t.label, t.value + ' (' + t.sub + ')']; })], null);
     D.sections.forEach(function (s) { d.h(s.heading); d.bullets(s.bullets); });
     d.h('How I got this'); d.table(['Item', 'Calculation'], D.audit.filter(function (r) { return r[1]; }), [0.25, 0.75], { size: 15 });
-    d.p('Produced by Nudge from fixed rules. No AI model was used. Visits, deals and notes are those recorded on this device.', { color: GREY, size: 16, i: true, before: 160 });
+    d.p('Produced by Nudge from fixed rules. No AI model was used. Visits, deals and notes are those recorded on this device. Version: ' + NBA.stamp(state) + '.', { color: GREY, size: 16, i: true, before: 160 });
     return d.out(fmt).then(function (b) { return { name: 'Weekly-digest-' + slug(D.who) + '-' + D.asOf + '.' + fmt, blob: b }; });
   }
 

@@ -5,6 +5,7 @@
 - Segment: Retail
 - Status on 15 Nov 2026: **May churn**
 - File generated on this device by fixed rules. No AI language model was used.
+- Version: rules 1.6 (2026-11-17); data sample_transactions.xlsx, 2024-11-01 to 2026-11-14
 
 ## Performance
 
@@ -33,11 +34,11 @@
 - Their spending is down 65% in the last 3 months compared with the 3 months before.
 - Your documents flag a risk on this account (sample_account_plans.docx).
 
-### Visit priority: 77 / 100
+### Visit priority: 76 / 100
 
 | Points | In plain English | Technical trace | Source |
 |---:|---|---|---|
-| +69 | They are a mid-sized customer for you ($32,510 in the last 12 months). | 0.6 × max(churn 85, close 20) + 0.1 × min(…) 20 + 0.3 × value percentile 53 (12-month revenue $32,510 ranked among your 36 customers) = 68.9 | Sales data |
+| +68 | They are a mid-sized customer for you ($32,510 in the last 12 months). | 0.6 × max(churn 85, close 20) + 0.1 × min(…) 20 + 0.3 × value percentile 50 (12-month revenue $32,510 ranked among your 36 customers) = 68.0 | Sales data |
 | +8 | Your account plan marks them as a priority account (sample_account_plans.docx). | document paragraph with priority wording: “Blue Harbor Stores is a key account in the Retail segment and a priority for retention…” → +8 priority | Documents |
 
 ### Chance to close a deal: 20 / 100

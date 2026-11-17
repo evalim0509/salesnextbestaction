@@ -48,6 +48,23 @@ Status: Done = built and tested. Pilot limit = works within the limit described.
 | U6 | Monthly targets come from an optional "Targets" sheet in the sales file: Salesperson, Month, Target. | Done |
 | U7 | Campaign terms come from an optional "Campaigns" sheet: Campaign, Segment, Category, Discount %, Minimum Spend, End Date, Description. Without the sheet, simple terms ("5% discount", "3% rebate", "buy 10 get 1 free", "until 31 December") are read from Word and PowerPoint text and marked as read from text. | Done |
 
+### 3.2a Trust foundation (Phase 1)
+
+| ID | Requirement | Status |
+|---|---|---|
+| T1 | Upload health check card after every sales upload: total lines and total revenue with a "This matches my accounts" button; date range; duplicate lines removed; negative lines (returns, credit notes); lines with no salesperson (given the customer's usual salesperson); dates in the future; lines that could not be read. | Done |
+| T2 | Customer names that look like variants of each other ("Lakeside Mart" and "Lakeside Mart Sdn Bhd") are listed with Merge or Keep apart. A merge is remembered for future uploads; keep apart is never asked again. | Done |
+| T3 | Date format: real Excel dates need no question. Text dates are checked; a part above 12 proves day/month or month/day. When nothing proves it, Nudge asks with two buttons showing a sample date both ways, and loads nothing until answered. | Done |
+| T4 | Hard stop: a file is not loaded when Date, Customer or Amount columns are missing, or more than 20% of lines cannot be read. | Done |
+| T5 | The confirmation is stored. While the latest upload is not confirmed, the brief shows "Figures not yet confirmed". | Done |
+| T6 | "Show me the orders": every fact and factor from sales data links, inside "How I got this", to the actual lines behind it (date, invoice, product, amount; at most 20, newest first): usual rhythm, last order, spending up or down, usual order size, category gap. | Done |
+| T7 | A quiet line on every screen: "Sales up to Mon 16 Nov (1 day old)", amber when older than 7 days. | Done |
+| T8 | Every customer shows "Based on N orders"; under 4 orders adds "rough guess, few orders". Customers with fewer than 2 orders are never in today's visits unless a note or document makes them a priority. | Done |
+| T9 | Every recommendation's trail says what Nudge cannot see: "I don't see credit holds, stock, or contact outside Nudge." | Done |
+| T10 | "How Nudge decides" page in the menu: every rule in plain words with its points, generated from the rules the app runs plus approved changes, dated with the rules version, with a live "Same file, same answer" check. | Done |
+| T11 | Rules version stamp (currently 1.6, 17 Nov 2026). Every trail and export records the rules version, approved changes, data file names and date range. | Done |
+| T12 | Test: the same state run twice gives exactly the same brief. | Done |
+
 ### 3.3 Morning brief (main tab)
 
 | ID | Requirement | Status |
@@ -153,6 +170,10 @@ All thresholds live in one place: `RULES` in `js/engine.js`. Each score is 0 to 
 | Note keywords (last 45 days) | Asked for a quote +25, Budget approved +25, Interested +15, Wants a bigger order +15, Wants a sample +12, Expanding +12, Wants a follow-up +12, Met the decision maker +10, Happy +5, Budget cut -10, Not interested -20 | capped at ±40 |
 | Documents | renewal +15, campaign or offer +10, growth opportunity +8 | capped at +20 |
 
+**Rules version**: `RULES.version` and `RULES.date` in `js/engine.js` (now 1.6, 17 Nov 2026). Change both whenever a rule or threshold changes; the version is stamped on every trail and export.
+
+**Few orders**: customers with fewer than 2 orders are left out of today's visits unless a scoring note in the last 45 days, or an account plan paragraph tagged priority or renewal, makes them a priority. Under 4 orders, screens say "rough guess, few orders".
+
 **Visit priority** = 0.6 × the higher of the two scores + 0.1 × the lower + 0.3 × customer value (percentile of 12-month revenue among the salesperson's customers); +8 if documents mark a priority account; -40 if a visit was marked done, or a note or deal logged, in the last 2 days. The top 3 by priority are today's visits.
 
 Lists: "Likely to close" and "May churn" show customers scoring 50 or more. A customer silent for more than 180 days and more than 6 times their usual gap is "Inactive" and left out of the brief.
@@ -190,6 +211,7 @@ Lists: "Likely to close" and "May churn" show customers scoring 50 or more. A cu
 | R15 | The outcome check replays past sales but uses today's documents and campaigns, so it slightly flatters rules that depend on them. With little history (under about 6 months) there are too few past flags to propose anything. |
 | R16 | Tuning is stored on the phone where a manager approved it. Another phone keeps the original points until the same change is approved there. |
 | R17 | Context notes are free text and may hold sensitive remarks. They stay on the phone and in internal exports; salespeople should not write anything they would not want a colleague to read. |
+| R18 | Text dates in CSV files are now kept as text and checked, instead of being read by the spreadsheet library in US month/day order. Older uploads loaded before this change were not re-checked. |
 | R7 | The assistant look and typing animation are presentation only. The text is produced instantly by fixed rules; no AI model is involved. The header says "Private, runs on this phone". |
 | R4 | Clearing browser data erases notes and deals. Customer files can be downloaded as a backup. |
 | R5 | The site code on GitHub Pages is public (including the invented sample data). Real business data is never part of the site. |
@@ -213,3 +235,4 @@ Lists: "Likely to close" and "May churn" show customers scoring 50 or more. A cu
 | 15 Nov 2026 | Added PDF export, the meeting pack (one-pagers for today's visits in one file), Share and Save buttons after every export, and a visibly animated orb. |
 | 16 Nov 2026 | Decluttered every reply: visuals first (tiles, meters, bars, spend line), sentences behind expanders. New customer card with + for notes, icons for file and export, Done for a closed deal. More visible orb states. Manager weekly digest. "Staying with us" keyword (-30 risk for 30 days) and a warning when a note matches no keyword. Menu renamed to Export, Brief, Dashboard; install hint removed; home steps made smaller. |
 | 16 Nov 2026 | Note screen: orb turns green or red with the tone of what is said, voice note can be deleted and re-recorded in place, and two save options (for scores, or as context). Context notes shown on the customer card, above "What to say" and in internal exports. Trend dot on visit cards. Outcome tracking with manager-approved tuning proposals on the Dashboard. |
+| 17 Nov 2026 | Phase 1, trust foundation: upload health check with confirm button, duplicate/negative/no-salesperson/future/unreadable counts, name-variant merge, date-format check with question, hard stop; "Show me the orders" evidence; data date line; confidence in words and the fewer-than-2-orders rule; blind-spots line; How Nudge decides page; rules version stamp on trails and exports; same-answer test. |

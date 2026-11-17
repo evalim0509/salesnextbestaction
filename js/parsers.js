@@ -19,10 +19,14 @@
     return unxml(out).replace(/\s+/g, ' ').trim();
   }
 
-  function parseSheetFile(name, buf) {
-    var wb = XLSX.read(new Uint8Array(buf), { type: 'array' });
-    var tx = [], skipped = 0, why = '', targets = [], campaigns = [];
+  function parseSheetFile(name, buf, opts) {
+    opts = opts || {};
+    // raw: keep text dates as text, so 03/04/2026 is not silently read as US month/day
+    var wb = XLSX.read(new Uint8Array(buf), { type: 'array', raw: true });
+    var tx = [], skipped = 0, why = '', targets = [], campaigns = [], stop = null, dateCheck = null, dateOrder = null;
+    var stats = { lines: 0, unreadable: 0, negatives: 0, negAmt: 0, noSp: 0, future: 0, futureAmt: 0 };
     wb.SheetNames.forEach(function (sn) {
+      if (stop) return;
       var ws = wb.Sheets[sn]; if (!ws || !ws['!ref']) return;
       var first = XLSX.utils.decode_range(ws['!ref']);
       // the header row is not always the first row: try the first few
@@ -30,15 +34,20 @@
         var range = { s: { r: first.s.r + off, c: first.s.c }, e: first.e };
         if (range.s.r > range.e.r) break;
         var rows = XLSX.utils.sheet_to_json(ws, { defval: '', raw: true, range: range });
-        var res = NBA.normalizeRows(rows);
-        if (res.ok) { tx = tx.concat(res.tx); skipped += res.skipped; return; }
+        var res = NBA.normalizeRows(rows, opts);
+        if (res.hardStop) { stop = res.reason; return; }
+        if (res.ok) {
+          tx = tx.concat(res.tx); skipped += res.skipped; for (var k in stats) stats[k] += res.stats[k];
+          if (!dateCheck || res.dateCheck.kind === 'ambiguous') dateCheck = res.dateCheck; dateOrder = res.dateOrder; return;
+        }
         var tg = NBA.normalizeTargets(rows); if (tg.length) { targets = targets.concat(tg); return; }
         var cp = NBA.normalizeCampaigns(rows); if (cp.length) { campaigns = campaigns.concat(cp); return; }
         if (!why) why = res.reason;
       }
     });
-    if (!tx.length && !targets.length && !campaigns.length) return { kind: 'error', name: name, reason: (why || 'No sales rows found.') + ' A sales file needs at least Date, Customer and Amount columns.' };
-    return { kind: 'tx', name: name, tx: tx, skipped: skipped, targets: targets, campaigns: campaigns };
+    if (stop) return { kind: 'error', hardStop: true, name: name, reason: stop };
+    if (!tx.length && !targets.length && !campaigns.length) return { kind: 'error', hardStop: true, name: name, reason: (why || 'No sales rows found.') + ' A sales file needs at least Date, Customer and Amount columns.' };
+    return { kind: 'tx', name: name, tx: tx, skipped: skipped, targets: targets, campaigns: campaigns, stats: stats, dateCheck: dateCheck || { kind: 'none' }, dateOrder: dateOrder };
   }
 
   function parseDocx(name, buf) {
@@ -79,10 +88,10 @@
   }
 
   // -> Promise of {kind:'tx'|'doc'|'error', ...}
-  function parseFile(name, buf) {
+  function parseFile(name, buf, opts) {
     var ext = (name.match(/\.([A-Za-z0-9]+)$/) || [, ''])[1].toLowerCase();
     try {
-      if (ext === 'xlsx' || ext === 'xls' || ext === 'csv' || ext === 'xlsm') return Promise.resolve(parseSheetFile(name, buf));
+      if (ext === 'xlsx' || ext === 'xls' || ext === 'csv' || ext === 'xlsm') return Promise.resolve(parseSheetFile(name, buf, opts));
       if (ext === 'docx') return parseDocx(name, buf).catch(bad);
       if (ext === 'pptx') return parsePptx(name, buf).catch(bad);
       if (ext === 'doc' || ext === 'ppt') return Promise.resolve({ kind: 'error', name: name, reason: 'This is an old Office format. Open it and use “Save as” to save it as .' + ext + 'x, then upload again.' });

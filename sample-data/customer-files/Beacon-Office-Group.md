@@ -5,6 +5,7 @@
 - Segment: Corporate
 - Status on 15 Nov 2026: **Likely to close**
 - File generated on this device by fixed rules. No AI language model was used.
+- Version: rules 1.6 (2026-11-17); data sample_transactions.xlsx, 2024-11-01 to 2026-11-14
 
 ## Performance
 
@@ -34,11 +35,11 @@
 - They are buying more: spending is up 21% in the last 3 months.
 - Your documents say a campaign or offer applies to them (sample_account_plans.docx).
 
-### Visit priority: 47 / 100
+### Visit priority: 46 / 100
 
 | Points | In plain English | Technical trace | Source |
 |---:|---|---|---|
-| +47 | They are a mid-sized customer for you ($32,570 in the last 12 months). | 0.6 × max(churn 0, close 50) + 0.1 × min(…) 0 + 0.3 × value percentile 56 (12-month revenue $32,570 ranked among your 36 customers) = 46.8 | Sales data |
+| +46 | They are a mid-sized customer for you ($32,570 in the last 12 months). | 0.6 × max(churn 0, close 50) + 0.1 × min(…) 0 + 0.3 × value percentile 53 (12-month revenue $32,570 ranked among your 36 customers) = 45.9 | Sales data |
 
 ### Chance to close a deal: 50 / 100
 

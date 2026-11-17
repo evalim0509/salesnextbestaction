@@ -105,6 +105,23 @@ svg { width: 22px; height: 22px; fill: currentColor; }
 .facts li { padding: 9px 0; border-top: 1px solid var(--line); margin: 0; }
 .facts b { display: block; font-size: .78rem; color: var(--ink-3); font-weight: 600; }
 
+/* trust: data date, upload check, evidence, confidence */
+.datadate { margin: -4px 16px 6px; font-size: .8rem; color: var(--ink-3); }
+.datadate.old { color: var(--watch); font-weight: 650; }
+.checks { list-style: none; padding: 0 !important; margin: 8px 0 !important; }
+.checks li { display: flex; gap: 10px; align-items: flex-start; padding: 7px 0; border-top: 1px solid var(--line); margin: 0; font-size: .95rem; }
+.checks li i { flex: none; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-style: normal; font-weight: 800; font-size: .78rem; }
+.checks li.ok i { background: var(--go-bg); color: var(--go); } .checks li.warn i { background: var(--watch-bg); color: var(--watch); }
+.variant { background: var(--watch-bg); border-radius: 14px; padding: 10px 12px; margin: 10px 0; } .variant ul { margin: 4px 0; } .variant .acts { margin-top: 6px; }
+.confirm { margin-top: 12px; } .btn.wide { width: 100%; min-height: 50px; }
+.okline { color: var(--go); font-weight: 650; margin: 8px 0 !important; }
+.unconf { background: var(--watch-bg); color: var(--watch); border-radius: 10px; padding: 6px 10px; margin-top: 8px !important; }
+.unconf .linkbtn { color: var(--watch); text-decoration: underline; padding: 0 0 0 4px; }
+.conf { display: block; font-size: .78rem; color: var(--ink-3); margin-top: 4px; }
+details.orders { margin: 6px 0 4px; } details.orders summary { font-size: .8rem; font-weight: 700; color: var(--this-year); cursor: pointer; padding: 4px 0; }
+.dtable.ev { font-size: .74rem; } .dtable.ev td, .dtable.ev th { padding: 4px 3px; }
+.dtable.rules td { text-align: left; vertical-align: top; font-size: .88rem; } .dtable.rules td:last-child { text-align: right; white-space: nowrap; font-weight: 700; padding-left: 10px; }
+
 /* glanceable pieces: tiles, meters, bars, charts; sentences sit behind expanders */
 .row { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
 .faint { opacity: .75; }

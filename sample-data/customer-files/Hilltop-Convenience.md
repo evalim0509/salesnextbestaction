@@ -5,6 +5,7 @@
 - Segment: Retail
 - Status on 15 Nov 2026: **Steady**
 - File generated on this device by fixed rules. No AI language model was used.
+- Version: rules 1.6 (2026-11-17); data sample_transactions.xlsx, 2024-11-01 to 2026-11-14
 
 ## Performance
 
@@ -33,11 +34,11 @@
 - Your documents say a campaign or offer applies to them (sample_account_plans.docx).
 - They are a mid-sized customer for you ($31,640 in the last 12 months).
 
-### Visit priority: 26 / 100
+### Visit priority: 25 / 100
 
 | Points | In plain English | Technical trace | Source |
 |---:|---|---|---|
-| +26 | They are a mid-sized customer for you ($31,640 in the last 12 months). | 0.6 × max(churn 0, close 20) + 0.1 × min(…) 0 + 0.3 × value percentile 47 (12-month revenue $31,640 ranked among your 36 customers) = 26.1 | Sales data |
+| +25 | They are a mid-sized customer for you ($31,640 in the last 12 months). | 0.6 × max(churn 0, close 20) + 0.1 × min(…) 0 + 0.3 × value percentile 44 (12-month revenue $31,640 ranked among your 36 customers) = 25.2 | Sales data |
 
 ### Chance to close a deal: 20 / 100
 

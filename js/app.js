@@ -5,7 +5,7 @@
   var $ = function (s, r) { return (r || document).querySelector(s); };
   var chat = $('#chat'), dock = $('#dock'), sheet = $('#sheet'), fileInput = $('#file');
   var state = blank(), an = null, dashSp = null, view = 'brief';
-  function blank() { return { me: null, tx: [], docs: [], notes: [], deals: [], visits: [], plans: {}, tuning: {}, tuneDismissed: {}, targets: [], campaigns: [], files: [], settings: { currency: '$', voice: true } }; }
+  function blank() { return { me: null, tx: [], docs: [], notes: [], deals: [], visits: [], plans: {}, tuning: {}, tuneDismissed: {}, uploads: [], aliases: {}, keepApart: {}, targets: [], campaigns: [], files: [], settings: { currency: '$', voice: true } }; }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
   function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
   function cur() { return state.settings.currency; }
@@ -32,7 +32,14 @@
     }
   };
   function save() { return DB.set(state); }
-  function refresh() { an = state.tx.length && state.me ? NBA.analyze(state, state.me) : null; setMood(); }
+  function refresh() { an = state.tx.length && state.me ? NBA.analyze(state, state.me) : null; setMood(); dataDate(); }
+  // quiet line on every screen: how fresh the sales data is; amber when older than a week
+  function dataDate() {
+    var el = $('#datadate'), di = NBA.dataInfo(state); if (!di.to) { el.hidden = true; return; }
+    var age = NBA.dayNum(NBA.todayISO()) - NBA.dayNum(di.to);
+    el.hidden = false; el.classList.toggle('old', age > NBA.RULES.dataAgeWarn);
+    el.textContent = 'Sales up to ' + NBA.shortDate(di.to) + ' (' + (age <= 0 ? 'today' : age === 1 ? '1 day old' : age + ' days old') + ')' + (age > NBA.RULES.dataAgeWarn ? '. Upload a newer file' : '');
+  }
   function setMood() {
     var app = $('#app'); if (!state.tx.length) { app.removeAttribute('data-mood'); app.classList.remove('has-target'); return; }
     var t = NBA.targetStatus(state, view === 'dash' ? dashSp : state.me), m = t.mood; if (m === 'calm') app.removeAttribute('data-mood'); else app.dataset.mood = m;
@@ -115,12 +122,23 @@
   }
   function clearChat() { hurry(); enqueue(function () { fast = false; chat.innerHTML = ''; turnStart = null; }); }
   // "How I got this": the data, rule and source behind a reply. rows = [what, how]
-  function trail(rows) {
+  // rec = true for recommendations: adds what Nudge cannot see. Every trail ends with the rules and data version.
+  function trail(rows, rec) {
     rows = rows.filter(function (r) { return r && r[1]; });
-    if (!rows.length) return '';
-    return '<details class="audit"><summary>How I got this</summary>' + rows.map(function (r) { return '<div class="factor nopts"><span>' + esc(r[0]) + '<code>' + esc(r[1]) + '</code></span></div>'; }).join('') + '</details>';
+    if (rec) rows.push(['Blind spots', NBA.blindSpots(state)]);
+    rows.push(['Version', NBA.stamp(state)]);
+    return '<details class="audit"><summary>How I got this</summary>' + rows.map(function (r) { return '<div class="factor nopts"><span>' + esc(r[0]) + '<code>' + esc(r[1]) + '</code>' + (r[2] || '') + '</span></div>'; }).join('') + '</details>';
   }
-  function scoreTrail(c) { return c.factors.map(function (f) { return [f.bucket + ' ' + (f.pts > 0 ? '+' : '') + f.pts + ' (' + f.src + ')', f.tech]; }); }
+  // "Show me the orders": the actual sales lines behind a fact, at most 20, newest first
+  function orders(c, key) {
+    if (!c || !key) return '';
+    return '<details class="orders"><summary>Show me the orders</summary>' + NBA.evidence(c, key).map(function (g) {
+      return '<p class="small"><b>' + esc(g.caption) + '</b>: ' + g.n + ' lines, ' + $$(g.total) + (g.n > 20 ? ' (newest 20 shown)' : '') + '</p>' +
+        (g.rows.length ? '<table class="dtable ev"><tr><th>Date</th><th>Invoice</th><th>Product</th><th>Amount</th></tr>' + g.rows.map(function (t) { return '<tr><td>' + t.d + '</td><td>' + esc(t.inv || '') + '</td><td>' + esc(t.prod || t.cat) + '</td><td>' + $$(t.amt) + '</td></tr>'; }).join('') + '</table>' : '');
+    }).join('') + '</details>';
+  }
+  function scoreTrail(c) { return c.factors.map(function (f) { return [f.bucket + ' ' + (f.pts > 0 ? '+' : '') + f.pts + ' (' + f.src + ')', f.tech, orders(c, f.ev)]; }); }
+  function conf(c) { return '<span class="conf">Based on ' + c.nOrders + (c.nOrders === 1 ? ' order' : ' orders') + (c.rough ? ', rough guess, few orders' : '') + '</span>'; }
   // ---- small visuals: a few words and a picture first, the sentence on demand
   var ICON = {
     file: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l5 5v13H7zM14 3v5h5M10 13h6M10 17h6" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round" stroke-linecap="round"/></svg>',
@@ -128,7 +146,7 @@
     check: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>'
   };
   function meter(label, v, kind, note) { return '<div class="mtr"><span>' + label + '</span><div class="bar"><i class="' + kind + '" style="width:' + Math.max(2, Math.min(100, v)) + '%"></i></div><b>' + (note || v) + '</b></div>'; }
-  function tiles(list) { return '<div class="tiles">' + list.map(function (t) { return '<div class="tile"><small>' + esc(t[0]) + '</small><b>' + esc(t[1]) + '</b>' + (t[2] ? '<span>' + esc(t[2]) + '</span>' : '') + '</div>'; }).join('') + '</div>'; }
+  function tiles(list) { return '<div class="tiles' + (list.length === 2 ? ' two' : '') + '">' + list.map(function (t) { return '<div class="tile"><small>' + esc(t[0]) + '</small><b>' + esc(t[1]) + '</b>' + (t[2] ? '<span>' + esc(t[2]) + '</span>' : '') + '</div>'; }).join('') + '</div>'; }
   function more(label, html) { return '<details class="more"><summary>' + esc(label) + '</summary>' + html + '</details>'; }
   function tbar(ts) {
     if (!ts.hasTarget) return '';
@@ -232,7 +250,7 @@
     var r = NBA.topReasons(c, 1)[0];
     var b = document.createElement('div'); b.className = 'visit fade';
     b.innerHTML = '<button class="vmain" data-cid="' + esc(c.cid) + '"><span class="n">' + (i + 1) + '</span><span><span class="name">' + esc(c.name) + '</span>' + tag(c) + trendDot(c) +
-      '<span class="why">' + esc(r ? r.plain : 'Worth a regular check-in.') + '</span></span>' +
+      '<span class="why">' + esc(r ? r.plain : 'Worth a regular check-in.') + '</span>' + conf(c) + '</span>' +
       '<span class="arrow"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-6-6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button>' +
       '<div class="vfoot" data-visit="' + esc(c.cid) + '">' + footHTML(c.cid) + '</div>';
     enqueue(function () { return pause(260).then(function () { chat.appendChild(b); follow(); }); });
@@ -255,10 +273,13 @@
       tl.map(function (t) { return '<div class="tp" data-tp="' + t[0] + '" hidden><p>' + esc((by[t[0]] || ['Nothing to report here today.']).join(' ')) + '</p>' + (t[4] ? '<button class="linkbtn" data-do="' + t[4] + '">' + t[5] + '</button>' : '') + '</div>'; }).join('') +
       (by.gap ? more('How to close the gap', '<p>' + esc(by.gap.join(' ')) + '</p><button class="linkbtn" data-do="gap">Show me who to approach</button>') : '') +
       (ex.offers.length ? more('Offers to use today (' + ex.offers.length + ')', '<ul>' + ex.offers.map(function (o) { return '<li><b>' + esc(o.name) + '</b>' + (o.renewal ? ' (renewal)' : '') + ': ' + esc(o.text) + '</li>'; }).join('') + '</ul>') : '') +
-      (an.stale ? '<p class="small notice-line">Sales data stops on ' + NBA.niceDate(an.dataTo) + '. Upload a newer file for an up-to-date brief.</p>' : '') +
+      (an.stale ? '<p class="small notice-line">Sales data stops on ' + NBA.shortDate(an.dataTo) + '. Upload a newer file for an up-to-date brief.</p>' : '') +
+      (unconfirmed() ? '<p class="small unconf">Figures not yet confirmed. <button class="linkbtn" data-do="health">Check the upload</button></p>' : '') +
       trail([['Headline', ex.headlineTech]].concat(ex.points.map(function (x) { return [x.label, x.tech]; })).concat(ex.offers.map(function (o) { return ['Offer: ' + o.name, o.tech]; }))
         .concat([['Visit order', 'top ' + P.length + ' active customers by visit priority = ' + NBA.RULES.wMain + ' × higher of close and risk score + ' + NBA.RULES.wOther + ' × lower + ' + NBA.RULES.wValue + ' × value percentile; fixed for the day when first shown'],
-          ['Sources', state.tx.length.toLocaleString() + ' sales rows up to ' + (an.dataTo || an.asOf) + ', ' + state.notes.length + ' notes, ' + state.docs.length + ' documents, ' + state.targets.length + ' targets, ' + state.campaigns.length + ' campaigns. Fixed rules, no AI model.']]));
+          ['Sources', state.tx.length.toLocaleString() + ' sales rows up to ' + (an.dataTo || an.asOf) + ', ' + state.notes.length + ' notes, ' + state.docs.length + ' documents, ' + state.targets.length + ' targets, ' + state.campaigns.length + ' campaigns. Fixed rules, no AI model.'],
+          ['Few orders', 'customers with fewer than ' + NBA.RULES.fewOrders + ' orders are left out of today\'s visits unless a recent note or account plan makes them a priority']])
+        .concat(P.map(function (c) { var f = NBA.topReasons(c, 1)[0]; return [c.name + ' (priority ' + c.priority + ', ' + c.nOrders + ' orders)', f ? f.tech : 'priority ' + c.priority, orders(c, f && f.ev || 'orders')]; })), true);
     bot(html, 'wide');
     if (!P.length) { bot('<p>No active customers in the uploaded data.</p>' + trail([['Rule', 'a customer is active if they ordered within ' + NBA.RULES.lostDays + ' days or ' + NBA.RULES.lostRatio + ' times their usual gap']])); return; }
     P.forEach(visitCard);
@@ -274,7 +295,7 @@
         return '<button data-cid="' + esc(p.cid) + '"><span>' + esc(p.name) + (p.offer ? '<span class="sub">Offer saves them ' + $$(p.offer.saving) + '</span>' : '') + '</span><b>' + $$(p.amount) + '</b></button>';
       }).join('') + '</div>' +
       more('Why these customers', '<ul>' + g.picks.map(function (p) { return '<li><b>' + esc(p.name) + '</b>: ' + esc(p.reason || 'Regular buyer.') + (p.offer ? ' ' + esc(p.offer.name) + ' applies.' : '') + '</li>'; }).join('') + '</ul>') +
-      trail([['Target pace', ts.tech], ['Ranking', g.tech]].concat(g.picks.map(function (p) { return [p.name, 'close ' + p.close + ' × usual order ' + $$(p.amount)]; }))), 'wide');
+      trail([['Target pace', ts.tech], ['Ranking', g.tech]].concat(g.picks.map(function (p) { return [p.name, 'close ' + p.close + ' × usual order ' + $$(p.amount), orders(cust(p.cid), 'orders')]; })), true), 'wide');
   }
   // ---- step 3: export
   var ready = {};
@@ -421,18 +442,18 @@
         var f = c.factors.filter(function (x) { return x.bucket === kind && x.pts > 0; }).sort(function (a, b) { return b.pts - a.pts; })[0], v = close ? c.close : c.churn;
         return '<button data-cid="' + esc(c.cid) + '"><span>' + esc(c.name) + '<span class="sub">' + esc(f ? f.label : '') + '</span></span><span class="mini"><i class="' + (close ? 'go' : 'risk') + '" style="width:' + v + '%"></i></span><b>' + v + '</b></button>';
       }).join('') + '</div>' +
-      trail([['Rule', (close ? 'close' : 'risk') + ' score of ' + NBA.RULES.listThreshold + ' or more, highest first, at most 5']].concat(list.map(function (c) { return [c.name + ': ' + (close ? c.close : c.churn) + ' / 100', c.factors.filter(function (x) { return x.bucket === kind; }).map(function (x) { return x.tech; }).join(' | ')]; }))), 'wide');
+      trail([['Rule', (close ? 'close' : 'risk') + ' score of ' + NBA.RULES.listThreshold + ' or more, highest first, at most 5']].concat(list.map(function (c) { var fs = c.factors.filter(function (x) { return x.bucket === kind; }), ev = (fs.filter(function (x) { return x.ev; })[0] || {}).ev; return [c.name + ': ' + (close ? c.close : c.churn) + ' / 100', fs.map(function (x) { return x.tech; }).join(' | '), orders(c, ev)]; })), true), 'wide');
   }
   function showCustomer(cid, echo) {
     refresh(); var c = cust(cid); if (!c) return;
     if (echo !== false) said(c.name);
-    bot('<div data-cid="' + esc(c.cid) + '"><div class="chead"><div><h3>' + esc(c.name) + '</h3>' + tag(c) + '</div><button class="plus" data-do="note" aria-label="Add visit note">+</button></div>' +
+    bot('<div data-cid="' + esc(c.cid) + '"><div class="chead"><div><h3>' + esc(c.name) + '</h3>' + tag(c) + conf(c) + '</div><button class="plus" data-do="note" aria-label="Add visit note">+</button></div>' +
       tiles([['Last order', c.recency === 0 ? 'Today' : c.recency + ' days', 'ago'], ['Usual order', $$(c.avgOrder), 'every ' + Math.round(c.gapUsed) + ' days'], ['12 months', $$(c.rev12), c.yoy == null ? '' : NBA.pct(c.yoy)]]) +
       (c.lost ? '' : meter('Chance to close', c.close, 'go') + meter('Risk of leaving', c.churn, 'risk')) + rhythm(c) + spark(c) +
       (c.context.length ? more('What you know (' + c.context.length + ')', '<ul>' + c.context.slice(0, 5).map(function (n) { return '<li><b>' + NBA.niceDate(n.ts.slice(0, 10)) + '</b>: ' + esc(n.transcript) + '</li>'; }).join('') + '</ul>') : '') +
       acts([['pitch', 'What to say', 'pri'], ['why', 'Why this customer']]) +
       '<div class="iconrow"><button data-do="file" aria-label="Customer file" title="Customer file">' + ICON.file + '</button><button data-do="export1" aria-label="Export one-pager" title="Export one-pager">' + ICON.out + '</button><button class="done" data-do="deal" aria-label="Deal closed">' + ICON.check + 'Done</button></div></div>' +
-      trail([['Tiles', 'last order ' + c.last + '; usual order = average of ' + c.nOrders + ' orders; 12-month revenue = sales from ' + NBA.addDays(an.asOf, -364) + ' to ' + an.asOf], ['Order rhythm', 'days since last order ' + c.recency + ' against median gap ' + Math.round(c.gapUsed) + ' (ratio ' + c.ratio.toFixed(2) + '); shaded band = due window ' + NBA.RULES.reorderWindow[0] + ' to ' + NBA.RULES.reorderWindow[1] + ' × gap'], ['Spend line', 'sales summed by calendar month, ' + c.months12[0].key + ' to ' + c.months12[11].key], ['Status “' + c.tag + '”', 'close ' + c.close + ', risk ' + c.churn + ', priority ' + c.priority]].concat(scoreTrail(c))), 'wide');
+      trail([['Tiles', 'last order ' + c.last + '; usual order = average of ' + c.nOrders + ' orders; 12-month revenue = sales from ' + NBA.addDays(an.asOf, -364) + ' to ' + an.asOf, orders(c, 'orders')], ['Order rhythm', 'days since last order ' + c.recency + ' against median gap ' + Math.round(c.gapUsed) + ' (ratio ' + c.ratio.toFixed(2) + '); shaded band = due window ' + NBA.RULES.reorderWindow[0] + ' to ' + NBA.RULES.reorderWindow[1] + ' × gap'], ['Spend line', 'sales summed by calendar month, ' + c.months12[0].key + ' to ' + c.months12[11].key, orders(c, 'w365')], ['Confidence', c.nOrders + ' orders' + (c.rough ? ' (fewer than ' + NBA.RULES.roughOrders + ': rough guess)' : '')], ['Status “' + c.tag + '”', 'close ' + c.close + ', risk ' + c.churn + ', priority ' + c.priority]].concat(scoreTrail(c)), true), 'wide');
   }
   function showPitch(cid) {
     var c = cust(cid); if (!c) return; said('What to say to ' + c.name);
@@ -441,7 +462,7 @@
       (p.remember ? '<div class="remember"><small>Remember, from your note of ' + NBA.niceDate(p.remember.date) + '</small>' + esc(p.remember.text) + '</div>' : '') +
       p.points.map(function (x, i) { return '<details class="pt"><summary><b>' + (i + 1) + '</b>' + esc(x.title) + '</summary><p>' + esc(x.text) + '</p><span class="src">From: ' + esc(x.src) + '</span></details>'; }).join('') +
       '<div class="pitch-ask">' + esc(p.ask) + '</div>' + more('How to open', '<p>' + esc(p.open) + '</p>') +
-      trail([['Opening and ask', p.openTech]].concat(p.remember ? [['Remember', 'your latest context note, shown as written; it does not affect the points below']] : []).concat(p.points.map(function (x, i) { return ['Point ' + (i + 1) + ' (' + x.src + ')', x.tech]; }))), 'wide');
+      trail([['Opening and ask', p.openTech]].concat(p.remember ? [['Remember', 'your latest context note, shown as written; it does not affect the points below']] : []).concat(p.points.map(function (x, i) { return ['Point ' + (i + 1) + ' (' + x.src + ')', x.tech, x.src === 'Sales data' ? orders(c, 'orders') : '']; })), true), 'wide');
   }
   function showWhy(cid) {
     var c = cust(cid); if (!c) return; said('Why ' + c.name + '?');
@@ -630,6 +651,20 @@
     zip.generateAsync({ type: 'blob' }).then(function (b) { download('customer-files-' + state.me.replace(/\s+/g, '-') + '.zip', b); });
   }
 
+  // ---- How Nudge decides: every rule, generated from the rules themselves, with a live same-answer check
+  function sameAnswer() {
+    if (!state.tx.length || !state.me) return null;
+    function run() { var z = NBA.analyze(state, state.me); return JSON.stringify([NBA.lists(z).top3.map(function (c) { return c.cid; }), z.customers.map(function (c) { return [c.cid, c.priority, c.close, c.churn, c.factors]; })]); }
+    return run() === run();
+  }
+  function rulesSheet() {
+    var doc = NBA.rulesDoc(state), same = sameAnswer(), t = Object.keys(state.tuning || {}).length;
+    openSheet('How Nudge decides', '<p class="small" style="margin:0">Rules version ' + NBA.RULES.version + ', ' + NBA.shortDate(NBA.RULES.date) + (t ? ', with ' + t + ' change' + (t === 1 ? '' : 's') + ' approved by a manager' : '') + '. Fixed rules and arithmetic, no AI model.</p>' +
+      (same === null ? '' : same ? '<p class="okline">✓ Same file, same answer. I just worked out today\'s brief twice and got exactly the same result.</p>' : '<p class="warn-box">The two runs differed. Please report this.</p>') +
+      doc.map(function (sec) { return '<div class="group">' + esc(sec.heading) + '</div><table class="dtable rules">' + sec.rows.map(function (r) { return '<tr><td>' + esc(r[0]) + '</td><td>' + esc(r[1]) + '</td></tr>'; }).join('') + '</table>'; }).join('') +
+      '<p class="small" style="margin-top:14px">This page is generated from the rules the app runs, so it is always up to date. Version stamp: ' + esc(NBA.stamp(state)) + '.</p>');
+  }
+
   // ---- lists and settings
   function customersSheet(title, cb) {
     refresh(); if (!an) return;
@@ -645,7 +680,7 @@
     var cs = ['$', '€', '£', 'RM', 'S$', '₹', 'Rp', '¥'];
     var when = NBA.asOfDate(state), nCust = {}; state.tx.forEach(function (t) { nCust[t.cid] = 1; });
     openSheet('Menu',
-      '<div class="rowlist" style="margin:0 0 6px"><button data-act="export"><span>Export</span></button><button data-act="tab-brief"><span>Brief</span>' + (view === 'brief' ? '<span class="tag">Open</span>' : '') + '</button><button data-act="tab-dash"><span>Dashboard</span>' + (view === 'dash' ? '<span class="tag">Open</span>' : '') + '</button></div>' +
+      '<div class="rowlist" style="margin:0 0 6px"><button data-act="export"><span>Export</span></button><button data-act="rules"><span>How Nudge decides</span></button><button data-act="tab-brief"><span>Brief</span>' + (view === 'brief' ? '<span class="tag">Open</span>' : '') + '</button><button data-act="tab-dash"><span>Dashboard</span>' + (view === 'dash' ? '<span class="tag">Open</span>' : '') + '</button></div>' +
       '<div class="group">On this phone</div><p class="small" style="margin:0 0 8px">' + state.tx.length.toLocaleString() + ' sales rows for ' + Object.keys(nCust).length + ' customers, up to ' + (when.dataTo ? NBA.niceDate(when.dataTo) : 'n/a') + '. ' +
       state.targets.length + ' monthly targets. ' + state.campaigns.length + ' campaigns. ' + state.docs.length + ' document' + (state.docs.length === 1 ? '' : 's') + (state.docs.length ? ' (' + state.docs.map(function (d) { return esc(d.name); }).join(', ') + ')' : '') + '. ' + state.notes.length + ' visit notes. ' + state.deals.length + ' deals logged.</p>' +
       '<div class="rowlist"><button data-m="zip">Download all my customer files (.zip)</button><button data-m="sample">Load sample data</button></div>' +
@@ -672,23 +707,75 @@
 
   // ------------------------------------------------------------ uploads
   function readFile(f) { return new Promise(function (res, rej) { var r = new FileReader(); r.onload = function () { res(r.result); }; r.onerror = rej; r.readAsArrayBuffer(f); }); }
+  var pendingUpload = null, variantGroups = {};
+  function sumAmt(tx) { return tx.reduce(function (a, t) { return a + t.amt; }, 0); }
+  function dateNote(r, chosen) {
+    var dc = r.dateCheck || {}, o = r.dateOrder === 'mdy' ? 'month/day' : 'day/month';
+    if (chosen) return ['ok', 'Dates read as ' + o + ', as you chose'];
+    if (dc.kind === 'proven') return ['ok', 'Dates read as ' + o + ' (some dates only make sense that way)'];
+    if (dc.kind === 'mixed') return ['warn', 'Some dates only make sense as day/month and others as month/day. I read them as ' + o + '; check the file'];
+    return ['ok', 'Dates are stored as real dates in the file'];
+  }
+  // the record kept for each sales file, so the check can be shown again and the confirmation remembered
+  function uploadRecord(r, mg, chosen) {
+    var min = null, max = null; r.tx.forEach(function (t) { if (!min || t.d < min) min = t.d; if (!max || t.d > max) max = t.d; });
+    var s = r.stats || {};
+    return { id: uid(), name: r.name, ts: stamp(), confirmed: false, lines: s.lines || r.tx.length, revenue: Math.round(sumAmt(r.tx) * 100) / 100, from: min, to: max,
+      added: mg.added, dupes: mg.duplicates, negatives: s.negatives || 0, negAmt: s.negAmt || 0, noSp: s.noSp || 0, future: s.future || 0, unreadable: s.unreadable || 0, date: dateNote(r, chosen) };
+  }
+  function healthCard(u) {
+    function row(ok, text) { return '<li class="' + (ok ? 'ok' : 'warn') + '"><i aria-hidden="true">' + (ok ? '✓' : '!') + '</i><span>' + esc(text) + '</span></li>'; }
+    var vg = NBA.nameVariants(state.tx, state.keepApart);
+    var groups = vg.slice(0, 5).map(function (g) { var id = uid(); variantGroups[id] = g; return { id: id, g: g }; });
+    return '<h3>Upload check</h3><p class="small">' + esc(u.name) + '</p>' +
+      tiles([['Lines', u.lines.toLocaleString(), 'in the file'], ['Revenue', $$(u.revenue), 'net of returns']]) +
+      '<p class="small">Covers ' + NBA.shortDate(u.from) + ' to ' + NBA.shortDate(u.to) + '</p>' +
+      '<ul class="checks">' +
+        row(!u.dupes, u.dupes ? u.dupes.toLocaleString() + ' duplicate lines removed' : 'No duplicate lines') +
+        row(!u.negatives, u.negatives ? u.negatives + ' negative lines (returns and credit notes), ' + $$(u.negAmt) + '. Kept, so revenue is net' : 'No negative lines') +
+        row(!u.noSp, u.noSp ? u.noSp + ' lines had no salesperson. I gave them the customer\'s usual salesperson' : 'Every line has a salesperson') +
+        row(!u.future, u.future ? u.future + ' lines are dated after today. Check them' : 'No dates in the future') +
+        row(!u.unreadable, u.unreadable ? u.unreadable + ' lines could not be read and were left out' : 'Every line could be read') +
+        row(u.date[0] === 'ok', u.date[1]) +
+      '</ul>' +
+      groups.map(function (x) {
+        return '<div class="variant" data-vg="' + x.id + '"><p><b>These look like the same customer</b></p><ul>' + x.g.members.map(function (m) { return '<li>' + esc(m.name) + ' <span class="small">(' + m.lines + ' lines)</span></li>'; }).join('') + '</ul>' +
+          '<div class="acts"><button data-do="merge" data-for="' + x.id + '">Merge into ' + esc(x.g.members[0].name) + '</button><button data-do="apart" data-for="' + x.id + '">Keep apart</button></div></div>';
+      }).join('') +
+      '<div class="confirm" data-up="' + u.id + '">' + (u.confirmed ? '<p class="okline">✓ You confirmed these figures on ' + NBA.shortDate(u.confirmed) + '</p>' : '<button class="btn pri wide" data-do="confirm" data-for="' + u.id + '">This matches my accounts</button><p class="small">Compare the lines and revenue with your accounting system before you tap.</p>') + '</div>' +
+      trail([['Lines', 'rows under the header row in the sales sheet, including any that could not be read'], ['Revenue', 'sum of every readable line, returns and credit notes included as negatives'],
+        ['Duplicates', 'a line with the same date, customer, invoice, product, quantity and amount as one already loaded or earlier in the file'],
+        ['Same customer?', 'names compared after removing Sdn Bhd, Ltd and similar words; a shorter name of two words or more that starts a longer one also counts'],
+        ['Stops', 'nothing is loaded when Date, Customer or Amount columns are missing, or more than 20% of lines cannot be read']]);
+  }
+  function askDateOrder(r) {
+    var smp = r.dateCheck.sample || '03/04/2026', m = smp.match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{2,4})/), y = +m[3] < 100 ? 2000 + +m[3] : +m[3];
+    var a = NBA.parseDate(smp, 'dmy'), b = NBA.parseDate(smp, 'mdy');
+    bot('<h3>How should I read your dates?</h3><p>' + esc(r.name) + ' writes dates like <b>' + esc(smp) + '</b>, which can be read two ways.</p>' +
+      '<div class="acts"><button class="pri full" data-do="dateorder" data-for="dmy">' + (a ? NBA.niceDate(a) : 'Day first') + ' (day/month)</button><button class="full" data-do="dateorder" data-for="mdy">' + (b ? NBA.niceDate(b) : 'Month first') + ' (month/day)</button></div>' +
+      '<p class="small">Malaysian files usually use day/month. Nothing is loaded until you choose.</p>' +
+      trail([['Why I am asking', 'every text date in the file has both parts at 12 or below, so nothing in the file proves which comes first'], ['Year', String(y)]]));
+  }
   function ingest(results, opts) {
-    var lines = [], gotTx = false;
+    opts = opts || {};
+    // dates that can be read two ways: ask first, load nothing yet
+    var amb = results.filter(function (r) { return r.kind === 'tx' && r.dateCheck && r.dateCheck.kind === 'ambiguous'; });
+    if (amb.length && !opts.dateOrder) { pendingUpload = { results: results, bufs: opts.bufs || {} }; askDateOrder(amb[0]); return; }
+    var lines = [], cards = [];
     results.forEach(function (r) {
-      if (r.kind === 'error') { lines.push('<li><b>' + esc(r.name) + '</b>: ' + esc(r.reason) + '</li>'); return; }
+      if (r.kind === 'error') { lines.push('<li><b>' + esc(r.name) + '</b>: ' + (r.hardStop ? '<b>Stopped.</b> ' : '') + esc(r.reason) + (r.hardStop ? ' Nothing from this file was loaded.' : '') + '</li>'); return; }
       if (r.kind === 'tx') {
-        if (opts && opts.replace) state.tx = [];
-        var mg = NBA.mergeTx(state.tx, r.tx); state.tx = mg.tx; gotTx = true;
+        if (opts.replace) state.tx = [];
+        NBA.applyAliases(r.tx, state);
+        var mg = NBA.mergeTx(state.tx, r.tx); state.tx = mg.tx;
         var confirmed = NBA.confirmDeals(state, r.tx);
         Object.keys(state.plans).forEach(function (k) { var i = k.lastIndexOf('|'), sp = k.slice(0, i), d = k.slice(i + 1); if (!state.visits.some(function (v) { return v.sp === sp && v.date === d; })) delete state.plans[k]; });
         if (r.targets && r.targets.length) { r.targets.forEach(function (t) { state.targets = state.targets.filter(function (x) { return !(x.sp === t.sp && x.month === t.month); }); state.targets.push(t); }); }
         if (r.campaigns && r.campaigns.length) state.campaigns = r.campaigns;
         var extra = (r.targets && r.targets.length ? ' ' + r.targets.length + ' monthly targets.' : '') + (r.campaigns && r.campaigns.length ? ' ' + r.campaigns.length + ' campaigns.' : '');
         if (!r.tx.length) { lines.push('<li><b>' + esc(r.name) + '</b>:' + extra + '</li>'); return; }
-        var ids = {}, min = r.tx[0].d, max = r.tx[0].d; r.tx.forEach(function (t) { ids[t.cid] = 1; if (t.d < min) min = t.d; if (t.d > max) max = t.d; });
-        lines.push('<li><b>' + esc(r.name) + '</b>: ' + mg.added.toLocaleString() + ' new sales rows for ' + Object.keys(ids).length + ' customers, ' + NBA.niceDate(min) + ' to ' + NBA.niceDate(max) + '.' +
-          (mg.duplicates ? ' ' + mg.duplicates.toLocaleString() + ' rows were already loaded and were skipped.' : '') + (r.skipped ? ' ' + r.skipped + ' rows had no date or amount and were left out.' : '') +
-          (confirmed ? ' ' + confirmed + ' deal' + (confirmed === 1 ? '' : 's') + ' you logged in the app ' + (confirmed === 1 ? 'is' : 'are') + ' now covered by this file.' : '') + extra + '</li>');
+        var u = uploadRecord(r, mg, opts.dateOrder); state.uploads.push(u); cards.push(u);
+        if (extra || confirmed) lines.push('<li><b>' + esc(r.name) + '</b>:' + extra + (confirmed ? ' ' + confirmed + ' deal' + (confirmed === 1 ? '' : 's') + ' you logged in the app ' + (confirmed === 1 ? 'is' : 'are') + ' now covered by this file.' : '') + '</li>');
       } else {
         state.docs = state.docs.filter(function (d) { return d.name !== r.doc.name; }); state.docs.push(r.doc);
         var custs = {}; state.tx.forEach(function (t) { custs[t.cid] = { cid: t.cid, name: t.cname, seg: t.seg }; });
@@ -697,20 +784,41 @@
       }
     });
     save();
-    bot('<p>Here is what I read:</p><ul>' + lines.join('') + '</ul>' + trail([['Sales rows', 'sheets with Date, Customer and Amount columns; rows matching one already loaded (same date, customer, invoice, product, amount) are skipped'], ['Targets and campaigns', 'sheets with Salesperson, Month, Target or Campaign, Discount % columns'], ['Documents', 'each paragraph is linked to a customer when it names them, or sits under a heading that does'], ['Privacy', 'files are read in this browser; nothing is uploaded']]), 'wide');
-    if (!state.tx.length) { scroll(bot('<p>I still need a sales file (Excel or CSV) with Date, Customer and Amount columns.</p>' + acts([['upload', 'Upload sales file', 'pri full']]))); return; }
+    cards.forEach(function (u) { bot(healthCard(u), 'wide health'); });
+    if (lines.length) bot('<p>Other files:</p><ul>' + lines.join('') + '</ul>' + trail([['Targets and campaigns', 'sheets with Salesperson, Month, Target or Campaign, Discount % columns'], ['Documents', 'each paragraph is linked to a customer when it names them, or sits under a heading that does'], ['Privacy', 'files are read in this browser; nothing is uploaded']]), 'wide');
+    if (!state.tx.length) { bot('<p>I still need a sales file (Excel or CSV) with Date, Customer and Amount columns.</p>' + acts([['upload', 'Upload sales file', 'pri full']]) + trail([['Needed', 'a sheet with Date, Customer and Amount columns']])); return; }
     if (!state.me || NBA.salespeople(state).indexOf(state.me) < 0) { state.me = NBA.salespeople(state)[0]; save(); }
     dock.hidden = false; renderPeople(); brief();
-    void gotTx;
+  }
+  function chooseDateOrder(order) {
+    var p = pendingUpload; if (!p) return; pendingUpload = null;
+    said(order === 'mdy' ? 'Month first' : 'Day first');
+    Promise.all(p.results.map(function (r) { return r.kind === 'tx' && r.dateCheck && r.dateCheck.kind === 'ambiguous' && p.bufs[r.name] ? Parsers.parseFile(r.name, p.bufs[r.name], { dateOrder: order }) : Promise.resolve(r); }))
+      .then(function (rs) { ingest(rs, { dateOrder: order, bufs: p.bufs }); });
+  }
+  function confirmUpload(id) {
+    var u = state.uploads.filter(function (x) { return x.id === id; })[0]; if (!u) return;
+    u.confirmed = NBA.todayISO(); save();
+    [].forEach.call(document.querySelectorAll('.confirm[data-up="' + id + '"]'), function (el) { el.innerHTML = '<p class="okline">✓ You confirmed these figures on ' + NBA.shortDate(u.confirmed) + '</p>'; });
+    [].forEach.call(document.querySelectorAll('.unconf'), function (el) { if (!unconfirmed()) el.remove(); });
+  }
+  function unconfirmed() { return state.uploads.filter(function (u) { return u.lines && !u.confirmed; }).slice(-1)[0] || null; }
+  function variantChoice(id, merge) {
+    var g = variantGroups[id]; if (!g) return; delete variantGroups[id];
+    var box = document.querySelector('.variant[data-vg="' + id + '"]');
+    if (merge) { NBA.mergeCustomers(state, g.members.map(function (m) { return m.cid; }), g.keep); }
+    else { state.keepApart = state.keepApart || {}; for (var i = 0; i < g.members.length; i++) for (var j = i + 1; j < g.members.length; j++) state.keepApart[[g.members[i].cid, g.members[j].cid].sort().join('|')] = 1; }
+    save(); refresh();
+    if (box) box.innerHTML = '<p class="okline">✓ ' + (merge ? 'Merged into ' + esc(g.members[0].name) + '. Future uploads with the other name go to the same customer.' : 'Kept apart. I won\'t ask about these again.') + '</p>';
   }
   fileInput.addEventListener('change', function () {
     var files = [].slice.call(fileInput.files); if (!files.length) return;
     said('Upload: ' + files.map(function (f) { return f.name; }).join(', '));
-    var wait = bot('<p>Reading your files…</p>', '', { instant: true });
+    var wait = bot('<p>Reading your files…</p>', '', { instant: true }), bufs = {};
     // sales files first so documents can be linked to customers
     files.sort(function (a, b) { return /\.(docx?|pptx?)$/i.test(a.name) - /\.(docx?|pptx?)$/i.test(b.name); });
-    Promise.all(files.map(function (f) { return readFile(f).then(function (buf) { return Parsers.parseFile(f.name, buf); }); }))
-      .then(function (rs) { wait.remove(); ingest(rs); })
+    Promise.all(files.map(function (f) { return readFile(f).then(function (buf) { bufs[f.name] = buf; return Parsers.parseFile(f.name, buf); }); }))
+      .then(function (rs) { wait.remove(); ingest(rs, { bufs: bufs }); })
       .catch(function () { wait.innerHTML = '<p>Something went wrong reading those files. Please try again.</p>'; });
     fileInput.value = '';
   });
@@ -724,7 +832,7 @@
         tx.forEach(function (t) { t.d = NBA.addDays(t.d, shift); });
         rs[0].targets.forEach(function (t) { t.month = NBA.addDays(t.month + '-15', shift).slice(0, 7); });
         rs[0].campaigns.forEach(function (c) { if (c.end && NBA.dayNum(c.end) - NBA.dayNum(max) <= 30) c.end = NBA.addDays(c.end, shift); }); // keep the soon-to-end sample offer soon-to-end
-        state = blank(); dashSp = null; chat.innerHTML = ''; ingest(rs);
+        state = blank(); dashSp = null; chat.innerHTML = ''; ingest(rs, { bufs: {} });
       })
       .catch(function () { wait.innerHTML = '<p>I could not load the sample files. Check your connection and try again.</p>'; });
   }
@@ -744,6 +852,11 @@
     else if (name === 'export1') onePagerSheet(cid);
     else if (name === 'digest') digestExport();
     else if (name === 'share') shareFile(cid);
+    else if (name === 'rules') { closeSheet(); rulesSheet(); }
+    else if (name === 'confirm') confirmUpload(cid);
+    else if (name === 'dateorder') chooseDateOrder(cid);
+    else if (name === 'merge' || name === 'apart') variantChoice(cid, name === 'merge');
+    else if (name === 'health') { var u = unconfirmed(); if (u) bot(healthCard(u), 'wide health'); }
     else if (name === 'save') { if (ready[cid]) download(ready[cid].name, ready[cid].blob); }
     else if (name === 'wrap') { said('Wrap up my day'); wrapUpDay(); }
     else if (name === 'gap') { said('How do I close my target gap?'); showGap(); }
@@ -791,7 +904,7 @@
 
   // ------------------------------------------------------------ start
   DB.get().then(function (s) {
-    if (s && s.tx) { state = s; state.settings = state.settings || { currency: '$', voice: true }; state.visits = state.visits || []; state.plans = state.plans || {}; state.tuning = state.tuning || {}; state.tuneDismissed = state.tuneDismissed || {}; state.targets = state.targets || []; state.campaigns = state.campaigns || []; }
+    if (s && s.tx) { state = s; state.settings = state.settings || { currency: '$', voice: true }; state.visits = state.visits || []; state.plans = state.plans || {}; state.uploads = state.uploads || []; state.aliases = state.aliases || {}; state.keepApart = state.keepApart || {}; state.tuning = state.tuning || {}; state.tuneDismissed = state.tuneDismissed || {}; state.targets = state.targets || []; state.campaigns = state.campaigns || []; }
     if (!state.tx.length) welcome();
     else if (!state.me) askWho();
     else { dock.hidden = false; renderPeople(); home(); }

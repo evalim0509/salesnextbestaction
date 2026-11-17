@@ -5,6 +5,7 @@
 - Segment: Retail
 - Status on 15 Nov 2026: **Steady**
 - File generated on this device by fixed rules. No AI language model was used.
+- Version: rules 1.6 (2026-11-17); data sample_transactions.xlsx, 2024-11-01 to 2026-11-14
 
 ## Performance
 
@@ -15,8 +16,8 @@
 | Last order | 14 Nov 2026 (1 days ago) |
 | Usual time between orders | 14 days |
 | Usual order size | $1,085 |
-| Revenue, last 12 months | $32,500 |
-| Revenue, 12 months before | $24,465 (+33%) |
+| Revenue, last 12 months | $32,200 |
+| Revenue, 12 months before | $24,290 (+33%) |
 | Revenue, last 90 days | $6,645 |
 | Revenue, previous 90 days | $11,335 |
 
@@ -25,7 +26,7 @@
 | Category | Last 12 months | Last bought |
 |---|---:|---|
 | Core Products | $22,200 | 14 Nov 2026 |
-| Consumables | $10,300 | 14 Nov 2026 |
+| Consumables | $10,000 | 14 Nov 2026 |
 
 ## Today's assessment
 
@@ -33,11 +34,11 @@
 - Most similar Retail customers buy Accessories, but they never have.
 - Your documents say a campaign or offer applies to them (sample_account_plans.docx).
 
-### Visit priority: 29 / 100
+### Visit priority: 28 / 100
 
 | Points | In plain English | Technical trace | Source |
 |---:|---|---|---|
-| +29 | They are a mid-sized customer for you ($32,500 in the last 12 months). | 0.6 × max(churn 20, close 20) + 0.1 × min(…) 20 + 0.3 × value percentile 50 (12-month revenue $32,500 ranked among your 36 customers) = 29.0 | Sales data |
+| +28 | They are a mid-sized customer for you ($32,200 in the last 12 months). | 0.6 × max(churn 20, close 20) + 0.1 × min(…) 20 + 0.3 × value percentile 47 (12-month revenue $32,200 ranked among your 36 customers) = 28.1 | Sales data |
 
 ### Chance to close a deal: 20 / 100
 

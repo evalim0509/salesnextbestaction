@@ -16,14 +16,22 @@
   function addDays(s, n) { return fromDayNum(dayNum(s) + n); }
   function todayISO() { var d = new Date(); return iso(d.getFullYear(), d.getMonth() + 1, d.getDate()); }
   var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  var DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  // screen dates: 'Tue 12 Nov', with the year only when it is not this year
+  function shortDate(s, ref) {
+    if (!s) return '';
+    var d = new Date(Date.UTC(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10)));
+    return DAYS[d.getUTCDay()] + ' ' + (+s.slice(8, 10)) + ' ' + MONTHS[+s.slice(5, 7) - 1] + (s.slice(0, 4) !== (ref || todayISO()).slice(0, 4) ? ' ' + s.slice(0, 4) : '');
+  }
   function niceDate(s) { return +s.slice(8, 10) + ' ' + MONTHS[+s.slice(5, 7) - 1] + ' ' + s.slice(0, 4); }
   function validYMD(y, m, d) {
     if (!(y > 1990 && y < 2100 && m >= 1 && m <= 12 && d >= 1 && d <= 31)) return null;
     var t = new Date(Date.UTC(y, m - 1, d));
     return t.getUTCDate() === d ? iso(y, m, d) : null;
   }
-  // Accepts Excel serial numbers, JS Dates, and common text formats. Day-first for 01/02/2026.
-  function parseDate(v) {
+  // Accepts Excel serial numbers, JS Dates, and common text formats.
+  // order 'dmy' or 'mdy' decides 03/04/2026; without it, day-first is tried first.
+  function parseDate(v, order) {
     if (v == null || v === '') return null;
     if (v instanceof Date) { var a = new Date(v.getTime() + 12 * 3600000); return iso(a.getFullYear(), a.getMonth() + 1, a.getDate()); }
     if (typeof v === 'number') { return (v > 20000 && v < 80000) ? fromDayNum(Math.floor(v) - 25569) : null; }
@@ -31,6 +39,8 @@
     if ((m = s.match(/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})/))) return validYMD(+m[1], +m[2], +m[3]);
     if ((m = s.match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{2,4})/))) {
       var y = +m[3]; if (y < 100) y += 2000;
+      if (order === 'mdy') return validYMD(y, +m[1], +m[2]);
+      if (order === 'dmy') return validYMD(y, +m[2], +m[1]);
       return validYMD(y, +m[2], +m[1]) || validYMD(y, +m[1], +m[2]);
     }
     if ((m = s.match(/^(\d{1,2})[-\s]([A-Za-z]{3})[A-Za-z]*[-\s,]+(\d{2,4})/))) {
@@ -40,6 +50,23 @@
     }
     if (/^\d{5}(\.\d+)?$/.test(s)) return parseDate(+s);
     return null;
+  }
+
+  // Looks at text dates such as 03/04/2026 to tell day/month from month/day.
+  // A first part above 12 proves day/month; a second part above 12 proves month/day.
+  function detectDateOrder(values) {
+    var dmy = 0, mdy = 0, n = 0, sample = null;
+    values.forEach(function (v) {
+      if (typeof v !== 'string') return;
+      var m = v.trim().match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{2,4})/); if (!m) return;
+      n++; var a = +m[1], b = +m[2];
+      if (a > 12 && b <= 12) dmy++; else if (b > 12 && a <= 12) mdy++; else if (!sample && a !== b) sample = v.trim();
+    });
+    if (!n) return { kind: 'none', order: null, textDates: 0 };
+    if (dmy && !mdy) return { kind: 'proven', order: 'dmy', textDates: n, evidence: dmy };
+    if (mdy && !dmy) return { kind: 'proven', order: 'mdy', textDates: n, evidence: mdy };
+    if (dmy && mdy) return { kind: 'mixed', order: dmy >= mdy ? 'dmy' : 'mdy', textDates: n };
+    return { kind: 'ambiguous', order: null, textDates: n, sample: sample };
   }
 
   // ---------------------------------------------------------------- helpers
@@ -92,7 +119,9 @@
     return map;
   }
   // rows: array of plain objects keyed by the sheet's header text.
-  function normalizeRows(rows) {
+  // opts.dateOrder 'dmy' | 'mdy'; opts.today for the future-date check.
+  function normalizeRows(rows, opts) {
+    opts = opts || {};
     if (!rows || !rows.length) return { ok: false, reason: 'The sheet is empty.' };
     var keys = {}; rows.slice(0, 50).forEach(function (r) { for (var k in r) keys[k] = 1; });
     var map = mapHeaders(Object.keys(keys));
@@ -101,16 +130,22 @@
     if (!map.cname && !map.cid) missing.push('Customer');
     if (!map.amt && !(map.qty && map.price)) missing.push('Amount');
     if (missing.length) return { ok: false, reason: 'I could not find these columns: ' + missing.join(', ') + '.', map: map };
-    var tx = [], skipped = 0;
+    var dc = detectDateOrder(rows.map(function (r) { return r[map.date]; }));
+    var order = opts.dateOrder || dc.order || 'dmy', today = opts.today || todayISO();
+    var tx = [], skipped = 0, st = { lines: rows.length, unreadable: 0, negatives: 0, negAmt: 0, noSp: 0, future: 0, futureAmt: 0 };
     rows.forEach(function (r) {
-      var d = parseDate(r[map.date]);
+      var d = parseDate(r[map.date], order);
       var name = String(map.cname ? r[map.cname] : r[map.cid] || '').trim();
       var cid = String(map.cid ? r[map.cid] : '').trim() || normName(name);
       var amt = map.amt ? toNum(r[map.amt]) : toNum(r[map.qty]) * toNum(r[map.price]);
       if (!d || !cid || !isFinite(amt)) { skipped++; return; }
+      var sp = String(map.sp ? r[map.sp] : '').trim();
+      if (map.sp && !sp) st.noSp++;
+      if (amt < 0) { st.negatives++; st.negAmt += amt; }
+      if (d > today) { st.future++; st.futureAmt += amt; }
       tx.push({
         d: d, cid: cid, cname: name || cid,
-        sp: String(map.sp ? r[map.sp] : '').trim() || 'Me',
+        sp: map.sp ? sp : 'Me',
         amt: Math.round(amt * 100) / 100,
         qty: map.qty ? (toNum(r[map.qty]) || 0) : 0,
         cat: String(map.cat ? r[map.cat] : '').trim() || 'General',
@@ -120,8 +155,17 @@
         src: 'upload'
       });
     });
+    st.unreadable = skipped;
+    // lines with no salesperson take the customer's usual salesperson
+    if (map.sp && st.noSp) {
+      var votes = {};
+      tx.forEach(function (t) { if (t.sp) { var v = votes[t.cid] = votes[t.cid] || {}; v[t.sp] = (v[t.sp] || 0) + 1; } });
+      tx.forEach(function (t) { if (!t.sp) { var v = votes[t.cid]; t.sp = v ? Object.keys(v).sort(function (a, b) { return v[b] - v[a]; })[0] : 'Unassigned'; } });
+    }
+    if (rows.length >= 5 && skipped / rows.length > 0.2)
+      return { ok: false, hardStop: true, map: map, stats: st, reason: 'I could read only ' + (rows.length - skipped) + ' of ' + rows.length + ' lines. More than 20% have a missing or unreadable date, customer or amount, so I have not loaded this file.' };
     if (!tx.length) return { ok: false, reason: 'I found the columns but no usable rows (check the dates and amounts).', map: map };
-    return { ok: true, tx: tx, skipped: skipped, map: map };
+    return { ok: true, tx: tx, skipped: skipped, map: map, stats: st, dateCheck: dc, dateOrder: order };
   }
   // ---- optional sheets: Targets (Salesperson, Month, Target) and Campaigns
   function parseMonth(v) {
@@ -178,6 +222,45 @@
     var what = k.cats.length ? k.cats.join(' and ') : 'goods';
     return 'The ' + k.name + ' applies to them and they have not used it yet. On a ' + money(k.basis, cur) + ' order of ' + what + ' they save about ' + money(k.saving, cur) +
       ' (' + (k.mech && k.fromText ? k.mech + ', worth about ' : '') + Math.round(k.pct * 100) + '%).' + (k.end ? ' Valid until ' + niceDate(k.end) + '.' : '');
+  }
+
+  // ---- customer names that look like the same customer ("Lakeside Mart" and "Lakeside Mart Sdn Bhd")
+  function nameVariants(tx, keepApart) {
+    keepApart = keepApart || {};
+    var info = {}, order = [];
+    tx.forEach(function (t) { var e = info[t.cid]; if (!e) { e = info[t.cid] = { cid: t.cid, name: t.cname, lines: 0, amt: 0, sp: t.sp }; order.push(e); } e.lines++; e.amt += t.amt; });
+    order.forEach(function (e) { e.key = normName(e.name); e.words = e.key ? e.key.split(' ').length : 0; });
+    var parent = {}; function root(x) { while (parent[x] && parent[x] !== x) x = parent[x]; return x; }
+    for (var i = 0; i < order.length; i++) for (var j = i + 1; j < order.length; j++) {
+      var a = order[i], b = order[j]; if (!a.key || !b.key) continue;
+      var s = a.key.length <= b.key.length ? a : b, l = s === a ? b : a;
+      var same = a.key === b.key || (s.words >= 2 && l.key.indexOf(s.key + ' ') === 0);
+      if (!same || keepApart[[a.cid, b.cid].sort().join('|')]) continue;
+      parent[root(b.cid)] = root(a.cid);
+    }
+    var groups = {};
+    order.forEach(function (e) { var r = root(e.cid); (groups[r] = groups[r] || []).push(e); });
+    return Object.keys(groups).map(function (k) {
+      var g = groups[k].sort(function (a, b) { return b.lines - a.lines; });
+      return { members: g, keep: g[0].cid };
+    }).filter(function (g) { return g.members.length > 1; });
+  }
+  // rewrites every record of the merged customers to the kept customer
+  function mergeCustomers(state, fromCids, toCid) {
+    var name = null; (state.tx || []).forEach(function (t) { if (t.cid === toCid) name = t.cname; });
+    state.aliases = state.aliases || {};
+    fromCids.forEach(function (f) { if (f !== toCid) state.aliases[f] = toCid; });
+    function map(x) { return state.aliases[x] && state.aliases[x] !== x ? state.aliases[x] : x; }
+    (state.tx || []).forEach(function (t) { var m = map(t.cid); if (m !== t.cid) { t.cid = m; t.cname = name || t.cname; } });
+    ['notes', 'deals', 'visits', 'feedback'].forEach(function (k) { (state[k] || []).forEach(function (x) { x.cid = map(x.cid); }); });
+    Object.keys(state.plans || {}).forEach(function (k) { state.plans[k] = state.plans[k].map(map).filter(function (v, i, a) { return a.indexOf(v) === i; }); });
+    var seen = {}; state.tx = state.tx.filter(function (t) { var k = txKey(t); if (seen[k]) return false; seen[k] = 1; return true; });
+  }
+  function applyAliases(tx, state) {
+    var al = state.aliases || {}, names = {};
+    (state.tx || []).forEach(function (t) { names[t.cid] = t.cname; });
+    tx.forEach(function (t) { var m = al[t.cid]; if (m) { t.cid = m; t.cname = names[m] || t.cname; } });
+    return tx;
   }
 
   function txKey(t) { return [t.d, t.cid, t.inv, t.cat, t.prod, t.amt, t.qty].join('|'); }
@@ -292,6 +375,8 @@
 
   // ---------------------------------------------------------------- analysis
   var RULES = {
+    version: '1.6', date: '2026-11-17', // change both whenever a rule or threshold below changes
+    fewOrders: 2, roughOrders: 4, dataAgeWarn: 7,
     staleDays: 14, lostDays: 180, lostRatio: 6, expiryDays: 7, stayingPts: 30, stayingDays: 30, outcomeDays: 14, backtestWeeks: 12, tuneStep: 5, tuneMax: 10, tuneMinN: 20, tuneUp: 1.3, tuneDown: 0.9, tuneRestDays: 30,
     overdue: [[3, 45], [2, 35], [1.5, 20]],
     decline: [[-0.5, 30], [-0.25, 20], [-0.1, 8]],
@@ -381,10 +466,10 @@
 
     mine.forEach(function (c) {
       var F = []; // factors
-      function add(bucket, pts, plain, tech, src) {
+      function add(bucket, pts, plain, tech, src, ev) {
         if (!pts) return; var label = factorLabel(plain), tn = bucket === 'close' && pts > 0 && TUNE[label];
         if (tn && tn.delta) { pts = Math.max(1, pts + tn.delta); tech += '; tuned ' + (tn.delta > 0 ? '+' : '') + tn.delta + ' on ' + tn.date + ' from past outcomes, approved by a manager → ' + pts; }
-        F.push({ bucket: bucket, pts: pts, plain: plain, tech: tech, src: src || 'Sales data', label: label });
+        F.push({ bucket: bucket, pts: pts, plain: plain, tech: tech, src: src || 'Sales data', label: label, ev: ev || null });
       }
       var gap = c.gap || fallbackGap, gapNote = c.gap ? 'median gap between orders' : 'median gap of all customers (too few orders of their own)';
       var ratio = c.recency / gap;
@@ -418,7 +503,7 @@
         r = RULES.overdue[i];
         if (ratio >= r[0]) {
           add('churn', r[1], 'They usually order about every ' + Math.round(gap) + ' days, but it has been ' + c.recency + ' days since the last order.',
-            'recency ' + c.recency + 'd ÷ ' + gapNote + ' ' + Math.round(gap) + 'd = ' + ratio.toFixed(2) + ' ≥ ' + r[0] + ' → +' + r[1] + ' churn');
+            'recency ' + c.recency + 'd ÷ ' + gapNote + ' ' + Math.round(gap) + 'd = ' + ratio.toFixed(2) + ' ≥ ' + r[0] + ' → +' + r[1] + ' churn', null, 'orders');
           break;
         }
       }
@@ -427,7 +512,7 @@
         r = RULES.decline[i];
         if (c.trend <= r[0]) {
           add('churn', r[1], 'Their spending is down ' + Math.round(-c.trend * 100) + '% in the last 3 months compared with the 3 months before.',
-            'revenue last 90d ' + money(c.rev90, cur) + ' vs previous 90d ' + money(c.revPrev90, cur) + ' = ' + pct(c.trend) + ' ≤ ' + pct(r[0]) + ' → +' + r[1] + ' churn');
+            'revenue last 90d ' + money(c.rev90, cur) + ' vs previous 90d ' + money(c.revPrev90, cur) + ' = ' + pct(c.trend) + ' ≤ ' + pct(r[0]) + ' → +' + r[1] + ' churn', null, 'trend');
           break;
         }
       }
@@ -435,16 +520,16 @@
       var w = RULES.reorderWindow, e = RULES.reorderEarly;
       if (ratio >= w[0] && ratio < w[1] && c.nOrders >= 2)
         add('close', w[2], 'They are due to reorder now: they usually order about every ' + Math.round(gap) + ' days and the last order was ' + c.recency + ' days ago.',
-          'recency ' + c.recency + 'd ÷ ' + gapNote + ' ' + Math.round(gap) + 'd = ' + ratio.toFixed(2) + ' in [' + w[0] + ', ' + w[1] + ') → +' + w[2] + ' close');
+          'recency ' + c.recency + 'd ÷ ' + gapNote + ' ' + Math.round(gap) + 'd = ' + ratio.toFixed(2) + ' in [' + w[0] + ', ' + w[1] + ') → +' + w[2] + ' close', null, 'orders');
       else if (ratio >= e[0] && ratio < e[1] && c.nOrders >= 2)
         add('close', e[2], 'Their next order is coming up soon (they usually order about every ' + Math.round(gap) + ' days; last order ' + c.recency + ' days ago).',
-          'recency ' + c.recency + 'd ÷ ' + Math.round(gap) + 'd = ' + ratio.toFixed(2) + ' in [' + e[0] + ', ' + e[1] + ') → +' + e[2] + ' close');
+          'recency ' + c.recency + 'd ÷ ' + Math.round(gap) + 'd = ' + ratio.toFixed(2) + ' in [' + e[0] + ', ' + e[1] + ') → +' + e[2] + ' close', null, 'orders');
       // --- close: growth
       if (c.revPrev90 > 0) for (i = 0; i < RULES.growth.length; i++) {
         r = RULES.growth[i];
         if (c.trend >= r[0]) {
           add('close', r[1], 'They are buying more: spending is up ' + Math.round(c.trend * 100) + '% in the last 3 months.',
-            'revenue last 90d ' + money(c.rev90, cur) + ' vs previous 90d ' + money(c.revPrev90, cur) + ' = ' + pct(c.trend) + ' ≥ ' + pct(r[0]) + ' → +' + r[1] + ' close');
+            'revenue last 90d ' + money(c.rev90, cur) + ' vs previous 90d ' + money(c.revPrev90, cur) + ' = ' + pct(c.trend) + ' ≥ ' + pct(r[0]) + ' → +' + r[1] + ' close', null, 'trend');
           break;
         }
       }
@@ -455,7 +540,7 @@
       c.lapsed = Object.keys(c.cats).filter(function (k) { return c.cats[k].n >= 2 && A - dayNum(c.cats[k].last) > Math.max(120, 3 * gap) && !c.lost; });
       if (c.peerGap.length && !c.lost)
         add('close', RULES.crossSell, 'Most similar ' + c.seg + ' customers buy ' + c.peerGap[0] + ', but they never have.',
-          c.peerGap[0] + ' bought by ' + st.cats[c.peerGap[0]] + ' of ' + st.n + ' ' + c.seg + ' customers in the last 12 months (≥ 50%), 0 purchases by this customer → +' + RULES.crossSell + ' close');
+          c.peerGap[0] + ' bought by ' + st.cats[c.peerGap[0]] + ' of ' + st.n + ' ' + c.seg + ' customers in the last 12 months (≥ 50%), 0 purchases by this customer → +' + RULES.crossSell + ' close', null, 'w365');
 
       // --- notes
       var neg = {}, pos = {}, lastVisit = null;
@@ -512,22 +597,27 @@
       var main = Math.max(c.churn, c.close), other = Math.min(c.churn, c.close);
       var base = RULES.wMain * main + RULES.wOther * other + RULES.wValue * c.valuePct;
       add('priority', Math.round(base), c.valuePct >= 67 ? 'They are one of your biggest customers (' + money(c.rev12, cur) + ' in the last 12 months).' : c.valuePct >= 34 ? 'They are a mid-sized customer for you (' + money(c.rev12, cur) + ' in the last 12 months).' : 'They are one of your smaller customers (' + money(c.rev12, cur) + ' in the last 12 months).',
-        RULES.wMain + ' × max(churn ' + c.churn + ', close ' + c.close + ') + ' + RULES.wOther + ' × min(…) ' + other + ' + ' + RULES.wValue + ' × value percentile ' + c.valuePct + ' (12-month revenue ' + money(c.rev12, cur) + ' ranked among your ' + revs.length + ' customers) = ' + base.toFixed(1));
+        RULES.wMain + ' × max(churn ' + c.churn + ', close ' + c.close + ') + ' + RULES.wOther + ' × min(…) ' + other + ' + ' + RULES.wValue + ' × value percentile ' + c.valuePct + ' (12-month revenue ' + money(c.rev12, cur) + ' ranked among your ' + revs.length + ' customers) = ' + base.toFixed(1), null, 'w365');
       if (dPri.length) add('priority', RULES.docPriority, 'Your account plan marks them as a priority account (' + dPri[0].doc + ').',
         'document paragraph with priority wording: “' + shorten(dPri[0].text, 90) + '” → +' + RULES.docPriority + ' priority', 'Documents');
       if (lastVisit !== null && lastVisit <= RULES.visitedDays) add('priority', -RULES.visitedPenalty, 'You were in touch ' + (lastVisit <= 0 ? 'today' : lastVisit === 1 ? 'yesterday' : lastVisit + ' days ago') + ', so they can wait.',
         'last logged visit, note or deal ' + lastVisit + 'd ago ≤ ' + RULES.visitedDays + 'd → −' + RULES.visitedPenalty + ' priority', 'Visit notes');
       if (c.lost) add('priority', -30, 'They have not ordered for ' + c.recency + ' days, so they are treated as inactive.',
-        'recency ' + c.recency + 'd > max(' + RULES.lostDays + 'd, ' + RULES.lostRatio + ' × gap ' + Math.round(gap) + 'd) → inactive: churn and close set to 0, −30 priority');
+        'recency ' + c.recency + 'd > max(' + RULES.lostDays + 'd, ' + RULES.lostRatio + ' × gap ' + Math.round(gap) + 'd) → inactive: churn and close set to 0, −30 priority', null, 'orders');
       c.priority = Math.max(0, Math.min(100, sum(F.filter(function (f) { return f.bucket === 'priority'; }), function (f) { return f.pts; })));
       c.factors = F;
       c.tag = c.lost ? 'Inactive' : (c.churn >= RULES.listThreshold && c.churn >= c.close) ? 'May churn' : c.close >= RULES.listThreshold ? 'Likely to close' : c.churn >= 30 && c.churn >= c.close ? 'Watch' : c.close >= 30 ? 'Good chance' : 'Steady';
+      c.rough = c.nOrders < RULES.roughOrders;
+      // a customer with fewer than 2 orders only joins today's visits when a note or document makes them a priority
+      c.boost = c.notes.some(function (n) { return (n.keywords || []).length && A - dayNum(n.ts.slice(0, 10)) <= RULES.notePosDays; }) || dPri.length > 0 || dRen.length > 0;
+      c.eligible = !c.lost && (c.nOrders >= RULES.fewOrders || c.boost);
+      c.asOfN = A;
       var topCat = Object.keys(c.cats).sort(function (a, b) { return c.cats[b].amt12 - c.cats[a].amt12 || c.cats[b].amt - c.cats[a].amt; })[0];
       c.topCat = topCat;
     });
 
     mine.sort(function (a, b) { return b.priority - a.priority || b.rev12 - a.rev12 || (a.name < b.name ? -1 : 1); });
-    return { asOf: asOf, stale: when.stale, dataTo: when.dataTo, customers: mine, categories: categories, currency: cur, snippets: snippets };
+    return { asOf: asOf, stale: when.stale, dataTo: when.dataTo, customers: mine, categories: categories, currency: cur, snippets: snippets, stamp: stamp(state) };
   }
 
   // The reasons shown to the salesperson: strongest first, at most n.
@@ -541,7 +631,7 @@
   function lists(an) {
     var T = RULES.listThreshold, cs = an.customers.filter(function (c) { return !c.lost; });
     return {
-      top3: cs.slice(0, 3),
+      top3: cs.filter(function (c) { return c.eligible; }).slice(0, 3),
       close: cs.filter(function (c) { return c.close >= T; }).sort(function (a, b) { return b.close - a.close || b.rev12 - a.rev12; }).slice(0, 5),
       churn: cs.filter(function (c) { return c.churn >= T; }).sort(function (a, b) { return b.churn - a.churn || b.rev12 - a.rev12; }).slice(0, 5)
     };
@@ -628,7 +718,7 @@
     L.push('# ' + c.name, '',
       '- Customer ID: ' + c.cid, '- Salesperson: ' + c.sp, '- Segment: ' + c.seg,
       '- Status on ' + niceDate(an.asOf) + ': **' + c.tag + '**',
-      '- File generated on this device by fixed rules. No AI language model was used.', '',
+      '- File generated on this device by fixed rules. No AI language model was used.', '- Version: ' + an.stamp, '',
       '## Performance', '',
       '| Measure | Value |', '|---|---|',
       '| Customer since | ' + niceDate(c.first) + ' |',
@@ -786,7 +876,7 @@
       var next = 'A ' + c.topCat + ' order of about ' + money(c.avgOrder, cur) + ', in line with your usual order every ' + Math.round(c.gapUsed) + ' days' +
         (o0 ? (sameCat ? ', using the ' + o0.name + ' to save about ' + money(o0.saving, cur) : ', plus ' + money(o0.basis, cur) + ' of ' + o0.cats.join(' and ') + ' under the ' + o0.name + ' to save about ' + money(o0.saving, cur)) : '') + '.';
       R.sections.push({ heading: 'Proposed next order', bullets: [next] });
-      R.footer = 'Figures are taken from your order history with us up to ' + niceDate(an.dataTo || an.asOf) + '. Savings are estimates based on your typical order.';
+      R.footer = 'Figures are taken from your order history with us up to ' + niceDate(an.dataTo || an.asOf) + '. Savings are estimates based on your typical order. Ref: ' + an.stamp + '.';
     } else {
       R.title = 'Account review: ' + c.name; R.subtitle = 'Internal. ' + c.sp + ', ' + c.seg + ', ' + R.date + '. Status: ' + c.tag;
       R.kpis = [['Revenue, last 12 months', money(c.rev12, cur) + (c.yoy == null ? '' : ' (' + pct(c.yoy) + ')')], ['Last order', c.recency + ' days ago'], ['Usual order', money(c.avgOrder, cur) + ' every ' + Math.round(c.gapUsed) + ' days'], ['Scores', 'Close ' + c.close + ', risk ' + c.churn + ', priority ' + c.priority]];
@@ -797,7 +887,7 @@
       if (c.notes.length) R.sections.push({ heading: 'Recent visit notes', bullets: c.notes.slice(0, 3).map(function (n) { return niceDate(n.ts.slice(0, 10)) + ': ' + ((n.keywords || []).map(function (id) { return KW[id] ? KW[id].label : id; }).concat(n.cats || []).join(', ') || 'note') + (n.transcript ? ' (“' + shorten(n.transcript, 110) + '”)' : ''); }) });
       if (c.context.length) R.sections.push({ heading: 'What you know', bullets: c.context.slice(0, 3).map(function (n) { return niceDate(n.ts.slice(0, 10)) + ': ' + shorten((n.transcript || '').replace(/\s+/g, ' '), 260); }) });
       R.audit = c.factors.map(function (f) { return [f.bucket, (f.pts > 0 ? '+' : '') + f.pts, f.tech, f.src]; });
-      R.footer = 'Produced by Nudge from fixed rules on ' + R.date + '. No AI model was used. Not for sharing with the customer.';
+      R.footer = 'Produced by Nudge from fixed rules on ' + R.date + '. No AI model was used. Not for sharing with the customer. Version: ' + an.stamp + '.';
     }
     return R;
   }
@@ -998,11 +1088,66 @@
     return n;
   }
 
+  // ---------------------------------------------------------------- evidence: the actual lines behind a fact
+  // key 'orders' = latest lines, 'trend' = last 90 days against the 90 before, 'w365' = last 12 months
+  function evidence(c, key) {
+    var A = c.asOfN, rows = c.rows.filter(function (t) { return t.amt !== 0; }).slice().reverse();
+    function pick(from, to) { return rows.filter(function (t) { var n = dayNum(t.d); return n > A - from && n <= A - to; }); }
+    function grp(caption, list) { return { caption: caption, n: list.length, total: sum(list, function (t) { return t.amt; }), rows: list.slice(0, 20) }; }
+    if (key === 'trend') return [grp('Last 3 months', pick(90, 0)), grp('The 3 months before', pick(180, 90))];
+    if (key === 'w365') return [grp('Last 12 months', pick(365, 0))];
+    return [grp('All lines, newest first', rows)];
+  }
+  function blindSpots(state) {
+    var credit = (state.credit && Object.keys(state.credit).length) || (state.tx || []).some(function (t) { return t.hold != null; });
+    return credit ? 'I don\'t see stock, or contact outside Nudge.' : 'I don\'t see credit holds, stock, or contact outside Nudge.';
+  }
+  // the version stamp kept with every brief, export and trail, so any past answer can be explained later
+  function dataInfo(state) {
+    var min = null, max = null; (state.tx || []).forEach(function (t) { if (!min || t.d < min) min = t.d; if (!max || t.d > max) max = t.d; });
+    var files = (state.uploads || []).filter(function (u) { return u.lines; }).map(function (u) { return u.name; });
+    return { files: files.filter(function (v, i, a) { return a.indexOf(v) === i; }), from: min, to: max };
+  }
+  function stamp(state) {
+    var t = Object.keys(state.tuning || {}).length, di = dataInfo(state);
+    return 'rules ' + RULES.version + ' (' + RULES.date + (t ? ', ' + t + ' approved change' + (t === 1 ? '' : 's') : '') + '); data ' + (di.files.join(', ') || 'uploaded file') + (di.from ? ', ' + di.from + ' to ' + di.to : '');
+  }
+  // "How Nudge decides": every rule in plain words, built from RULES and approved tuning so it never goes out of date
+  function rulesDoc(state) {
+    var T = state.tuning || {}, cur = (state.settings && state.settings.currency) || '$';
+    function tuned(label, pts) { var t = T[label]; return t && t.delta ? (pts + t.delta) + ' (' + pts + ' ' + (t.delta > 0 ? '+' : '') + t.delta + ', approved ' + t.date + ')' : String(pts); }
+    function plus(p) { return (+p > 0 ? '+' : '') + p; }
+    var o = RULES.overdue, dcl = RULES.decline, g = RULES.growth, w = RULES.reorderWindow, e = RULES.reorderEarly;
+    var neg = KEYWORDS.filter(function (k) { return k.churn > 0; }), pos = KEYWORDS.filter(function (k) { return k.close > 0; });
+    return [
+      { heading: 'Risk of leaving (0 to 100)', rows: o.map(function (r) { return ['No order for ' + r[0] + ' times their usual gap or longer', plus(r[1])]; })
+          .concat(dcl.map(function (r) { return ['Spending down ' + Math.round(-r[0] * 100) + '% or more on the 3 months before', plus(r[1])]; }))
+          .concat([['Concerns in your notes in the last ' + RULES.noteNegDays + ' days: ' + neg.map(function (k) { return k.label + ' ' + plus(k.churn); }).join(', ') + '. Happy with us ' + KW.happy.churn, 'up to ±' + RULES.noteNegCap],
+            ['You said they are staying with us (lasts ' + RULES.stayingDays + ' days)', '−' + RULES.stayingPts], ['A document flags a risk on the account', plus(RULES.docRisk)]]) },
+      { heading: 'Chance to close a deal (0 to 100)', rows: [['Due to reorder: ' + w[0] + ' to ' + w[1] + ' times their usual gap since the last order', plus(tuned('Due to reorder', w[2]))], ['Order coming up: ' + e[0] + ' to ' + e[1] + ' times their usual gap', plus(tuned('Order coming up', e[2]))]]
+          .concat(g.map(function (r) { return ['Spending up ' + Math.round(r[0] * 100) + '% or more on the 3 months before', plus(tuned('Spending up', r[1]))]; }))
+          .concat([['Half or more of similar customers buy a category they never have', plus(tuned('Category gap', RULES.crossSell))],
+            ['Buying signals in your notes in the last ' + RULES.notePosDays + ' days: ' + pos.map(function (k) { return k.label + ' ' + plus(k.close); }).join(', '), 'up to +' + RULES.notePosCap],
+            ['Documents: renewal ' + plus(RULES.docRenewal) + ', campaign or unused offer ' + plus(RULES.docCampaign) + ', growth ' + plus(RULES.docGrowth), 'up to ' + plus(tuned('Offer or renewal', RULES.docCap))]]) },
+      { heading: 'Visit priority (0 to 100)', rows: [['The higher of the two scores × ' + RULES.wMain + ', the lower × ' + RULES.wOther + ', and customer size (rank of 12-month revenue among your customers, 0 to 100) × ' + RULES.wValue, 'sum'],
+          ['An account plan marks them as a priority account', plus(RULES.docPriority)], ['You visited, noted or closed a deal in the last ' + RULES.visitedDays + ' days', '−' + RULES.visitedPenalty], ['No order for over ' + RULES.lostDays + ' days and ' + RULES.lostRatio + ' times their gap: inactive', '−30, scores set to 0']] },
+      { heading: 'Today\'s visits', rows: [['The 3 active customers with the highest visit priority, fixed for the day once shown', 'top 3'],
+          ['Customers with fewer than ' + RULES.fewOrders + ' orders are left out, unless a recent note or an account plan (priority or renewal) makes them a priority', 'rule'],
+          ['Lists “Likely to close” and “May churn”: score of ' + RULES.listThreshold + ' or more', String(RULES.listThreshold)],
+          ['Fewer than ' + RULES.roughOrders + ' orders: shown as a rough guess', 'label']] },
+      { heading: 'Other rules', rows: [['A campaign counts as unused when they have not bought its categories in the last 30 days; saving = discount × their typical order', 'rule'],
+          ['Ending soon: an unused campaign ends within ' + RULES.expiryDays + ' days', RULES.expiryDays + ' days'], ['Target pace: target × day of the month ÷ days in the month', 'rule'],
+          ['Sales data older than ' + RULES.dataAgeWarn + ' days is flagged in amber; older than ' + RULES.staleDays + ' days, the brief is worked out as of the day after the last sale', RULES.dataAgeWarn + ' / ' + RULES.staleDays + ' days'],
+          ['Proposed changes from past results: ±' + RULES.tuneStep + ' points, at most ±' + RULES.tuneMax + ', one step every ' + RULES.tuneRestDays + ' days, only after a manager taps Apply', 'manager']] }
+    ];
+  }
+
   var api = {
-    parseDate: parseDate, normalizeRows: normalizeRows, mergeTx: mergeTx, analyze: analyze, lists: lists, topReasons: topReasons,
+    parseDate: parseDate, detectDateOrder: detectDateOrder, normalizeRows: normalizeRows, nameVariants: nameVariants, mergeCustomers: mergeCustomers, applyAliases: applyAliases,
+    evidence: evidence, blindSpots: blindSpots, stamp: stamp, dataInfo: dataInfo, rulesDoc: rulesDoc, mergeTx: mergeTx, analyze: analyze, lists: lists, topReasons: topReasons,
     normalizeTargets: normalizeTargets, normalizeCampaigns: normalizeCampaigns, targetStatus: targetStatus, closeGap: closeGap, campaignLine: campaignLine, expiring: expiring, weeklyDigest: weeklyDigest, learning: learning, tone: tone, accountReview: accountReview, execSummary: execSummary, visitStats: visitStats, wrapUp: wrapUp, managerSummary: managerSummary, buildPitch: buildPitch, customerMarkdown: customerMarkdown, fileName: fileName, dashboard: dashboard, confirmDeals: confirmDeals,
     extractKeywords: extractKeywords, linkDocs: linkDocs, salespeople: salespeople, asOfDate: asOfDate,
-    KEYWORDS: KEYWORDS, KW: KW, RULES: RULES, money: money, pct: pct, niceDate: niceDate, todayISO: todayISO, addDays: addDays, dayNum: dayNum, MONTHS: MONTHS
+    KEYWORDS: KEYWORDS, KW: KW, RULES: RULES, money: money, pct: pct, niceDate: niceDate, shortDate: shortDate, todayISO: todayISO, addDays: addDays, dayNum: dayNum, MONTHS: MONTHS
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.NBA = api;

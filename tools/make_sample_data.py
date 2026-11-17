@@ -100,6 +100,19 @@ for rep, custs in REPS.items():
             shift = stop - max(rows[i][0] for i in mine)
             for i in mine: rows[i] = (rows[i][0] + shift,) + rows[i][1:]
 
+# realistic untidiness for the upload health check (separate random stream, so the rows above do not change)
+rx = random.Random(11)
+for k in range(6):  # the same shop typed under a second name and code
+    d = END - dt.timedelta(days=100 - k * 16)
+    inv += 1
+    rows.append((d, f'INV-{inv}', 'Aisha Rahman', 'C104B', 'Lakeside Mart Sdn Bhd', 'Retail', 'Consumables', 'Refill Pack', 12, 35, 420))
+credit = [r for r in rows if r[0] < END - dt.timedelta(days=30)]
+for r in rx.sample(credit, 8):  # returns and credit notes
+    inv += 1
+    q = -max(1, r[8] // 3)
+    rows.append((r[0] + dt.timedelta(days=3), f'CN-{inv}', r[2], r[3], r[4], r[5], r[6], r[7], q, r[9], q * r[9]))
+blank = rx.sample(range(len(rows)), 3)  # salesperson left empty
+rows = [r if i not in blank else (r[0], r[1], '', *r[3:]) for i, r in enumerate(rows)]
 rows.sort(key=lambda r: (r[0], r[1]))
 wb = Workbook(); ws = wb.active; ws.title = 'Transactions'
 ws.append(['Date', 'Invoice No', 'Salesperson', 'Customer ID', 'Customer Name', 'Segment', 'Product Category', 'Product', 'Quantity', 'Unit Price', 'Amount'])

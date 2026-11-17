@@ -13,6 +13,54 @@ const ab = b => b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength);
 
   assert.strictEqual(x.targets.length, 36); assert.strictEqual(x.campaigns.length, 3);
   const state = { tx: x.tx, docs: [d.doc, p.doc], notes: [], deals: [], targets: x.targets, campaigns: x.campaigns, settings: { currency: '$' } };
+
+  { // PHASE 1: upload health check
+    const st = x.stats; assert.strictEqual(st.lines, 2219); assert.strictEqual(st.negatives, 8); assert(st.negAmt < 0); assert.strictEqual(st.noSp, 3); assert.strictEqual(st.unreadable, 0);
+    assert(x.tx.every(t => t.sp && t.sp !== 'Unassigned'), 'blank salesperson filled from the customer');
+    assert.strictEqual(x.dateCheck.kind, 'none', 'real Excel dates need no question');
+    // date format: proven, ambiguous, and both readings
+    assert.strictEqual(NBA.detectDateOrder(['13/04/2026', '03/04/2026']).order, 'dmy');
+    assert.strictEqual(NBA.detectDateOrder(['04/13/2026', '03/04/2026']).order, 'mdy');
+    const amb = NBA.detectDateOrder(['03/04/2026', '05/06/2026']); assert.strictEqual(amb.kind, 'ambiguous'); assert.strictEqual(amb.sample, '03/04/2026');
+    assert.strictEqual(NBA.parseDate('03/04/2026', 'dmy'), '2026-04-03'); assert.strictEqual(NBA.parseDate('03/04/2026', 'mdy'), '2026-03-04');
+    const csvRows = [{ Date: '03/04/2026', Customer: 'A', Amount: 10 }, { Date: '05/06/2026', Customer: 'B', Amount: 5 }];
+    const r1 = NBA.normalizeRows(csvRows), r2 = NBA.normalizeRows(csvRows, { dateOrder: 'mdy' });
+    assert.strictEqual(r1.dateCheck.kind, 'ambiguous'); assert.strictEqual(r1.tx[0].d, '2026-04-03'); assert.strictEqual(r2.tx[0].d, '2026-03-04');
+    // future dates counted; hard stop above 20% unreadable
+    const fut = NBA.normalizeRows([{ Date: '2027-01-02', Customer: 'A', Amount: 1 }, { Date: '2026-01-02', Customer: 'A', Amount: 1 }], { today: '2026-11-15' }); assert.strictEqual(fut.stats.future, 1);
+    const bad = NBA.normalizeRows([1, 2, 3, 4, 5].map(i => ({ Date: i < 3 ? 'soon' : '2026-01-0' + i, Customer: 'A', Amount: 1 })));
+    assert(bad.hardStop && /20%/.test(bad.reason));
+    // name variants and merge
+    const v = NBA.nameVariants(state.tx, {}); assert.strictEqual(v.length, 1);
+    assert.deepStrictEqual(v[0].members.map(m => m.name), ['Lakeside Mart', 'Lakeside Mart Sdn Bhd']);
+    assert.strictEqual(NBA.nameVariants(state.tx, { [[v[0].members[0].cid, v[0].members[1].cid].sort().join('|')]: 1 }).length, 0, 'keep apart is remembered');
+    assert.strictEqual(NBA.analyze(state, 'Aisha Rahman', { today: '2026-11-15' }).customers.length, 13);
+    NBA.mergeCustomers(state, v[0].members.map(m => m.cid), v[0].keep);
+    assert.strictEqual(NBA.nameVariants(state.tx, {}).length, 0); assert.strictEqual(state.aliases.C104B, 'C104');
+    const later = NBA.applyAliases([{ cid: 'C104B', cname: 'Lakeside Mart Sdn Bhd' }], state); assert.strictEqual(later[0].cid, 'C104'); assert.strictEqual(later[0].cname, 'Lakeside Mart');
+  }
+  { // PHASE 1: evidence, confidence, the few-orders rule, rules page, version stamp, same answer twice
+    const a = NBA.analyze(state, 'Aisha Rahman', { today: '2026-11-15' }), bh = a.customers.find(c => c.name === 'Blue Harbor Stores');
+    const od = bh.factors.find(f => f.label === 'Overdue'); assert.strictEqual(od.ev, 'orders');
+    const ev = NBA.evidence(bh, 'orders')[0]; assert(ev.rows.length === 20 && ev.n > 20); assert(ev.rows[0].d >= ev.rows[19].d, 'newest first');
+    const tr = NBA.evidence(bh, 'trend'); assert.strictEqual(tr.length, 2); assert.strictEqual(Math.round(tr[0].total), Math.round(bh.rev90)); assert.strictEqual(Math.round(tr[1].total), Math.round(bh.revPrev90));
+    assert(bh.factors.filter(f => f.src === 'Sales data' && f.bucket !== 'priority').every(f => f.ev), 'every sales-data factor links to its orders');
+    // fewer than 2 orders: not in today's visits unless a note or document makes them a priority
+    const one = { tx: [...state.tx, { d: '2026-11-10', cid: 'NEW1', cname: 'Brand New Shop', sp: 'Aisha Rahman', amt: 90000, qty: 1, cat: 'Core Products', prod: '', seg: 'Retail', inv: 'X1', src: 'upload' }], docs: state.docs, notes: [], deals: [], settings: state.settings };
+    const a1 = NBA.analyze(one, 'Aisha Rahman', { today: '2026-11-15' }), nw = a1.customers.find(c => c.cid === 'NEW1');
+    assert(!nw.eligible && nw.rough); assert(!NBA.lists(a1).top3.some(c => c.cid === 'NEW1'));
+    one.notes = [{ id: 'n', cid: 'NEW1', ts: '2026-11-14T09:00:00', keywords: ['quote'], cats: [] }];
+    const a2 = NBA.analyze(one, 'Aisha Rahman', { today: '2026-11-15' }); assert(a2.customers.find(c => c.cid === 'NEW1').eligible);
+    // rules page follows RULES and approved tuning
+    const doc = NBA.rulesDoc(state); assert(doc.length >= 5 && doc.every(s => s.rows.length));
+    assert(JSON.stringify(doc).includes('+30')); assert(JSON.stringify(NBA.rulesDoc(Object.assign({}, state, { tuning: { 'Due to reorder': { delta: 5, date: '2026-11-16' } } }))).includes('35 (30 +5, approved 2026-11-16)'));
+    state.uploads = [{ name: 'sample_transactions.xlsx', lines: 2219 }];
+    assert(/^rules 1\.6 \(2026-11-17\); data sample_transactions\.xlsx, 20\d\d-\d\d-\d\d to 2026-11-14$/.test(NBA.stamp(state)), NBA.stamp(state));
+    assert(/credit holds/.test(NBA.blindSpots(state)));
+    // same file, same answer
+    const run = () => { const z = NBA.analyze(state, 'Aisha Rahman', { today: '2026-11-15' }); return JSON.stringify([NBA.lists(z).top3.map(c => c.cid), NBA.execSummary(state, 'Aisha Rahman', z, { today: '2026-11-15' }), z.customers.map(c => [c.cid, c.priority, c.close, c.churn, c.factors, NBA.buildPitch(c, z)])]); };
+    assert.strictEqual(run(), run(), 'same state, same brief');
+  }
   { // targets, gap and campaigns
     const a = NBA.analyze(state, 'Aisha Rahman', { today: '2026-11-15' }), ts = NBA.targetStatus(state, 'Aisha Rahman', { today: '2026-11-15' });
     assert(ts.hasTarget && ts.gap > 0 && ts.mood === 'behind', JSON.stringify(ts));
