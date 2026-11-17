@@ -5,7 +5,7 @@
 - Segment: Retail
 - Status on 15 Nov 2026: **Likely to close**
 - File generated on this device by fixed rules. No AI language model was used.
-- Version: rules 1.8 (2026-11-17); data sample_transactions.xlsx, 2024-11-01 to 2026-11-14
+- Version: rules 1.9 (2026-11-17); data sample_transactions.xlsx, 2024-11-01 to 2026-11-14
 
 ## Performance
 
@@ -45,7 +45,7 @@
 
 | Points | In plain English | Technical trace | Source |
 |---:|---|---|---|
-| +30 | Usually orders every 13 days, now 11: reorder due. | recency 11d ÷ median gap between orders 13d = 0.85 in [0.8, 1.5) → +30 close | Sales data |
+| +30 | Usually orders every 13 days, now 11: reorder due. | recency 11d ÷ median gap between orders, 10 gaps across a festive period left out 13d = 0.85 in [0.8, 1.5) → +30 close | Sales data |
 | +20 | Spending up 37% on the 3 months before. | revenue last 90d $9,785 vs previous 90d $7,150 = +37% ≥ +25% → +20 close | Sales data |
 | +10 | Your documents: campaign applies (sample_account_plans.docx). | document signals: campaign +10 = 10, capped at 20 → +10 close | Documents |
 

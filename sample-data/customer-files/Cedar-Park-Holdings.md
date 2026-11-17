@@ -5,7 +5,7 @@
 - Segment: Corporate
 - Status on 15 Nov 2026: **Likely to close**
 - File generated on this device by fixed rules. No AI language model was used.
-- Version: rules 1.8 (2026-11-17); data sample_transactions.xlsx, 2024-11-01 to 2026-11-14
+- Version: rules 1.9 (2026-11-17); data sample_transactions.xlsx, 2024-11-01 to 2026-11-14
 
 ## Performance
 
@@ -44,7 +44,7 @@
 
 | Points | In plain English | Technical trace | Source |
 |---:|---|---|---|
-| +30 | Usually orders every 47 days, now 48: reorder due. | recency 48d ÷ median gap between orders 47d = 1.02 in [0.8, 1.5) → +30 close | Sales data |
+| +30 | Usually orders every 47 days, now 48: reorder due. | recency 48d ÷ median gap between orders, 6 gaps across a festive period left out 47d = 1.02 in [0.8, 1.5) → +30 close | Sales data |
 | +10 | Similar Corporate customers buy Service Plans; they never have. | Service Plans bought by 6 of 9 Corporate customers in the last 12 months (≥ 50%), 0 purchases by this customer → +10 close | Sales data |
 | +10 | Your documents: unused offer (sample_account_plans.docx). | document signals: campaign +10 (Premium Range launch not used) = 10, capped at 20 → +10 close | Documents |
 

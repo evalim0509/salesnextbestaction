@@ -5,7 +5,7 @@
 - Segment: Wholesale
 - Status on 15 Nov 2026: **Good chance**
 - File generated on this device by fixed rules. No AI language model was used.
-- Version: rules 1.8 (2026-11-17); data sample_transactions.xlsx, 2024-11-01 to 2026-11-14
+- Version: rules 1.9 (2026-11-17); data sample_transactions.xlsx, 2024-11-01 to 2026-11-14
 
 ## Performance
 
@@ -45,7 +45,7 @@
 
 | Points | In plain English | Technical trace | Source |
 |---:|---|---|---|
-| +12 | Usually orders every 31 days, now 22: order coming up. | recency 22d ÷ 31d = 0.72 in [0.6, 0.8) → +12 close | Sales data |
+| +12 | Usually orders every 31 days, now 22: order coming up. | recency 22d ÷ 31d = 0.71 in [0.6, 0.8) → +12 close | Sales data |
 | +20 | Spending up 34% on the 3 months before. | revenue last 90d $10,585 vs previous 90d $7,925 = +34% ≥ +25% → +20 close | Sales data |
 | +10 | Your documents: campaign applies (sample_campaign_deck.pptx). | document signals: campaign +10 = 10, capped at 20 → +10 close | Documents |
 

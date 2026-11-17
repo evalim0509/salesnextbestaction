@@ -5,7 +5,7 @@
   var $ = function (s, r) { return (r || document).querySelector(s); };
   var chat = $('#chat'), dock = $('#dock'), sheet = $('#sheet'), fileInput = $('#file');
   var state = blank(), an = null, dashSp = null, view = 'brief';
-  function blank() { return { me: null, tx: [], docs: [], notes: [], deals: [], visits: [], plans: {}, tuning: {}, tuneDismissed: {}, uploads: [], aliases: {}, keepApart: {}, feedback: [], swaps: [], holdout: {}, picks: [], targets: [], campaigns: [], files: [], settings: { currency: 'RM', voice: true, motion: true, lang: 'en', holdout: 0.2 } }; }
+  function blank() { return { me: null, tx: [], docs: [], notes: [], deals: [], visits: [], plans: {}, tuning: {}, tuneDismissed: {}, uploads: [], aliases: {}, keepApart: {}, feedback: [], swaps: [], holdout: {}, picks: [], areaPick: {}, credit: {}, targets: [], campaigns: [], files: [], settings: { currency: 'RM', voice: true, motion: true, lang: 'en', holdout: 0.2 } }; }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
   function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
   function cur() { return state.settings.currency; }
@@ -36,7 +36,7 @@
   var I18 = window.NudgeI18n, knownN = -1;
   function knownValues() {
     if (!I18 || knownN === state.tx.length + state.docs.length + state.campaigns.length) return; knownN = state.tx.length + state.docs.length + state.campaigns.length;
-    var v = []; state.tx.forEach(function (t) { v.push(t.cname, t.sp, t.cat, t.seg, t.prod); }); state.campaigns.forEach(function (k) { v.push(k.name); }); state.docs.forEach(function (d) { v.push(d.name); }); state.uploads.forEach(function (u) { v.push(u.name); });
+    var v = []; state.tx.forEach(function (t) { v.push(t.cname, t.sp, t.cat, t.seg, t.prod, t.area, t.group); }); state.campaigns.forEach(function (k) { v.push(k.name); }); state.docs.forEach(function (d) { v.push(d.name); }); state.uploads.forEach(function (u) { v.push(u.name); });
     I18.setKnown(v);
   }
   // quiet line on every screen: how fresh the sales data is; amber when older than a week
@@ -151,7 +151,8 @@
   var ICON = {
     file: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l5 5v13H7zM14 3v5h5M10 13h6M10 17h6" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round" stroke-linecap="round"/></svg>',
     out: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4m0 0l-4 4m4-4l4 4M5 13v6h14v-6" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-    check: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+    check: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    chat: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19.5l1.3-3.9A8 8 0 1 1 8.6 19l-4.6.5z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/><path d="M9 10.5h6M9 13.5h4" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>'
   };
   function meter(label, v, kind, note) { return '<div class="mtr"><span>' + label + '</span><div class="bar"><i class="' + kind + '" style="width:' + Math.max(2, Math.min(100, v)) + '%"></i></div><b>' + (note || v) + '</b></div>'; }
   function tiles(list) { return '<div class="tiles' + (list.length === 2 ? ' two' : '') + '">' + list.map(function (t) { return '<div class="tile"><small>' + esc(t[0]) + '</small><b>' + esc(t[1]) + '</b>' + (t[2] ? '<span>' + esc(t[2]) + '</span>' : '') + '</div>'; }).join('') + '</div>'; }
@@ -178,9 +179,9 @@
       '<div class="row small faint"><span>' + m[0].label + '</span><span>' + m[11].label + ' so far</span></div></div>';
   }
   function names(a) { return a.length <= 1 ? a.join('') : a.slice(0, -1).join(', ') + ' and ' + a[a.length - 1]; }
-  var TAGWORD = { 'May churn': 'At risk', 'Likely to close': 'Likely to buy', 'Good chance': 'Maybe', Watch: 'Watch', Steady: 'Steady', Inactive: 'Inactive' };
-  function tagClass(t) { return t === 'Likely to close' || t === 'Good chance' ? 'go' : t === 'May churn' ? 'risk' : t === 'Watch' ? 'watch' : ''; }
-  function tag(c) { return '<span class="tag ' + tagClass(c.tag) + '">' + (c.tag === 'May churn' ? '▲ ' : c.tag === 'Likely to close' ? '▲ ' : '') + (TAGWORD[c.tag] || c.tag) + '</span>'; }
+  var TAGWORD = { 'Collect first': 'Collect first', 'May churn': 'At risk', 'Likely to close': 'Likely to buy', 'Good chance': 'Maybe', Watch: 'Watch', Steady: 'Steady', Inactive: 'Inactive' };
+  function tagClass(t) { return t === 'Likely to close' || t === 'Good chance' ? 'go' : t === 'May churn' ? 'risk' : t === 'Watch' || t === 'Collect first' ? 'watch' : ''; }
+  function tag(c) { return '<span class="tag ' + tagClass(c.tag) + '">' + (c.tag === 'May churn' ? '▲ ' : c.tag === 'Likely to close' ? '▲ ' : c.tag === 'Collect first' ? '! ' : '') + (TAGWORD[c.tag] || c.tag) + '</span>'; }
   function acts(list) {
     return '<div class="acts">' + list.map(function (a) { return '<button class="' + (a[2] || '') + '" data-do="' + a[0] + '">' + esc(a[1]) + '</button>'; }).join('') + '</div>';
   }
@@ -254,8 +255,9 @@
   function plan() {
     var key = state.me + '|' + an.asOf;
     if (!state.plans[key]) {
-      var L = NBA.lists(an), ids = function (a) { return a.map(function (c) { return c.cid; }); };
+      var L = NBA.lists(an, { area: state.areaPick[key] }), ids = function (a) { return a.map(function (c) { return c.cid; }); };
       state.plans[key] = ids(L.top3);
+      if (L.area) state.areaPick[key] = L.area;
       state.holdout[key] = { sp: state.me, date: an.asOf, share: state.settings.holdout || 0, held: ids(L.held), shown: ids(L.top3.concat(L.close, L.churn)).filter(function (v, i, a) { return a.indexOf(v) === i; }) };
       save();
     }
@@ -265,7 +267,8 @@
   function footHTML(cid) {
     var v = visitOf(cid);
     if (!v) return '<button data-v="done">Mark visited</button><button data-v="skip">Skip today</button><span class="vlinks"><button data-v="swap">Swap</button><button data-v="wrong">Wrong, because…</button></span>';
-    return '<span class="vstate ' + v.status + '">' + (v.status === 'done' ? '✓ Visited' : 'Skipped: ' + esc(v.reason)) + '</span><button data-v="undo">Undo</button>';
+    var c = cust(cid), wa = v.status === 'done' && c && NBA.reorderMessage(c, an, state.me);
+    return '<span class="vstate ' + v.status + '">' + (v.status === 'done' ? '✓ Visited' : 'Skipped: ' + esc(v.reason)) + '</span><button data-v="undo">Undo</button>' + (wa ? '<span class="vlinks"><button data-v="wa">Send reorder message</button></span>' : '');
   }
   function refreshFoots(cid) { [].forEach.call(chat.querySelectorAll('.vfoot'), function (f) { if (f.dataset.visit === cid) f.innerHTML = footHTML(cid); }); }
   function markVisit(cid, status, reason, quiet) {
@@ -281,6 +284,16 @@
     var reasons = ['Customer not available', 'Ran out of time', 'Moved to another day', 'Not needed today'];
     openSheet('Skip ' + c.name + ' today?', '<div class="group">Why?</div><div class="rowlist" style="margin:0">' + reasons.map(function (r) { return '<button data-r="' + r + '">' + r + '</button>'; }).join('') + '</div>');
     $('#sheet-body').onclick = function (e) { var b = e.target.closest('[data-r]'); if (b) { closeSheet(); markVisit(cid, 'skipped', b.dataset.r); } };
+  }
+  // ---- WhatsApp reorder message: plain text, no scores, risk labels or notes; Nudge never sends it
+  function waSheet(cid) {
+    var c = cust(cid); if (!c) return; var msg = NBA.reorderMessage(c, an, state.me); if (!msg) return;
+    if (I18 && I18.getLang() === 'ms') msg = I18.t(msg);
+    var canShareText = !!(navigator.share);
+    openSheet('Message for ' + c.name, '<p class="wa nt" id="wa-text">' + esc(msg) + '</p><p class="small">Nothing is sent by Nudge. You choose who to send it to.</p>',
+      (canShareText ? '<button class="btn pri" id="wa-share">Share message</button>' : '') + '<a class="btn' + (canShareText ? '' : ' pri') + '" id="wa-open" target="_blank" rel="noopener" href="https://wa.me/?text=' + encodeURIComponent(msg) + '">Open WhatsApp</a><button class="btn" id="wa-copy">Copy</button>');
+    if (canShareText) $('#wa-share').onclick = function () { navigator.share({ text: msg }).catch(function () {}); };
+    $('#wa-copy').onclick = function () { var b = this; (navigator.clipboard ? navigator.clipboard.writeText(msg) : Promise.reject()).then(function () { b.textContent = 'Copied'; }).catch(function () { var r = document.createRange(); r.selectNodeContents($('#wa-text')); var sl = getSelection(); sl.removeAllRanges(); sl.addRange(r); }); };
   }
   // ---- the rep stays in charge: "Wrong, because…" and "Swap"
   var WRONG = [['closed', 'Shop closed'], ['credit', 'On credit hold'], ['recent', 'Visited recently'], ['notmine', 'Not my customer'], ['other', 'Other']];
@@ -344,6 +357,7 @@
     var f = NBA.topReasons(c, 1)[0]; return f ? f.label.toLowerCase() : 'regular check-in';
   }
   function actionLine(c) {
+    if (c.collect) return 'Collect first: ' + c.name + ', ' + $$(c.collect.amount) + ' overdue';
     if ((c.ratio >= NBA.RULES.reorderWindow[0] && c.nOrders >= 2) || c.close >= NBA.RULES.bandHigh) return 'Visit ' + c.name + ' today: ' + actionWord(c);
     return (c.churn >= NBA.RULES.bandMid ? 'Worth a check: ' : 'Worth a visit: ') + c.name + ', ' + actionWord(c);
   }
@@ -402,9 +416,18 @@
           ['Measuring', state.settings.holdout ? (state.holdout[state.me + '|' + an.asOf] || { held: [] }).held.length + ' customers who would have been suggested are held back today (' + Math.round(state.settings.holdout * 100) + '% of eligible customers, chosen at random with a fixed seed for you and today); they are not shown as suggestions, so the revenue Nudge helps add can be measured' : 'holdout is off']])
         .concat(P.map(function (c) { var f = NBA.topReasons(c, 1)[0]; return [c.name + ' (priority ' + c.priority + ', ' + c.nOrders + ' orders)', f ? f.tech : 'priority ' + c.priority, orders(c, f && f.ev || 'orders')]; })), true);
     bot(html, 'wide');
-    bot('<p>These ' + P.length + ' are worth a visit today. Tap one for what to say.</p>' + trail([['Order', 'highest visit priority first; see “How I got this” above']]));
+    var LA = NBA.lists(an, { area: state.areaPick[state.me + '|' + an.asOf] });
+    bot((LA.area ? '<div class="areas"><span>Area</span>' + LA.areas.map(function (a) { return '<button class="chip" data-area="' + esc(a.name) + '" aria-pressed="' + (a.name === LA.area) + '">' + esc(a.name) + '</button>'; }).join('') + '</div>' : '') +
+      '<p>These ' + P.length + ' are worth a visit today. Tap one for what to say.</p>' +
+      trail([['Order', 'highest visit priority first; see “How I got this” above'], ['Area', LA.area ? 'today\'s visits come from one area: ' + LA.area + ' (total visit priority ' + LA.areas.filter(function (a) { return a.name === LA.area; })[0].total + ' across ' + LA.areas.filter(function (a) { return a.name === LA.area; })[0].n + ' eligible customers; the highest of ' + LA.areas.map(function (a) { return a.name + ' ' + a.total; }).join(', ') + ' unless you picked another)' : '']]));
     if (!P.length) { bot('<p>No active customers in the uploaded data.</p>' + trail([['Rule', 'a customer is active if they ordered within ' + NBA.RULES.lostDays + ' days or ' + NBA.RULES.lostRatio + ' times their usual gap']])); return; }
     P.forEach(visitCard);
+    if (LA.nearby.length) bot('<h3>Also nearby</h3><div class="rowlist">' + LA.nearby.map(function (c) { return '<button data-cid="' + esc(c.cid) + '"><span>' + esc(c.name) + '<span class="sub">' + esc(actionWord(c)) + '</span></span>' + tag(c) + '</button>'; }).join('') + '</div>' +
+      trail([['Also nearby', 'the next ' + LA.nearby.length + ' eligible customers by visit priority in ' + LA.area]], true));
+  }
+  function switchArea(area) {
+    var key = state.me + '|' + an.asOf; state.areaPick[key] = area; delete state.plans[key]; delete state.holdout[key]; save();
+    said('Area: ' + area); brief();
   }
   function showGap() {
     refresh(); if (!an) return;
@@ -592,12 +615,16 @@
     if (echo !== false) said(c.name);
     bot('<div data-cid="' + esc(c.cid) + '"><div class="chead"><div><h3>' + esc(c.name) + '</h3>' + tag(c) + conf(c) + '</div><button class="plus" data-do="note" aria-label="Add visit note">+</button></div>' +
       blockedLine(c) + (toldLine(c) ? '<p>' + toldLine(c) + '</p>' : '') +
+      (c.collect ? '<p class="blocked">On credit hold: ' + $$(c.collect.amount) + ' overdue. No sales push today.</p>' : '') +
+      (c.viaGroup ? '<p class="small">Ordered through ' + esc(c.viaGroup.name) + ' on ' + NBA.shortDate(c.viaGroup.last) + '.</p>' : '') +
       tiles([['Last order', c.recency === 0 ? 'Today' : c.recency + ' days', c.recency === 0 ? '' : 'ago'], ['Usual order', $$(c.avgOrder), 'per order'], ['12 months', $$(c.rev12), c.yoy == null ? '' : c.yoy >= 0 ? '▲ up' : '▼ down']]) +
       bands(c) + rhythm(c) + spark(c) +
       (c.context.length ? more('What you know (' + c.context.length + ')', '<ul>' + c.context.slice(0, 5).map(function (n) { return '<li><b>' + NBA.shortDate(n.ts.slice(0, 10)) + '</b>: <span class="nt">' + esc(n.transcript) + '</span></li>'; }).join('') + '</ul>') : '') +
       acts([['pitch', 'What to say', 'pri'], ['why', 'Why this customer']]) +
-      '<div class="iconrow"><button data-do="file" aria-label="Customer file" title="Customer file">' + ICON.file + '</button><button data-do="export1" aria-label="Export one-pager" title="Export one-pager">' + ICON.out + '</button><button class="wrongbtn" data-do="wrong">Wrong, because…</button><button class="done" data-do="deal" aria-label="Deal closed">' + ICON.check + 'Done</button></div></div>' +
-      trail([['Tiles', 'last order ' + c.last + '; usual order = average of ' + c.nOrders + ' orders; 12-month revenue = sales from ' + NBA.addDays(an.asOf, -364) + ' to ' + an.asOf, orders(c, 'orders')], ['Order rhythm', 'days since last order ' + c.recency + ' against median gap ' + Math.round(c.gapUsed) + ' (ratio ' + c.ratio.toFixed(2) + '); shaded band = due window ' + NBA.RULES.reorderWindow[0] + ' to ' + NBA.RULES.reorderWindow[1] + ' × gap'], ['Spend line', 'sales summed by calendar month, ' + c.months12[0].key + ' to ' + c.months12[11].key, orders(c, 'w365')], ['Confidence', c.nOrders + ' orders' + (c.rough ? ' (fewer than ' + NBA.RULES.roughOrders + ': rough guess)' : '')], ['Bands', 'close ' + c.close + ' → ' + c.closeBand + ', risk ' + c.churn + ' → ' + c.riskBand + ' (' + NBA.RULES.bandHigh + ' and ' + NBA.RULES.bandMid + ' are the cut-offs); priority ' + c.priority], ['Your feedback', c.blocked ? c.blocked.tech : '']].concat(scoreTrail(c)), true), 'wide');
+      '<div class="iconrow"><button data-do="file" aria-label="Customer file" title="Customer file">' + ICON.file + '</button><button data-do="export1" aria-label="Export one-pager" title="Export one-pager">' + ICON.out + '</button>' + (NBA.reorderMessage(c, an, state.me) ? '<button data-do="wa" aria-label="Send reorder message" title="Send reorder message">' + ICON.chat + '</button>' : '') + '<button class="wrongbtn" data-do="wrong">Wrong, because…</button><button class="done" data-do="deal" aria-label="Deal closed">' + ICON.check + 'Done</button></div></div>' +
+      trail([['Tiles', 'last order ' + c.last + '; usual order = average of ' + c.nOrders + ' orders; 12-month revenue = sales from ' + NBA.addDays(an.asOf, -364) + ' to ' + an.asOf, orders(c, 'orders')], ['Order rhythm', 'days since last order ' + c.recency + ' against median gap ' + Math.round(c.gapUsed) + ' (ratio ' + c.ratio.toFixed(2) + '); shaded band = due window ' + NBA.RULES.reorderWindow[0] + ' to ' + NBA.RULES.reorderWindow[1] + ' × gap'], ['Spend line', 'sales summed by calendar month, ' + c.months12[0].key + ' to ' + c.months12[11].key, orders(c, 'w365')], ['Confidence', c.nOrders + ' orders' + (c.rough ? ' (fewer than ' + NBA.RULES.roughOrders + ': rough guess)' : '')], ['Bands', 'close ' + c.close + ' → ' + c.closeBand + ', risk ' + c.churn + ' → ' + c.riskBand + ' (' + NBA.RULES.bandHigh + ' and ' + NBA.RULES.bandMid + ' are the cut-offs); priority ' + c.priority], ['Your feedback', c.blocked ? c.blocked.tech : ''], ['Group', c.viaGroup ? 'ordered through ' + c.viaGroup.name + ' on ' + c.viaGroup.last + ' (' + c.viaGroup.recency + ' days ago); the group\'s orders count as activity for this branch, so lateness uses ' + c.viaGroup.recency + ' days, not ' + c.recency : ''],
+        ['Credit', c.credit ? 'from the ' + c.credit.src + ': hold ' + (c.credit.hold === true ? 'yes' : c.credit.hold === false ? 'no' : 'not given') + ', overdue ' + $$(c.credit.overdue || 0) + (c.collect ? ' → collect first, no sales push' : '') : ''],
+        ['Festive period', c.festive ? c.festive.name + ' ended ' + c.festive.to + '; for ' + NBA.RULES.festiveAfterDays + ' days after, lateness counts ×' + NBA.RULES.festiveFactor : ''], ['Usual rhythm', c.gapsSkipped ? c.gapsSkipped + ' gaps across festive periods left out of the median' : '']].concat(scoreTrail(c)), true), 'wide');
   }
   function showPitch(cid) {
     var c = cust(cid); if (!c) return; said('What to say to ' + c.name);
@@ -643,13 +670,14 @@
       '<div class="heard" id="heard" hidden><p id="heard-text" class="nt"></p><button class="linkbtn" id="redo">Delete and record again</button></div>';
     else if (!SR && state.settings.voice) h += '<p class="small">Voice notes are not available in this browser.</p>';
     h += '<textarea class="typed" id="typed" rows="3" placeholder="Or type your note here" aria-label="Type your note"></textarea>' +
+      '<p class="small ignored" id="ignored" hidden></p>' +
       '<p class="small seenby">Who can see notes: anyone using Nudge on this phone, and people you send an internal export to. Never the customer.</p>' +
       (voice ? more('About voice and privacy', '<p>Voice uses your phone\'s own speech service, which on some phones sends the audio to Apple or Google. For sensitive visits, type or tap instead.</p>') : '');
     Object.keys(groups).forEach(function (g) { h += '<div class="group">' + g + '</div><div data-kw>' + chipsHTML(groups[g]) + '</div>'; });
     h += '<div class="group">Talked about</div><div data-cat>' + chipsHTML(an.categories.map(function (x) { return [x, x]; })) + '</div>';
     openSheet('Visit note: ' + c.name, h, '<button class="btn" id="save-context" disabled>Save as context</button><button class="btn pri" id="save-note" disabled>Save for scores</button>');
     var body = $('#sheet-body'), saveBtn = $('#save-note'), ctxBtn = $('#save-context'), typed = $('#typed'), panel = sheet.querySelector('.sheet-panel');
-    var transcript = '', rec = null, finalText = '', byVoice = {}; // chips switched on by the voice note, so deleting it can undo them
+    var transcript = '', rec = null, finalText = '', auto = {}, lastK = { ignored: [] }; // chips switched on by spoken or typed words, so changing the words can undo them
     function sel(attr) { return [].map.call(body.querySelectorAll('[' + attr + '] .chip[aria-pressed="true"]'), function (b) { return b.dataset.k; }); }
     function text() { return [transcript, typed.value.trim()].filter(Boolean).join(' '); }
     function check() {
@@ -658,21 +686,23 @@
       panel.dataset.tone = t; // colours the orb: green for good news, red for concerns
       $('#tone-text').textContent = t === 'pos' ? 'Sounds like good news.' : t === 'neg' ? 'Sounds like a concern.' : kws.length ? 'Mixed: good and bad news balance out.' : text() ? 'No keyword picked up yet.' : 'Speak, type or tap. I will listen for good and bad news.';
     }
-    function pickUp(t, fromVoice) {
-      var k = NBA.extractKeywords(t, an.categories);
-      function on(b) { if (b && b.getAttribute('aria-pressed') !== 'true') { b.setAttribute('aria-pressed', 'true'); if (fromVoice) byVoice[b.dataset.k] = b; } }
-      k.keywords.forEach(function (id) { on(body.querySelector('[data-kw] .chip[data-k="' + id + '"]')); });
-      k.cats.forEach(function (x) { [].forEach.call(body.querySelectorAll('[data-cat] .chip'), function (b) { if (b.dataset.k === x) on(b); }); });
+    function sync() {
+      var k = NBA.extractKeywords(text(), an.categories), want = {}; lastK = k;
+      k.keywords.forEach(function (id) { var b = body.querySelector('[data-kw] .chip[data-k="' + id + '"]'); if (b) want['kw:' + id] = b; });
+      k.cats.forEach(function (x) { [].forEach.call(body.querySelectorAll('[data-cat] .chip'), function (b) { if (b.dataset.k === x) want['cat:' + x] = b; }); });
+      Object.keys(auto).forEach(function (key) { if (!want[key]) { auto[key].setAttribute('aria-pressed', 'false'); delete auto[key]; } });
+      Object.keys(want).forEach(function (key) { var b = want[key]; if (b.getAttribute('aria-pressed') !== 'true') { b.setAttribute('aria-pressed', 'true'); auto[key] = b; } });
+      var ig = $('#ignored'); ig.hidden = !k.ignored.length; ig.textContent = k.ignored.length ? 'Ignored (negated): ' + k.ignored.map(function (x) { return x.label; }).join(', ') : '';
     }
-    typed.oninput = function () { pickUp(typed.value); check(); };
+    typed.oninput = function () { sync(); check(); };
     body.onclick = function (e) {
-      var ch = e.target.closest('.chip'); if (ch) { ch.setAttribute('aria-pressed', ch.getAttribute('aria-pressed') !== 'true'); delete byVoice[ch.dataset.k]; check(); }
+      var ch = e.target.closest('.chip'); if (ch) { ch.setAttribute('aria-pressed', ch.getAttribute('aria-pressed') !== 'true'); Object.keys(auto).forEach(function (key) { if (auto[key] === ch) delete auto[key]; }); check(); }
     };
     var stop = function () {};
     if (voice) {
       var mic = $('#mic'), heard = $('#heard'), heardText = $('#heard-text');
       stop = function () { if (rec) { try { rec.stop(); } catch (e) {} rec = null; } mic.classList.remove('on'); panel.classList.remove('listening'); if ($('#app').dataset.state === 'listening') delete $('#app').dataset.state; mic.lastChild.textContent = transcript ? 'Speak again to add more' : 'Speak your note'; };
-      var hear = function (t) { transcript = t; heard.hidden = !t; heardText.textContent = t; pickUp(t, true); check(); };
+      var hear = function (t) { transcript = t; heard.hidden = !t; heardText.textContent = t; sync(); check(); };
       mic.onclick = function () {
         if (rec) { stop(); return; }
         try {
@@ -689,8 +719,7 @@
       };
       // delete the recording and start over, without leaving this screen
       $('#redo').onclick = function () {
-        stop(); Object.keys(byVoice).forEach(function (k) { byVoice[k].setAttribute('aria-pressed', 'false'); }); byVoice = {};
-        transcript = ''; finalText = ''; heard.hidden = true; heardText.textContent = ''; mic.lastChild.textContent = 'Speak your note'; delete saveBtn.dataset.warned; saveBtn.textContent = 'Save for scores';
+        stop(); transcript = ''; finalText = ''; sync(); heard.hidden = true; heardText.textContent = ''; mic.lastChild.textContent = 'Speak your note'; delete saveBtn.dataset.warned; saveBtn.textContent = 'Save for scores';
         var w = body.querySelector('.warn-box'); if (w) w.remove(); check();
       };
       panel._test = { hear: hear }; // lets automated tests feed a transcript without a microphone
@@ -716,7 +745,7 @@
         body.insertBefore(wn, body.querySelector('.group')); body.classList.add('nudge-kw'); wn.scrollIntoView({ block: 'center' }); return;
       }
       var before = { close: c.close, churn: c.churn };
-      var note = { id: uid(), cid: c.cid, ts: stamp(), keywords: sel('data-kw'), cats: sel('data-cat'), transcript: text(), typed: !transcript && !!typed.value.trim() };
+      var note = { id: uid(), cid: c.cid, ts: stamp(), keywords: sel('data-kw'), cats: sel('data-cat'), transcript: text(), typed: !transcript && !!typed.value.trim(), ignored: lastK.ignored.filter(function (x) { return sel('data-kw').indexOf(x.id) < 0; }).map(function (x) { return x.id; }) };
       state.notes.push(note); save(); closeSheet(); refresh(); autoVisited(c.cid);
       var n = cust(c.cid);
       said('Note for ' + c.name + ': ' + (note.keywords.map(function (id) { return NBA.KW[id].label; }).concat(note.cats).join(', ') || (note.typed ? 'typed note' : 'spoken note')));
@@ -725,7 +754,7 @@
       bot('<p><b>Saved</b> to ' + esc(c.name) + '.</p>' +
         (moved ? '<div class="bands">' + (n.close !== before.close ? '<div class="bandrow"><span>Chance to close</span>' + (bandOf('close', before.close) !== n.closeBand ? bandHTML('close', bandOf('close', before.close)) + '<em>→</em>' : '') + bandHTML('close', n.closeBand) + '</div>' : '') + (n.churn !== before.churn ? '<div class="bandrow"><span>Risk of leaving</span>' + (bandOf('risk', before.churn) !== n.riskBand ? bandHTML('risk', bandOf('risk', before.churn)) + '<em>→</em>' : '') + bandHTML('risk', n.riskBand) + '</div>' : '') + '</div>' + (bandOf('close', before.close) === n.closeBand && bandOf('risk', before.churn) === n.riskBand ? '<p class="small">Scores moved, but not enough to change a band.</p>' : '') : '<p class="small">Scores did not change.</p>' + more('Why not?', '<p>' + why + '</p>')) +
         '<div data-cid="' + esc(c.cid) + '">' + acts([['pitch', 'See updated pitch', 'pri full']]) + '</div>' +
-        trail([['Keywords saved', note.keywords.map(function (id) { return id === 'staying' ? 'staying (risk −' + NBA.RULES.stayingPts + ' for ' + NBA.RULES.stayingDays + ' days)' : id + ' (close ' + NBA.KW[id].close + ', risk ' + NBA.KW[id].churn + ')'; }).join(', ') || 'none'], ['Scores', 'close ' + before.close + ' → ' + n.close + ', risk ' + before.churn + ' → ' + n.churn + '; note points are capped at ±' + NBA.RULES.notePosCap + ' (close) and ±' + NBA.RULES.noteNegCap + ' (risk)'], ['Text', note.transcript ? 'only the fixed keywords found in your words affect scores; the text itself is stored in the customer file' : '']]));
+        trail([['Keywords saved', note.keywords.map(function (id) { return id === 'staying' ? 'staying (risk −' + NBA.RULES.stayingPts + ' for ' + NBA.RULES.stayingDays + ' days)' : id + ' (close ' + NBA.KW[id].close + ', risk ' + NBA.KW[id].churn + ')'; }).join(', ') || 'none'], ['Scores', 'close ' + before.close + ' → ' + n.close + ', risk ' + before.churn + ' → ' + n.churn + '; note points are capped at ±' + NBA.RULES.notePosCap + ' (close) and ±' + NBA.RULES.noteNegCap + ' (risk)'], ['Text', note.transcript ? 'only the fixed keywords found in your words affect scores; the text itself is stored in the customer file' : ''], ['Ignored', note.ignored.length ? 'negated in your words, so not counted: ' + note.ignored.join(', ') + ' (not, no, never, tak, tidak or bukan within 3 words before, or “but … rejected” just after)' : '']]));
     };
   }
   // In stale-data mode "today" for the model is the day after the newest sale, so notes and deals use that date.
@@ -810,6 +839,19 @@
       '<p class="small" style="margin-top:14px">This page is generated from the rules the app runs, so it is always up to date. Version stamp: ' + esc(NBA.stamp(state)) + '.</p>');
   }
 
+  // ---- festive periods: Malaysian defaults, dates editable for each year
+  function festiveSheet() {
+    var list = NBA.holidays(state).slice().sort(function (a, b) { return a.from < b.from ? -1 : 1; });
+    openSheet('Festive periods', '<p class="small" style="margin:0 0 10px">Gaps across these dates are left out of the usual rhythm, and lateness counts for less for 14 days after each.</p>' +
+      '<table class="dtable fest"><tr><th></th><th>From</th><th>To</th></tr>' + list.map(function (h, i) { return '<tr data-i="' + i + '"><td>' + esc(h.name) + '</td><td><input type="date" value="' + h.from + '" data-f="from" aria-label="From"></td><td><input type="date" value="' + h.to + '" data-f="to" aria-label="To"></td></tr>'; }).join('') + '</table>' +
+      '<button class="linkbtn" id="fest-reset">Reset to Malaysian defaults</button>', '<button class="btn pri" id="fest-save">Save festive periods</button>');
+    $('#fest-reset').onclick = function () { delete state.settings.holidays; save(); closeSheet(); refresh(); festiveSheet(); };
+    $('#fest-save').onclick = function () {
+      state.settings.holidays = [].map.call(document.querySelectorAll('.fest tr[data-i]'), function (tr) { var h = list[+tr.dataset.i]; var f = tr.querySelector('[data-f="from"]').value || h.from, t = tr.querySelector('[data-f="to"]').value || h.to; return { name: h.name, from: f <= t ? f : t, to: f <= t ? t : f }; });
+      save(); closeSheet(); refresh(); bot('<p>Festive periods saved.</p>' + trail([['Used for', 'the usual rhythm (gaps across these dates are left out) and lateness (counts ×' + NBA.RULES.festiveFactor + ' for ' + NBA.RULES.festiveAfterDays + ' days after each)']]));
+    };
+  }
+
   // ---- lists and settings
   function customersSheet(title, cb) {
     refresh(); if (!an) return;
@@ -832,6 +874,7 @@
       '<div class="group">Currency</div><div id="cur">' + chipsHTML(cs.map(function (x) { return [x, x]; }), [cur()]) + '</div>' +
       '<div class="group">Voice notes</div><div id="voice">' + chipsHTML([['on', 'On'], ['off', 'Off']], [state.settings.voice ? 'on' : 'off']) + '</div>' +
       '<div class="group">Language</div><div id="lang">' + chipsHTML([['en', 'English'], ['ms', 'Bahasa Melayu']], [state.settings.lang === 'ms' ? 'ms' : 'en']) + '</div>' +
+      '<div class="group">Festive periods</div><div class="rowlist" style="margin:0"><button data-act="festive"><span>Edit festive periods<span class="sub">' + NBA.holidays(state).length + ' periods</span></span></button></div>' +
       '<div class="group">Holdout (measuring Nudge)</div><div id="hold">' + chipsHTML([['0', '0%'], ['0.1', '10%'], ['0.2', '20%'], ['0.3', '30%']], [String(state.settings.holdout || 0)]) + '</div>' +
       '<div class="group">Motion</div><div id="motion">' + chipsHTML([['on', 'On'], ['off', 'Off']], [state.settings.motion === false ? 'off' : 'on']) + '</div>' +
       '<div class="group">Start over</div><button class="btn danger" data-m="wipe" style="width:100%">Erase everything on this phone</button>');
@@ -923,8 +966,9 @@
         var confirmed = NBA.confirmDeals(state, r.tx);
         Object.keys(state.plans).forEach(function (k) { var i = k.lastIndexOf('|'), sp = k.slice(0, i), d = k.slice(i + 1); if (!state.visits.some(function (v) { return v.sp === sp && v.date === d; })) delete state.plans[k]; });
         if (r.targets && r.targets.length) { r.targets.forEach(function (t) { state.targets = state.targets.filter(function (x) { return !(x.sp === t.sp && x.month === t.month); }); state.targets.push(t); }); }
+        if (r.credit && r.credit.length) state.credit = Object.assign(state.credit || {}, NBA.creditMap(r.credit, state.tx));
         if (r.campaigns && r.campaigns.length) { r.campaigns.forEach(function (c) { c.added = c.added || NBA.todayISO(); }); state.campaigns = r.campaigns; }
-        var extra = (r.targets && r.targets.length ? ' ' + r.targets.length + ' monthly targets.' : '') + (r.campaigns && r.campaigns.length ? ' ' + r.campaigns.length + ' campaigns.' : '');
+        var extra = (r.targets && r.targets.length ? ' ' + r.targets.length + ' monthly targets.' : '') + (r.campaigns && r.campaigns.length ? ' ' + r.campaigns.length + ' campaigns.' : '') + (r.credit && r.credit.length ? ' ' + r.credit.length + ' credit lines.' : '');
         if (!r.tx.length) { lines.push('<li><b>' + esc(r.name) + '</b>:' + extra + '</li>'); return; }
         var u = uploadRecord(r, mg, opts.dateOrder); state.uploads.push(u); cards.push(u);
         if (extra || confirmed) lines.push('<li><b>' + esc(r.name) + '</b>:' + extra + (confirmed ? ' ' + confirmed + ' deal' + (confirmed === 1 ? '' : 's') + ' you logged in the app ' + (confirmed === 1 ? 'is' : 'are') + ' now covered by this file.' : '') + '</li>');
@@ -1007,6 +1051,8 @@
     else if (name === 'rules') { closeSheet(); rulesSheet(); }
     else if (name === 'wrong') wrongSheet(cid);
     else if (name === 'pick') pickSheet();
+    else if (name === 'wa') waSheet(cid);
+    else if (name === 'festive') festiveSheet();
     else if (name === 'confirm') confirmUpload(cid);
     else if (name === 'dateorder') chooseDateOrder(cid);
     else if (name === 'merge' || name === 'apart') variantChoice(cid, name === 'merge');
@@ -1024,12 +1070,13 @@
     else if (name === 'file') fileSheet(cid);
   }
   chat.addEventListener('click', function (e) {
+    var ar = e.target.closest('[data-area]'); if (ar) { if (ar.getAttribute('aria-pressed') !== 'true') switchArea(ar.dataset.area); return; }
     var tile = e.target.closest('[data-tile]');
     if (tile) { var msg = tile.closest('.msg'), open = tile.getAttribute('aria-expanded') === 'true';
       [].forEach.call(msg.querySelectorAll('[data-tile]'), function (b) { b.setAttribute('aria-expanded', 'false'); }); [].forEach.call(msg.querySelectorAll('.tp'), function (x) { x.hidden = true; });
       if (!open) { tile.setAttribute('aria-expanded', 'true'); msg.querySelector('.tp[data-tp="' + tile.dataset.tile + '"]').hidden = false; follow(); } return; }
     var v = e.target.closest('[data-v]');
-    if (v) { var id = v.closest('.vfoot').dataset.visit, k = v.dataset.v; if (k === 'skip') skipSheet(id); else if (k === 'swap') swapSheet(id); else if (k === 'wrong') wrongSheet(id); else markVisit(id, k === 'done' ? 'done' : null); return; }
+    if (v) { var id = v.closest('.vfoot').dataset.visit, k = v.dataset.v; if (k === 'skip') skipSheet(id); else if (k === 'wa') waSheet(id); else if (k === 'swap') swapSheet(id); else if (k === 'wrong') wrongSheet(id); else markVisit(id, k === 'done' ? 'done' : null); return; }
     var d = e.target.closest('[data-do]');
     if (d) { var holder = d.closest('[data-cid]'); act(d.dataset.do, d.dataset.for || (holder && holder.dataset.cid)); return; }
     var c = e.target.closest('[data-cid]'); if (c && c.tagName === 'BUTTON') showCustomer(c.dataset.cid);
@@ -1058,7 +1105,7 @@
 
   // ------------------------------------------------------------ start
   DB.get().then(function (s) {
-    if (s && s.tx) { state = s; state.settings = state.settings || { currency: '$', voice: true }; state.visits = state.visits || []; state.plans = state.plans || {}; state.feedback = state.feedback || []; state.swaps = state.swaps || []; state.holdout = state.holdout || {}; state.picks = state.picks || []; if (typeof state.settings.holdout !== 'number') state.settings.holdout = 0.2; state.uploads = state.uploads || []; state.aliases = state.aliases || {}; state.keepApart = state.keepApart || {}; state.tuning = state.tuning || {}; state.tuneDismissed = state.tuneDismissed || {}; state.targets = state.targets || []; state.campaigns = state.campaigns || []; }
+    if (s && s.tx) { state = s; state.settings = state.settings || { currency: '$', voice: true }; state.visits = state.visits || []; state.plans = state.plans || {}; state.feedback = state.feedback || []; state.swaps = state.swaps || []; state.holdout = state.holdout || {}; state.picks = state.picks || []; state.areaPick = state.areaPick || {}; state.credit = state.credit || {}; if (typeof state.settings.holdout !== 'number') state.settings.holdout = 0.2; state.uploads = state.uploads || []; state.aliases = state.aliases || {}; state.keepApart = state.keepApart || {}; state.tuning = state.tuning || {}; state.tuneDismissed = state.tuneDismissed || {}; state.targets = state.targets || []; state.campaigns = state.campaigns || []; }
     state.settings.motion = state.settings.motion !== false; applyMotion();
     if (I18 && state.settings.lang === 'ms') { I18.setLang('ms'); document.documentElement.lang = 'ms'; knownValues(); I18.translateTree(document.body); I18.watch(document.body); }
     if (!state.tx.length) welcome();

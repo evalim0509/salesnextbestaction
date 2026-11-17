@@ -23,7 +23,7 @@
     opts = opts || {};
     // raw: keep text dates as text, so 03/04/2026 is not silently read as US month/day
     var wb = XLSX.read(new Uint8Array(buf), { type: 'array', raw: true });
-    var tx = [], skipped = 0, why = '', targets = [], campaigns = [], stop = null, dateCheck = null, dateOrder = null;
+    var tx = [], skipped = 0, why = '', targets = [], campaigns = [], credit = [], stop = null, dateCheck = null, dateOrder = null;
     var stats = { lines: 0, unreadable: 0, negatives: 0, negAmt: 0, noSp: 0, future: 0, futureAmt: 0 };
     wb.SheetNames.forEach(function (sn) {
       if (stop) return;
@@ -42,12 +42,13 @@
         }
         var tg = NBA.normalizeTargets(rows); if (tg.length) { targets = targets.concat(tg); return; }
         var cp = NBA.normalizeCampaigns(rows); if (cp.length) { campaigns = campaigns.concat(cp); return; }
+        var cr = NBA.normalizeCredit(rows); if (cr.length) { credit = credit.concat(cr); return; }
         if (!why) why = res.reason;
       }
     });
     if (stop) return { kind: 'error', hardStop: true, name: name, reason: stop };
-    if (!tx.length && !targets.length && !campaigns.length) return { kind: 'error', hardStop: true, name: name, reason: (why || 'No sales rows found.') + ' A sales file needs at least Date, Customer and Amount columns.' };
-    return { kind: 'tx', name: name, tx: tx, skipped: skipped, targets: targets, campaigns: campaigns, stats: stats, dateCheck: dateCheck || { kind: 'none' }, dateOrder: dateOrder };
+    if (!tx.length && !targets.length && !campaigns.length && !credit.length) return { kind: 'error', hardStop: true, name: name, reason: (why || 'No sales rows found.') + ' A sales file needs at least Date, Customer and Amount columns.' };
+    return { kind: 'tx', name: name, tx: tx, skipped: skipped, targets: targets, campaigns: campaigns, credit: credit, stats: stats, dateCheck: dateCheck || { kind: 'none' }, dateOrder: dateOrder };
   }
 
   function parseDocx(name, buf) {

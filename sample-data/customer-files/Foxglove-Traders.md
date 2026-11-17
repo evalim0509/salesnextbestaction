@@ -5,7 +5,7 @@
 - Segment: Wholesale
 - Status on 15 Nov 2026: **Inactive**
 - File generated on this device by fixed rules. No AI language model was used.
-- Version: rules 1.8 (2026-11-17); data sample_transactions.xlsx, 2024-11-01 to 2026-11-14
+- Version: rules 1.9 (2026-11-17); data sample_transactions.xlsx, 2024-11-01 to 2026-11-14
 
 ## Performance
 
@@ -14,7 +14,7 @@
 | Customer since | 11 Nov 2024 |
 | Number of orders | 17 |
 | Last order | 1 Feb 2026 (287 days ago) |
-| Usual time between orders | 28 days |
+| Usual time between orders | 25 days |
 | Usual order size | $2,241 |
 | Revenue, last 12 months | $6,060 |
 | Revenue, 12 months before | $29,340 (-79%) |
@@ -29,7 +29,7 @@
 
 ## Today's assessment
 
-- Usually orders every 28 days, now 287.
+- Usually orders every 25 days, now 287.
 - Your documents: campaign applies (sample_campaign_deck.pptx).
 - One of your smaller customers ($6,060 a year).
 
@@ -38,7 +38,7 @@
 | Points | In plain English | Technical trace | Source |
 |---:|---|---|---|
 | +2 | One of your smaller customers ($6,060 a year). | 0.6 × max(churn 0, close 0) + 0.1 × min(…) 0 + 0.3 × value percentile 8 (12-month revenue $6,060 ranked among your 36 customers) = 2.4 | Sales data |
-| -30 | No order for 287 days: treated as inactive. | recency 287d > max(180d, 6 × gap 28d) → inactive: churn and close set to 0, −30 priority | Sales data |
+| -30 | No order for 287 days: treated as inactive. | recency 287d > max(180d, 6 × gap 25d) → inactive: churn and close set to 0, −30 priority | Sales data |
 
 ### Chance to close a deal: 0 / 100
 
@@ -50,7 +50,7 @@
 
 | Points | In plain English | Technical trace | Source |
 |---:|---|---|---|
-| +45 | Usually orders every 28 days, now 287. | recency 287d ÷ median gap between orders 28d = 10.25 ≥ 3 → +45 churn | Sales data |
+| +23 | Usually orders every 25 days, now 287. | recency 287d ÷ median gap between orders, 6 gaps across a festive period left out 25d = 11.48 ≥ 3 → +45 churn; ×0.5 = +23 because Deepavali ended 2026-11-10 (within 14 days) | Sales data |
 
 ## Suggested pitch
 

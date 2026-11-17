@@ -5,7 +5,7 @@
 - Segment: Wholesale
 - Status on 15 Nov 2026: **Good chance**
 - File generated on this device by fixed rules. No AI language model was used.
-- Version: rules 1.8 (2026-11-17); data sample_transactions.xlsx, 2024-11-01 to 2026-11-14
+- Version: rules 1.9 (2026-11-17); data sample_transactions.xlsx, 2024-11-01 to 2026-11-14
 
 ## Performance
 
@@ -46,7 +46,7 @@
 
 | Points | In plain English | Technical trace | Source |
 |---:|---|---|---|
-| +30 | Usually orders every 21 days, now 25: reorder due. | recency 25d ÷ median gap between orders 21d = 1.19 in [0.8, 1.5) → +30 close | Sales data |
+| +30 | Usually orders every 21 days, now 25: reorder due. | recency 25d ÷ median gap between orders, 12 gaps across a festive period left out 21d = 1.22 in [0.8, 1.5) → +30 close | Sales data |
 | +18 | Your documents: campaign applies, room to grow (sample_account_plans.docx). | document signals: campaign +10, growth +8 = 18, capped at 20 → +18 close | Documents |
 
 ### Risk of losing them: 8 / 100

@@ -5,7 +5,7 @@
 - Segment: Corporate
 - Status on 15 Nov 2026: **Good chance**
 - File generated on this device by fixed rules. No AI language model was used.
-- Version: rules 1.8 (2026-11-17); data sample_transactions.xlsx, 2024-11-01 to 2026-11-14
+- Version: rules 1.9 (2026-11-17); data sample_transactions.xlsx, 2024-11-01 to 2026-11-14
 
 ## Performance
 
@@ -14,7 +14,7 @@
 | Customer since | 10 Aug 2026 |
 | Number of orders | 4 |
 | Last order | 10 Nov 2026 (5 days ago) |
-| Usual time between orders | 34 days |
+| Usual time between orders | 29 days |
 | Usual order size | $2,905 |
 | Revenue, last 12 months | $11,620 |
 | Revenue, 12 months before | $0 |

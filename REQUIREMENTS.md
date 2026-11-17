@@ -143,6 +143,18 @@ Status: Done = built and tested. Pilot limit = works within the limit described.
 | P7 | "Incremental revenue" renamed "Growth vs last year" everywhere; only the holdout result may be called incremental. | Done |
 | P8 | Tests for the leak fix, the baselines, the band results, the holdout split and the pick score. | Done |
 
+### 3.5b Field reality (Phase 4)
+
+| ID | Requirement | Status |
+|---|---|---|
+| F1 | Optional Area or Postcode column (matched flexibly). When present, today's visits come from one area: the area with the highest total visit priority among eligible customers. The rep switches area with one tap. 3 main visits plus up to 4 "Also nearby" from the same area. Without the column, nothing changes. | Done |
+| F2 | Optional Credit Hold (yes/no) or Overdue Amount column, on the sales rows or in a separate "Credit" sheet. Customers on hold get no close-a-deal push; they get "Collect first" with the overdue amount, a payment-first pitch, and no reorder message. The blind-spots line drops "credit holds" once credit data is loaded. | Done |
+| F3 | Festive periods in the menu, with Malaysian defaults (Chinese New Year, Hari Raya Aidilfitri, Deepavali, Christmas) for 2024 to 2027, dates editable for each year. Gaps between orders that span a festive period are left out of the usual-rhythm median. The overdue factor is halved for 14 days after a festive period. | Done (default dates should be checked against the official calendar) |
+| F4 | Optional Parent or Group column. Orders placed by the parent count as activity for every branch, so a branch is not flagged as leaving while the group keeps ordering. "Ordered through [group]" is shown on the card and in the trail. | Done |
+| F5 | Negation in notes: a keyword preceded within 3 words by not, no, never, tak, tidak or bukan, or followed closely by "but … rejected" or "but … declined", is not counted. The note screen and trail show "Ignored (negated)". Tested with English, Malay and mixed examples, such as "competitor came but boss rejected". | Done |
+| F6 | Malay and Manglish synonyms for every note keyword (for example "tauke nak beli", "minta sebut harga", "mahal", "barang lambat", "komplen kualiti", "dah approve bajet"). | Done |
+| F7 | WhatsApp follow-up: "Send reorder message" on the customer card and after a visit is marked. Prepares a short plain message (customer name, usual order, any offer) and opens the phone's share sheet, WhatsApp or copy. Nudge sends nothing. Never includes scores, risk labels or notes. Shown in Malay when Malay is on. | Done |
+
 ### 3.6 Export
 
 | ID | Requirement | Status |
@@ -198,13 +210,15 @@ All thresholds live in one place: `RULES` in `js/engine.js`. Each score is 0 to 
 | Note keywords (last 45 days) | Asked for a quote +25, Budget approved +25, Interested +15, Wants a bigger order +15, Wants a sample +12, Expanding +12, Wants a follow-up +12, Met the decision maker +10, Happy +5, Budget cut -10, Not interested -20 | capped at ±40 |
 | Documents | renewal +15, campaign or offer +10, growth opportunity +8 | capped at +20 |
 
-**Rules version**: `RULES.version` and `RULES.date` in `js/engine.js` (now 1.8, 17 Nov 2026). Change both whenever a rule or threshold changes; the version is stamped on every trail and export.
+**Rules version**: `RULES.version` and `RULES.date` in `js/engine.js` (now 1.9, 17 Nov 2026). Change both whenever a rule or threshold changes; the version is stamped on every trail and export.
 
 **Bands (rep screens)**: chance to close: Likely at 50 or more, Maybe 30 to 49, Unlikely below 30. Risk of leaving: At risk at 50 or more, Watch 30 to 49, Steady below 30 (`RULES.bandHigh`, `RULES.bandMid`). The same cut-offs drive the "Likely to close" and "May churn" lists.
 
 **Rep feedback**: "Shop closed" or "Not my customer" leaves a customer out of suggestions until an order dated after the feedback arrives. "On credit hold" leaves them out for 30 days (`RULES.creditHoldDays`). "Visited recently" counts as contact that day (−40 priority for 2 days). Every reason removes the customer from today's visits and puts the next eligible customer in its place.
 
 **Track record**: rules replayed on up to 8 past dates (`RULES.backtestWeeks`), one week apart, ending 14 days before today; a hit is any order in the 14 days after. Baselines pick 3 customers per salesperson per date. Random = the average of all active customers (the expected result of a random pick). Holdout = `settings.holdout` (default 0.2, at most 0.5); a customer is held back when `seeded(salesperson|date|customer) < share`.
+
+**Field rules**: area = the value of the Area/Postcode column on the customer's latest sales line; the chosen area has the highest sum of visit priority among eligible, not-held-back customers (`lists(an, { area })`). On hold = Credit Hold yes, or an overdue amount when there is no hold column; the close score is set to 0 with a "Collect first" factor. Festive periods: `settings.holidays` (defaults in `FESTIVE`); a gap counts as spanning a period when the period overlaps the days between two orders; the overdue factor is ×0.5 (`RULES.festiveFactor`) within 14 days after a period ends (`RULES.festiveAfterDays`). Chains: a branch's lateness uses the more recent of its own last order and its parent's (the customer whose name matches the Group value). Negation: see F5.
 
 **Few orders**: customers with fewer than 2 orders are left out of today's visits unless a scoring note in the last 45 days, or an account plan paragraph tagged priority or renewal, makes them a priority. Under 4 orders, screens say "rough guess, few orders".
 
@@ -249,6 +263,8 @@ Lists: "Likely to close" and "May churn" show customers scoring 50 or more. A cu
 | R19 | Malay text was drafted without a native-speaker review; terms such as "berkemungkinan membeli" and "beralih" should be checked with the sales team. |
 | R20 | On the sample data Nudge's top 3 ordered within 14 days less often than a random pick (about 46% against 55%) but brought more revenue per pick (about RM2,100 against RM1,300), because visit priority leans on risk of leaving and at-risk customers order less often by definition. The dashboard shows this as found; the right yardstick for at-risk visits is an open question. |
 | R21 | The holdout means some customers who would have been suggested are not shown on a given day. Its estimate needs weeks of real use to be reliable, and only counts days recorded on the same phone. |
+| R22 | Festive period default dates (2024 to 2027) were entered from memory and some lunar dates move; check them against the official Malaysian calendar in the menu before relying on them. |
+| R23 | A chain is only recognised when the parent places orders under a customer whose name matches the Group value. Orders split across sibling branches do not count for each other. |
 | R7 | The assistant look and typing animation are presentation only. The text is produced instantly by fixed rules; no AI model is involved. The header says "Private, runs on this phone". |
 | R4 | Clearing browser data erases notes and deals. Customer files can be downloaded as a backup. |
 | R5 | The site code on GitHub Pages is public (including the invented sample data). Real business data is never part of the site. |
@@ -275,3 +291,4 @@ Lists: "Likely to close" and "May churn" show customers scoring 50 or more. A cu
 | 17 Nov 2026 | Phase 1, trust foundation: upload health check with confirm button, duplicate/negative/no-salesperson/future/unreadable counts, name-variant merge, date-format check with question, hard stop; "Show me the orders" evidence; data date line; confidence in words and the fewer-than-2-orders rule; blind-spots line; How Nudge decides page; rules version stamp on trails and exports; same-answer test. |
 | 17 Nov 2026 | Phase 2, the rep stays in charge: action-led visit cards, "usually every 14 days, now 26", Likely/Maybe/Unlikely and At risk/Watch/Steady bands, "Wrong, because…" with effects and manager log, swap a visit, notes quoted back, who-can-see-notes line, RM default, "Tue 12 Nov" dates, one number per tile, 16px text, 360px check, Motion switch (animations kept on by owner decision), Malay interface. Rules version 1.7. |
 | 17 Nov 2026 | Phase 3, track record: replay leak fixed; comparison with random, biggest, most-overdue and Nudge's top 3; results by band; scoreboard with latest misses on the Dashboard and rep home; your pick vs Nudge's pick; seeded 20% holdout with "Revenue Nudge helped add (estimate)"; "incremental revenue" renamed "Growth vs last year". Rules version 1.8 (replay window 8 weeks). |
+| 17 Nov 2026 | Phase 4, field reality: area grouping with one-tap switch and "Also nearby"; credit hold and overdue ("Collect first") from columns or a Credit sheet; editable Malaysian festive periods (gaps left out of the rhythm, lateness halved for 14 days after); chains and branches; negation in notes in English and Malay; Malay and Manglish synonyms; WhatsApp reorder message through the share sheet. Sample data now has areas, a chain and a Credit sheet. Rules version 1.9. |

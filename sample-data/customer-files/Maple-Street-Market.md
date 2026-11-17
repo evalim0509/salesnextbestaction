@@ -5,7 +5,7 @@
 - Segment: Retail
 - Status on 15 Nov 2026: **Good chance**
 - File generated on this device by fixed rules. No AI language model was used.
-- Version: rules 1.8 (2026-11-17); data sample_transactions.xlsx, 2024-11-01 to 2026-11-14
+- Version: rules 1.9 (2026-11-17); data sample_transactions.xlsx, 2024-11-01 to 2026-11-14
 
 ## Performance
 
@@ -14,7 +14,7 @@
 | Customer since | 12 Nov 2024 |
 | Number of orders | 51 |
 | Last order | 29 Oct 2026 (17 days ago) |
-| Usual time between orders | 15 days |
+| Usual time between orders | 14 days |
 | Usual order size | $1,428 |
 | Revenue, last 12 months | $33,255 |
 | Revenue, 12 months before | $38,350 (-13%) |
@@ -31,7 +31,7 @@
 
 ## Today's assessment
 
-- Usually orders every 15 days, now 17: reorder due.
+- Usually orders every 14 days, now 17: reorder due.
 - Your documents: campaign applies (sample_campaign_deck.pptx).
 - Spending down 14% on the 3 months before.
 
@@ -46,7 +46,7 @@
 
 | Points | In plain English | Technical trace | Source |
 |---:|---|---|---|
-| +30 | Usually orders every 15 days, now 17: reorder due. | recency 17d ÷ median gap between orders 15d = 1.17 in [0.8, 1.5) → +30 close | Sales data |
+| +30 | Usually orders every 14 days, now 17: reorder due. | recency 17d ÷ median gap between orders, 11 gaps across a festive period left out 14d = 1.21 in [0.8, 1.5) → +30 close | Sales data |
 | +10 | Your documents: campaign applies (sample_campaign_deck.pptx). | document signals: campaign +10 = 10, capped at 20 → +10 close | Documents |
 
 ### Risk of losing them: 8 / 100
@@ -59,7 +59,7 @@
 
 Go in ready to take an order today.
 
-- They normally reorder Core Products about every 15 days and the last order was 17 days ago. Ask for the reorder (usual size about $1,428). _(Sales data)_
+- They normally reorder Core Products about every 14 days and the last order was 17 days ago. Ask for the reorder (usual size about $1,428). _(Sales data)_
 - Use the current offer: “Maple Street Market: strategic Retail account; offer the Consumables promotion on the next visit.” _(sample_campaign_deck.pptx)_
 - Use the current offer: “Campaign for all Retail customers: buy 10 cases of Consumables and get 1 case free, valid until 31 December. Salespeople can offer this promotion on the spot without approval.” _(sample_account_plans.docx)_
 

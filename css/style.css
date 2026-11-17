@@ -376,3 +376,11 @@ details.audit summary { font-weight: 600; font-size: .8rem; color: var(--ink-3);
 .vs { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; } .vs b { display: block; margin-bottom: 4px; }
 .pk { display: block; font-size: .92rem; } .pk.hit { color: var(--go); } .pk.miss { color: var(--ink-3); }
 .learn .btn.wide { margin-top: 8px; }
+
+/* phase 4: field reality */
+.areas { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 8px; } .areas > span { font-weight: 700; font-size: .9rem; color: var(--ink-2); margin-right: 2px; }
+.areas .chip { min-height: 38px; font-size: .88rem; }
+.ignored { color: var(--watch) !important; font-weight: 600; margin-top: 6px !important; }
+.wa { background: #e7f8ec; border-radius: 16px; padding: 12px 14px; font-size: 1rem; white-space: pre-wrap; }
+a.btn { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; color: inherit; flex: 1; }
+.dtable.fest td, .dtable.fest th { text-align: left; } .dtable.fest input { font: inherit; font-size: .85rem; border: 1px solid var(--line); border-radius: 8px; padding: 6px; width: 100%; min-height: 40px; background: var(--card); }

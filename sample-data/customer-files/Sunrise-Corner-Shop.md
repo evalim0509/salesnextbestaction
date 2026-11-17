@@ -5,7 +5,7 @@
 - Segment: Retail
 - Status on 15 Nov 2026: **Good chance**
 - File generated on this device by fixed rules. No AI language model was used.
-- Version: rules 1.8 (2026-11-17); data sample_transactions.xlsx, 2024-11-01 to 2026-11-14
+- Version: rules 1.9 (2026-11-17); data sample_transactions.xlsx, 2024-11-01 to 2026-11-14
 
 ## Performance
 
@@ -14,7 +14,7 @@
 | Customer since | 28 Sep 2026 |
 | Number of orders | 4 |
 | Last order | 6 Nov 2026 (9 days ago) |
-| Usual time between orders | 12 days |
+| Usual time between orders | 14 days |
 | Usual order size | $870 |
 | Revenue, last 12 months | $3,480 |
 | Revenue, 12 months before | $0 |
@@ -29,7 +29,7 @@
 
 ## Today's assessment
 
-- Usually orders every 12 days, now 9: order coming up.
+- Usually orders every 14 days, now 9: order coming up.
 - Similar Retail customers buy Consumables; they never have.
 - Your documents: unused offer (sample_account_plans.docx).
 
@@ -43,7 +43,7 @@
 
 | Points | In plain English | Technical trace | Source |
 |---:|---|---|---|
-| +12 | Usually orders every 12 days, now 9: order coming up. | recency 9d ÷ 12d = 0.75 in [0.6, 0.8) → +12 close | Sales data |
+| +12 | Usually orders every 14 days, now 9: order coming up. | recency 9d ÷ 14d = 0.67 in [0.6, 0.8) → +12 close | Sales data |
 | +10 | Similar Retail customers buy Consumables; they never have. | Consumables bought by 12 of 15 Retail customers in the last 12 months (≥ 50%), 0 purchases by this customer → +10 close | Sales data |
 | +10 | Your documents: unused offer (sample_account_plans.docx). | document signals: campaign +10 (Year-end Retail campaign not used) = 10, capped at 20 → +10 close | Documents |
 
@@ -56,7 +56,7 @@ No factors applied.
 Go in ready to take an order today.
 
 - The Year-end Retail campaign applies to them and they have not used it yet. On a $870 order of Consumables they save about $79 (buy 10 get 1 free, worth about 9%). Valid until Thu 31 Dec. _(sample_account_plans.docx)_
-- They normally reorder Core Products about every 12 days and the last order was 9 days ago. Ask for the reorder (usual size about $870). _(Sales data)_
+- They normally reorder Core Products about every 14 days and the last order was 9 days ago. Ask for the reorder (usual size about $870). _(Sales data)_
 - Customers like them usually buy Consumables too. Introduce it as something similar Retail customers find useful. _(Sales data)_
 
 **Ask:** Ask for the Core Products reorder and a first trial of Consumables.

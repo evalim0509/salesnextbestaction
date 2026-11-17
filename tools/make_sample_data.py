@@ -115,12 +115,19 @@ blank = rx.sample(range(len(rows)), 3)  # salesperson left empty
 rows = [r if i not in blank else (r[0], r[1], '', *r[3:]) for i, r in enumerate(rows)]
 rows.sort(key=lambda r: (r[0], r[1]))
 wb = Workbook(); ws = wb.active; ws.title = 'Transactions'
-ws.append(['Date', 'Invoice No', 'Salesperson', 'Customer ID', 'Customer Name', 'Segment', 'Product Category', 'Product', 'Quantity', 'Unit Price', 'Amount'])
+# field reality: an area per customer, one chain (Keystone is a branch of Beacon Office Group)
+AREAS = ['Petaling Jaya', 'Shah Alam', 'Klang', 'Subang Jaya']
+area_of, order_seen = {}, {}
+for rep_name, custs in REPS.items():
+    for i, c in enumerate(custs): area_of[c[0]] = AREAS[i % len(AREAS)]
+area_of['Lakeside Mart Sdn Bhd'] = area_of['Lakeside Mart']
+GROUP = {'Keystone Corporate': 'Beacon Office Group'}
+ws.append(['Date', 'Invoice No', 'Salesperson', 'Customer ID', 'Customer Name', 'Segment', 'Product Category', 'Product', 'Quantity', 'Unit Price', 'Amount', 'Area', 'Group'])
 for c in ws[1]: c.font = Font(bold=True)
-for r in rows: ws.append(list(r))
+for r in rows: ws.append(list(r) + [area_of.get(r[4], ''), GROUP.get(r[4], '')])
 for row in ws.iter_rows(min_row=2, max_col=1):
     row[0].number_format = 'yyyy-mm-dd'
-for col, w in zip('ABCDEFGHIJK', [12, 12, 16, 12, 28, 12, 18, 18, 10, 10, 12]): ws.column_dimensions[col].width = w
+for col, w in zip('ABCDEFGHIJKLM', [12, 12, 16, 12, 28, 12, 18, 18, 10, 10, 12, 16, 22]): ws.column_dimensions[col].width = w
 # Targets: each month of the current year = same month last year + 5%, rounded to 500
 from collections import defaultdict
 ly = defaultdict(float)
@@ -143,6 +150,12 @@ wc.append(['Premium Range launch offer', 'Corporate', 'Premium Range', 5, 0, dt.
 for row in wc.iter_rows(min_row=2, min_col=6, max_col=6): row[0].number_format = 'yyyy-mm-dd'
 for sh in (wt, wc):
     for col in 'ABCDEFG': sh.column_dimensions[col].width = 24
+code_of = {r[4]: r[3] for r in rows}
+wcr = wb.create_sheet('Credit'); wcr.append(['Customer ID', 'Customer Name', 'Credit Hold', 'Overdue Amount'])
+for c in wcr[1]: c.font = Font(bold=True)
+wcr.append([code_of['Ironbridge Distribution'], 'Ironbridge Distribution', 'Yes', 4250])
+wcr.append([code_of['Orchid Wholesale'], 'Orchid Wholesale', 'No', 1200])
+for col in 'ABCD': wcr.column_dimensions[col].width = 22
 wb.save(os.path.join(OUT, 'sample_transactions.xlsx'))
 print(len(rows), 'transaction rows')
 

@@ -5,7 +5,7 @@
 - Segment: Corporate
 - Status on 15 Nov 2026: **May churn**
 - File generated on this device by fixed rules. No AI language model was used.
-- Version: rules 1.8 (2026-11-17); data sample_transactions.xlsx, 2024-11-01 to 2026-11-14
+- Version: rules 1.9 (2026-11-17); data sample_transactions.xlsx, 2024-11-01 to 2026-11-14
 
 ## Performance
 
@@ -31,15 +31,15 @@
 
 ## Today's assessment
 
-- Usually orders every 30 days, now 90.
 - Spending down 100% on the 3 months before.
+- Usually orders every 30 days, now 90.
 - Your documents flag a risk (sample_account_plans.docx).
 
-### Visit priority: 73 / 100
+### Visit priority: 60 / 100
 
 | Points | In plain English | Technical trace | Source |
 |---:|---|---|---|
-| +73 | One of your biggest customers ($39,910 a year). | 0.6 × max(churn 85, close 20) + 0.1 × min(…) 20 + 0.3 × value percentile 67 (12-month revenue $39,910 ranked among your 36 customers) = 73.1 | Sales data |
+| +60 | One of your biggest customers ($39,910 a year). | 0.6 × max(churn 63, close 20) + 0.1 × min(…) 20 + 0.3 × value percentile 67 (12-month revenue $39,910 ranked among your 36 customers) = 59.9 | Sales data |
 
 ### Chance to close a deal: 20 / 100
 
@@ -47,11 +47,11 @@
 |---:|---|---|---|
 | +20 | Your documents: renewal coming up, unused offer (sample_account_plans.docx). | document signals: renewal +15, campaign +10 (Premium Range launch not used) = 25, capped at 20 → +20 close | Documents |
 
-### Risk of losing them: 85 / 100
+### Risk of losing them: 63 / 100
 
 | Points | In plain English | Technical trace | Source |
 |---:|---|---|---|
-| +45 | Usually orders every 30 days, now 90. | recency 90d ÷ median gap between orders 30d = 3.05 ≥ 3 → +45 churn | Sales data |
+| +23 | Usually orders every 30 days, now 90. | recency 90d ÷ median gap between orders, 9 gaps across a festive period left out 30d = 3.00 ≥ 3 → +45 churn; ×0.5 = +23 because Deepavali ended 2026-11-10 (within 14 days) | Sales data |
 | +30 | Spending down 100% on the 3 months before. | revenue last 90d $0 vs previous 90d $15,390 = -100% ≤ -50% → +30 churn | Sales data |
 | +10 | Your documents flag a risk (sample_account_plans.docx). | document paragraph linked to customer with risk wording: “Metro Corporate Services has a new procurement manager who is reviewing all suppliers.” → +10 churn | Documents |
 

@@ -5,7 +5,7 @@
 - Segment: Corporate
 - Status on 15 Nov 2026: **Likely to close**
 - File generated on this device by fixed rules. No AI language model was used.
-- Version: rules 1.8 (2026-11-17); data sample_transactions.xlsx, 2024-11-01 to 2026-11-14
+- Version: rules 1.9 (2026-11-17); data sample_transactions.xlsx, 2024-11-01 to 2026-11-14
 
 ## Performance
 
@@ -46,7 +46,7 @@
 
 | Points | In plain English | Technical trace | Source |
 |---:|---|---|---|
-| +30 | Usually orders every 31 days, now 31: reorder due. | recency 31d ÷ median gap between orders 31d = 1.00 in [0.8, 1.5) → +30 close | Sales data |
+| +30 | Usually orders every 31 days, now 31: reorder due. | recency 31d ÷ median gap between orders, 10 gaps across a festive period left out 31d = 1.00 in [0.8, 1.5) → +30 close | Sales data |
 | +20 | Spending up 32% on the 3 months before. | revenue last 90d $11,270 vs previous 90d $8,510 = +32% ≥ +25% → +20 close | Sales data |
 | +20 | Your documents: renewal coming up, unused offer (sample_account_plans.docx). | document signals: renewal +15, campaign +10 (Premium Range launch not used) = 25, capped at 20 → +20 close | Documents |
 

@@ -55,7 +55,7 @@ const ab = b => b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength);
     const doc = NBA.rulesDoc(state); assert(doc.length >= 5 && doc.every(s => s.rows.length));
     assert(JSON.stringify(doc).includes('+30')); assert(JSON.stringify(NBA.rulesDoc(Object.assign({}, state, { tuning: { 'Due to reorder': { delta: 5, date: '2026-11-16' } } }))).includes('35 (30 +5, approved 2026-11-16)'));
     state.uploads = [{ name: 'sample_transactions.xlsx', lines: 2219 }];
-    assert(/^rules 1\.8 \(2026-11-17\); data sample_transactions\.xlsx, 20\d\d-\d\d-\d\d to 2026-11-14$/.test(NBA.stamp(state)), NBA.stamp(state));
+    assert(/^rules 1\.9 \(2026-11-17\); data sample_transactions\.xlsx, 20\d\d-\d\d-\d\d to 2026-11-14$/.test(NBA.stamp(state)), NBA.stamp(state));
     assert(/credit holds/.test(NBA.blindSpots(state)));
     // same file, same answer
     const run = () => { const z = NBA.analyze(state, 'Aisha Rahman', { today: '2026-11-15' }); return JSON.stringify([NBA.lists(z).top3.map(c => c.cid), NBA.execSummary(state, 'Aisha Rahman', z, { today: '2026-11-15' }), z.customers.map(c => [c.cid, c.priority, c.close, c.churn, c.factors, NBA.buildPitch(c, z)])]); };
@@ -138,6 +138,53 @@ const ab = b => b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength);
     // your pick vs Nudge's pick, judged after 14 days
     const pk = Object.assign({}, state, { picks: [{ id: 'p', sp: 'Aisha Rahman', date: '2026-10-25', cids: ['C101', 'C102'], nudge: top.top3.map(c => c.cid) }, { id: 'q', sp: 'Aisha Rahman', date: '2026-11-12', cids: ['C103'], nudge: [] }] });
     const ps = NBA.pickScore(pk, 'Aisha Rahman', { today: T }); assert.strictEqual(ps.done.length, 1); assert.strictEqual(ps.pending.length, 1); assert.strictEqual(ps.you.n, 2); assert.strictEqual(ps.nudge.n, 3);
+  }
+  { // PHASE 4: areas, credit hold, festive periods, chains, negation, Malay synonyms, WhatsApp message
+    const T = '2026-11-15';
+    assert(x.tx.every(t => t.area), 'area column read'); assert.strictEqual(x.credit.length, 2);
+    // areas: visits come from the area with the highest total priority; switchable; up to 4 also nearby
+    const a = NBA.analyze(state, 'Aisha Rahman', { today: T }), L = NBA.lists(a);
+    assert(L.area && L.areas.length >= 2); assert.strictEqual(L.area, L.areas[0].name);
+    assert(L.top3.every(c => c.area === L.area) && L.nearby.length <= 4 && L.nearby.every(c => c.area === L.area));
+    const other = L.areas[1].name, L2 = NBA.lists(a, { area: other }); assert.strictEqual(L2.area, other); assert(L2.top3.every(c => c.area === other));
+    const tot = {}; a.customers.filter(c => c.eligible).forEach(c => { tot[c.area] = (tot[c.area] || 0) + c.priority; }); assert.strictEqual(L.area, Object.keys(tot).sort((p, q) => tot[q] - tot[p])[0]);
+    // credit hold: no sales push, collect first; "No" with an amount is not a hold
+    const cs = Object.assign({}, state, { credit: NBA.creditMap(x.credit, state.tx) });
+    const ab = NBA.analyze(cs, 'Ben Carter', { today: T }), ib = ab.customers.find(c => c.name === 'Ironbridge Distribution');
+    assert(ib.collect && ib.collect.amount === 4250 && ib.close === 0 && ib.tag === 'Collect first'); assert(ib.factors.some(f => f.label === 'Collect first'));
+    const ip = NBA.buildPitch(ib, ab); assert(/credit hold with RM4,250|credit hold with \$4,250/.test(ip.points[0].text) && /payment date/.test(ip.ask));
+    assert.strictEqual(NBA.reorderMessage(ib, ab, 'Ben'), null, 'no reorder push while on hold');
+    assert(!NBA.analyze(cs, 'Aisha Rahman', { today: T }).customers.find(c => c.name === 'Orchid Wholesale').collect);
+    assert.strictEqual(NBA.blindSpots(cs), 'I don\'t see stock, or contact outside Nudge.'); assert(/credit holds/.test(NBA.blindSpots(Object.assign({}, state, { tx: state.tx.map(t => Object.assign({}, t, { hold: null, overdue: null })) }))));
+    // festive periods: lateness counts for less within 14 days after (Deepavali ended 10 Nov), and gaps across them leave the rhythm
+    const bh = a.customers.find(c => c.name === 'Blue Harbor Stores'), od = bh.factors.find(f => f.label === 'Overdue');
+    assert(/×0\.5 = \+\d+ because Deepavali ended 2026-11-10/.test(od.tech), od.tech); assert.strictEqual(bh.festive.name, 'Deepavali');
+    const noHol = NBA.analyze(Object.assign({}, state, { settings: { currency: '$', holidays: [] } }), 'Aisha Rahman', { today: T }).customers.find(c => c.name === 'Blue Harbor Stores');
+    assert(noHol.churn > bh.churn, 'without festive periods the lateness counts in full');
+    const mk = (d, cid) => ({ d, cid, cname: 'Raya Shop', sp: 'Z', amt: 100, qty: 1, cat: 'Core Products', prod: '', seg: 'Retail', inv: d, src: 'upload' });
+    const raya = { tx: ['2026-01-20', '2026-02-03', '2026-02-17', '2026-03-03', '2026-04-14', '2026-04-28', '2026-05-12'].map(d => mk(d, 'R1')), docs: [], notes: [], deals: [], settings: { currency: '$' } };
+    const rc = NBA.analyze(raya, 'Z', { asOf: '2026-05-20' }).customers[0]; assert.strictEqual(rc.gap, 14); assert(rc.gapsSkipped >= 1, 'the 42-day gap over Hari Raya is left out');
+    // chains: the group's orders count for the branch
+    const ac = NBA.analyze(state, 'Chloe Tan', { today: T }), ks = ac.customers.find(c => c.name === 'Keystone Corporate');
+    assert(ks.viaGroup && ks.viaGroup.name === 'Beacon Office Group' && ks.viaGroup.recency < ks.recency);
+    const solo = NBA.analyze(Object.assign({}, state, { tx: state.tx.map(t => t.cname === 'Keystone Corporate' ? Object.assign({}, t, { group: '' }) : t) }), 'Chloe Tan', { today: T }).customers.find(c => c.name === 'Keystone Corporate');
+    assert(solo.churn > ks.churn, 'a branch is not flagged as leaving while the group keeps ordering');
+    // negation in notes: English, Malay and mixed
+    const kw = t => NBA.extractKeywords(t, []);
+    assert.deepStrictEqual(kw('competitor came but boss rejected').keywords, []); assert.deepStrictEqual(kw('competitor came but boss rejected').ignored.map(i => i.id), ['competitor']);
+    assert.deepStrictEqual(kw('no delivery problem this time').keywords, []);
+    assert.deepStrictEqual(kw('tak ada masalah delivery').ignored.map(i => i.id), ['delivery']);
+    assert.deepStrictEqual(kw('bukan sebab harga mahal').keywords, []);
+    assert.deepStrictEqual(kw('they did not want a quote').keywords, []); assert.deepStrictEqual(kw('they did not ask for a quote').keywords, ['quote'], 'outside the 3-word window');
+    assert.deepStrictEqual(kw('customer happy, competitor offered cheaper but owner declined').keywords.sort(), ['happy']);
+    assert.deepStrictEqual(kw('they are not happy').keywords, ['unhappy']);
+    // Malay and Manglish synonyms
+    assert.deepStrictEqual(kw('tauke nak beli, minta sebut harga tapi kata mahal').keywords.sort(), ['interested', 'price', 'quote']);
+    assert.deepStrictEqual(kw('boss ok la, dah approve bajet, nak try sampel dulu').keywords.sort(), ['budget_ok', 'happy', 'sample']);
+    assert.deepStrictEqual(kw('barang lambat sampai, ada komplen kualiti').keywords.sort(), ['delivery', 'quality']);
+    assert(NBA.KEYWORDS.every(k => k.syn.some(s => !/^[\x00-\x7f]*$/.test(s) || /\b(tak|nak|jumpa|bajet|harga|mahal|kedai|lambat|rosak|bayar|kualiti|setia|kekal|gembira|marah|berminat|sampel|order|pesaing|tolak|susulan|hutang|cawangan|pesanan|pembekal)\b/.test(s))), 'every keyword has a Malay or Manglish synonym');
+    // WhatsApp message: plain, no scores, risk labels or notes
+    const msg = NBA.reorderMessage(bh, a, 'Aisha'); assert(msg.startsWith('Hi Blue Harbor Stores') && /usual .* order is about/.test(msg) && !/risk|score|churn|note|likely/i.test(msg));
   }
   { // targets, gap and campaigns
     const a = NBA.analyze(state, 'Aisha Rahman', { today: '2026-11-15' }), ts = NBA.targetStatus(state, 'Aisha Rahman', { today: '2026-11-15' });

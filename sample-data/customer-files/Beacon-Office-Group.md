@@ -5,7 +5,7 @@
 - Segment: Corporate
 - Status on 15 Nov 2026: **Likely to close**
 - File generated on this device by fixed rules. No AI language model was used.
-- Version: rules 1.8 (2026-11-17); data sample_transactions.xlsx, 2024-11-01 to 2026-11-14
+- Version: rules 1.9 (2026-11-17); data sample_transactions.xlsx, 2024-11-01 to 2026-11-14
 
 ## Performance
 
@@ -14,7 +14,7 @@
 | Customer since | 20 Nov 2024 |
 | Number of orders | 24 |
 | Last order | 16 Oct 2026 (30 days ago) |
-| Usual time between orders | 31 days |
+| Usual time between orders | 29 days |
 | Usual order size | $2,334 |
 | Revenue, last 12 months | $32,570 |
 | Revenue, 12 months before | $23,450 (+39%) |
@@ -31,7 +31,7 @@
 
 ## Today's assessment
 
-- Usually orders every 31 days, now 30: reorder due.
+- Usually orders every 29 days, now 30: reorder due.
 - Spending up 21% on the 3 months before.
 - Your documents: campaign applies (sample_account_plans.docx).
 
@@ -45,7 +45,7 @@
 
 | Points | In plain English | Technical trace | Source |
 |---:|---|---|---|
-| +30 | Usually orders every 31 days, now 30: reorder due. | recency 30d ÷ median gap between orders 31d = 0.97 in [0.8, 1.5) → +30 close | Sales data |
+| +30 | Usually orders every 29 days, now 30: reorder due. | recency 30d ÷ median gap between orders, 9 gaps across a festive period left out 29d = 1.05 in [0.8, 1.5) → +30 close | Sales data |
 | +10 | Spending up 21% on the 3 months before. | revenue last 90d $8,460 vs previous 90d $7,020 = +21% ≥ +10% → +10 close | Sales data |
 | +10 | Your documents: campaign applies (sample_account_plans.docx). | document signals: campaign +10 = 10, capped at 20 → +10 close | Documents |
 
@@ -57,7 +57,7 @@ No factors applied.
 
 Go in ready to take an order today.
 
-- They normally reorder Premium Range about every 31 days and the last order was 30 days ago. Ask for the reorder (usual size about $2,334). _(Sales data)_
+- They normally reorder Premium Range about every 29 days and the last order was 30 days ago. Ask for the reorder (usual size about $2,334). _(Sales data)_
 - They used to buy Core Products (last time Tue 28 Apr) and then stopped. Ask why and whether they still need it. _(Sales data)_
 - Their spending is up 21% in 3 months. Thank them and suggest a regular standing order. _(Sales data)_
 - Use the current offer: “The new Premium Range launch offer gives Corporate customers a 5% introductory discount on their first Premium Range order this quarter.” _(sample_account_plans.docx)_

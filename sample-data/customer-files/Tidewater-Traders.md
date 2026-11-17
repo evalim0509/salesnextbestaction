@@ -5,7 +5,7 @@
 - Segment: Wholesale
 - Status on 15 Nov 2026: **May churn**
 - File generated on this device by fixed rules. No AI language model was used.
-- Version: rules 1.8 (2026-11-17); data sample_transactions.xlsx, 2024-11-01 to 2026-11-14
+- Version: rules 1.9 (2026-11-17); data sample_transactions.xlsx, 2024-11-01 to 2026-11-14
 
 ## Performance
 
@@ -35,11 +35,11 @@
 - Spending down 38% on the 3 months before.
 - Your documents flag a risk (sample_campaign_deck.pptx).
 
-### Visit priority: 67 / 100
+### Visit priority: 54 / 100
 
 | Points | In plain English | Technical trace | Source |
 |---:|---|---|---|
-| +67 | One of your biggest customers ($40,445 a year). | 0.6 × max(churn 75, close 10) + 0.1 × min(…) 10 + 0.3 × value percentile 69 (12-month revenue $40,445 ranked among your 36 customers) = 66.7 | Sales data |
+| +54 | One of your biggest customers ($40,445 a year). | 0.6 × max(churn 53, close 10) + 0.1 × min(…) 10 + 0.3 × value percentile 69 (12-month revenue $40,445 ranked among your 36 customers) = 53.5 | Sales data |
 
 ### Chance to close a deal: 10 / 100
 
@@ -47,11 +47,11 @@
 |---:|---|---|---|
 | +10 | Your documents: unused offer (sample_campaign_deck.pptx). | document signals: campaign +10 (Wholesale growth campaign not used) = 10, capped at 20 → +10 close | Documents |
 
-### Risk of losing them: 75 / 100
+### Risk of losing them: 53 / 100
 
 | Points | In plain English | Technical trace | Source |
 |---:|---|---|---|
-| +45 | Usually orders every 21 days, now 67. | recency 67d ÷ median gap between orders 21d = 3.19 ≥ 3 → +45 churn | Sales data |
+| +23 | Usually orders every 21 days, now 67. | recency 67d ÷ median gap between orders, 10 gaps across a festive period left out 21d = 3.27 ≥ 3 → +45 churn; ×0.5 = +23 because Deepavali ended 2026-11-10 (within 14 days) | Sales data |
 | +20 | Spending down 38% on the 3 months before. | revenue last 90d $6,345 vs previous 90d $10,230 = -38% ≤ -25% → +20 churn | Sales data |
 | +10 | Your documents flag a risk (sample_campaign_deck.pptx). | document paragraph linked to customer with risk wording: “Tidewater Traders: orders have stopped; at risk of churn. Visit this week.” → +10 churn | Documents |
 

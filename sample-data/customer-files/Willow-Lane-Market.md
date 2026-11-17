@@ -5,7 +5,7 @@
 - Segment: Retail
 - Status on 15 Nov 2026: **Likely to close**
 - File generated on this device by fixed rules. No AI language model was used.
-- Version: rules 1.8 (2026-11-17); data sample_transactions.xlsx, 2024-11-01 to 2026-11-14
+- Version: rules 1.9 (2026-11-17); data sample_transactions.xlsx, 2024-11-01 to 2026-11-14
 
 ## Performance
 
@@ -44,7 +44,7 @@
 
 | Points | In plain English | Technical trace | Source |
 |---:|---|---|---|
-| +30 | Usually orders every 21 days, now 24: reorder due. | recency 24d ÷ median gap between orders 21d = 1.14 in [0.8, 1.5) → +30 close | Sales data |
+| +30 | Usually orders every 21 days, now 24: reorder due. | recency 24d ÷ median gap between orders, 10 gaps across a festive period left out 21d = 1.14 in [0.8, 1.5) → +30 close | Sales data |
 | +10 | Similar Retail customers buy Accessories; they never have. | Accessories bought by 8 of 15 Retail customers in the last 12 months (≥ 50%), 0 purchases by this customer → +10 close | Sales data |
 | +10 | Your documents: campaign applies (sample_account_plans.docx). | document signals: campaign +10 = 10, capped at 20 → +10 close | Documents |
 

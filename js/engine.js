@@ -108,8 +108,17 @@
     cat: ['category', 'product category', 'product group', 'product line', 'product family'],
     prod: ['product', 'item', 'sku', 'product name', 'description', 'item name'],
     seg: ['segment', 'customer segment', 'channel', 'industry', 'customer type'],
-    inv: ['invoice', 'invoice no', 'invoice number', 'order no', 'order id', 'document no', 'invoice id', 'order number']
+    inv: ['invoice', 'invoice no', 'invoice number', 'order no', 'order id', 'document no', 'invoice id', 'order number'],
+    area: ['area', 'territory', 'region', 'zone', 'district', 'route', 'postcode', 'post code', 'postal code', 'poskod', 'zip', 'city', 'town', 'kawasan'],
+    group: ['parent', 'group', 'parent account', 'parent company', 'chain', 'head office', 'hq', 'customer group', 'group name'],
+    hold: ['credit hold', 'on hold', 'hold', 'credit status', 'credit block', 'blocked', 'stop supply'],
+    overdue: ['overdue amount', 'overdue', 'amount overdue', 'outstanding', 'outstanding amount', 'overdue balance', 'balance overdue', 'past due']
   };
+  function yesNo(v) {
+    if (v == null || v === '') return null; if (typeof v === 'boolean') return v; if (typeof v === 'number') return v !== 0;
+    var t = String(v).trim().toLowerCase(); if (!t) return null;
+    if (/^(y|yes|true|1|hold|on hold|blocked|stop|ya|tahan)$/.test(t)) return true; if (/^(n|no|false|0|ok|clear|active|tidak|tak)$/.test(t)) return false; return null;
+  }
   function mapHeaders(keys) {
     var map = {};
     keys.forEach(function (k) {
@@ -152,6 +161,10 @@
         prod: String(map.prod ? r[map.prod] : '').trim(),
         seg: String(map.seg ? r[map.seg] : '').trim() || 'General',
         inv: String(map.inv ? r[map.inv] : '').trim(),
+        area: map.area ? String(r[map.area] == null ? '' : r[map.area]).trim() : '',
+        group: map.group ? String(r[map.group] == null ? '' : r[map.group]).trim() : '',
+        hold: map.hold ? yesNo(r[map.hold]) : null,
+        overdue: map.overdue && r[map.overdue] !== '' && isFinite(toNum(r[map.overdue])) ? toNum(r[map.overdue]) : null,
         src: 'upload'
       });
     });
@@ -185,6 +198,20 @@
     var keys = sheetKeys(rows), sp = pick(keys, HEADERS.sp), mo = pick(keys, ['month', 'period', 'target month']), tg = pick(keys, ['target', 'monthly target', 'sales target', 'quota', 'target amount']);
     if (!sp || !mo || !tg) return [];
     return rows.map(function (r) { return { sp: String(r[sp]).trim(), month: parseMonth(r[mo]), target: toNum(r[tg]) }; }).filter(function (t) { return t.sp && t.month && t.target > 0; });
+  }
+  // matches Credit sheet lines to customers by ID, or by name when there is no ID
+  function creditMap(list, tx) {
+    var byName = {}, out = {}; (tx || []).forEach(function (t) { byName[normName(t.cname)] = t.cid; });
+    (list || []).forEach(function (c) { var cid = c.cid && (tx || []).some(function (t) { return t.cid === c.cid; }) ? c.cid : byName[normName(c.name)]; if (cid) out[cid] = { hold: c.hold, overdue: c.overdue }; });
+    return out;
+  }
+  // optional "Credit" sheet: Customer ID or Name, and Credit Hold and/or Overdue Amount (no dates)
+  function normalizeCredit(rows) {
+    var keys = sheetKeys(rows), m = mapHeaders(keys);
+    if ((!m.cid && !m.cname) || (!m.hold && !m.overdue) || m.date) return [];
+    return rows.map(function (r) {
+      return { cid: m.cid ? String(r[m.cid]).trim() : '', name: m.cname ? String(r[m.cname]).trim() : '', hold: m.hold ? yesNo(r[m.hold]) : null, overdue: m.overdue && isFinite(toNum(r[m.overdue])) ? toNum(r[m.overdue]) : null };
+    }).filter(function (c) { return (c.cid || c.name) && (c.hold != null || c.overdue != null); });
   }
   function normalizeCampaigns(rows) {
     var keys = sheetKeys(rows), nm = pick(keys, ['campaign', 'campaign name', 'promotion', 'offer', 'name']), pc = pick(keys, ['discount %', 'discount', 'rebate %', 'rebate', 'discount percent', 'saving %', 'discount pct']);
@@ -277,43 +304,59 @@
   // ---------------------------------------------------------------- note keywords
   // close / churn are the points a keyword adds to each score. Fixed list: the app never interprets free text.
   var KEYWORDS = [
-    { id: 'happy', label: 'Happy with us', group: 'Mood', close: 5, churn: -10, syn: ['happy', 'satisfied', 'pleased', 'went well', 'good meeting', 'great meeting'] },
-    { id: 'staying', label: 'Staying with us', group: 'Mood', close: 0, churn: 0, syn: ['staying', 'won t churn', 'wont churn', 'will not churn', 'not going to churn', 'no longer at risk', 'not leaving', 'won t leave', 'wont leave', 'will not leave', 'renewed', 'committed', 'loyal', 'sticking with us', 'staying with us'] },
-    { id: 'unhappy', label: 'Unhappy', group: 'Mood', close: 0, churn: 15, syn: ['unhappy', 'not happy', 'upset', 'angry', 'frustrated', 'disappointed', 'annoyed'] },
-    { id: 'interested', label: 'Interested', group: 'Buying signals', close: 15, churn: 0, syn: ['interested', 'keen', 'wants to buy', 'want to buy'] },
-    { id: 'quote', label: 'Asked for a quote', group: 'Buying signals', close: 25, churn: 0, syn: ['quote', 'quotation', 'proposal', 'price list'] },
-    { id: 'budget_ok', label: 'Budget approved', group: 'Buying signals', close: 25, churn: 0, syn: ['budget approved', 'has budget', 'have budget', 'got budget', 'approved'] },
-    { id: 'sample', label: 'Wants a sample or trial', group: 'Buying signals', close: 12, churn: 0, syn: ['sample', 'samples', 'trial', 'demo', 'pilot'] },
-    { id: 'decision_maker', label: 'Met the decision maker', group: 'Buying signals', close: 10, churn: 0, syn: ['decision maker', 'met the owner', 'met the director', 'met the boss', 'met the manager'] },
-    { id: 'bulk', label: 'Wants a bigger order', group: 'Buying signals', close: 15, churn: 0, syn: ['bulk', 'bigger order', 'larger order', 'large order', 'more volume', 'increase order'] },
-    { id: 'expanding', label: 'Expanding business', group: 'Buying signals', close: 12, churn: 0, syn: ['expanding', 'expansion', 'new branch', 'new outlet', 'new site', 'new location', 'opening'] },
-    { id: 'follow_up', label: 'Wants a follow-up', group: 'Buying signals', close: 12, churn: 0, syn: ['follow up', 'call back', 'come back', 'next week', 'revisit'] },
-    { id: 'price', label: 'Price too high', group: 'Concerns', close: 0, churn: 8, syn: ['price', 'pricing', 'expensive', 'too high', 'cheaper', 'discount', 'costly'] },
-    { id: 'competitor', label: 'Competitor offer', group: 'Concerns', close: 0, churn: 15, syn: ['competitor', 'competition', 'another supplier', 'other supplier', 'switch', 'switching', 'alternative'] },
-    { id: 'delivery', label: 'Delivery issue', group: 'Concerns', close: 0, churn: 10, syn: ['delivery', 'late', 'delay', 'delayed', 'shipment', 'out of stock'] },
-    { id: 'quality', label: 'Quality complaint', group: 'Concerns', close: 0, churn: 12, syn: ['quality', 'defect', 'defective', 'faulty', 'complaint', 'complained', 'broken', 'returned'] },
-    { id: 'budget_cut', label: 'Budget cut', group: 'Concerns', close: -10, churn: 10, syn: ['budget cut', 'no budget', 'cutting costs', 'cost saving', 'freeze'] },
-    { id: 'payment', label: 'Payment issue', group: 'Concerns', close: 0, churn: 5, syn: ['payment', 'overdue', 'outstanding', 'credit limit'] },
-    { id: 'not_interested', label: 'Not interested', group: 'Concerns', close: -20, churn: 8, syn: ['not interested', 'no need', 'not now', 'declined', 'not keen'] }
+    { id: 'happy', label: 'Happy with us', group: 'Mood', close: 5, churn: -10, syn: ['happy', 'satisfied', 'pleased', 'went well', 'good meeting', 'great meeting', 'gembira', 'puas hati', 'senang hati', 'suka', 'happy la', 'ok la', 'okay la', 'syok'] },
+    { id: 'staying', label: 'Staying with us', group: 'Mood', close: 0, churn: 0, syn: ['staying', 'won t churn', 'wont churn', 'will not churn', 'not going to churn', 'no longer at risk', 'not leaving', 'won t leave', 'wont leave', 'will not leave', 'renewed', 'committed', 'loyal', 'sticking with us', 'staying with us', 'kekal', 'setia', 'tak tukar', 'tidak tukar', 'tak pindah', 'sambung kontrak', 'stay with us', 'still with us'] },
+    { id: 'unhappy', label: 'Unhappy', group: 'Mood', close: 0, churn: 15, syn: ['unhappy', 'not happy', 'upset', 'angry', 'frustrated', 'disappointed', 'annoyed', 'tak puas hati', 'tidak puas hati', 'marah', 'kecewa', 'geram', 'tak happy', 'bengang'] },
+    { id: 'interested', label: 'Interested', group: 'Buying signals', close: 15, churn: 0, syn: ['interested', 'keen', 'wants to buy', 'want to buy', 'berminat', 'minat', 'nak beli', 'mahu beli', 'ingin beli', 'interested la'] },
+    { id: 'quote', label: 'Asked for a quote', group: 'Buying signals', close: 25, churn: 0, syn: ['quote', 'quotation', 'proposal', 'price list', 'sebut harga', 'minta harga', 'senarai harga', 'nak quotation', 'minta quote'] },
+    { id: 'budget_ok', label: 'Budget approved', group: 'Buying signals', close: 25, churn: 0, syn: ['budget approved', 'has budget', 'have budget', 'got budget', 'approved', 'bajet lulus', 'budget lulus', 'ada bajet', 'ada budget', 'dah lulus', 'sudah lulus', 'dah approve', 'diluluskan'] },
+    { id: 'sample', label: 'Wants a sample or trial', group: 'Buying signals', close: 12, churn: 0, syn: ['sample', 'samples', 'trial', 'demo', 'pilot', 'sampel', 'percubaan', 'nak try', 'nak cuba', 'mahu cuba', 'cuba dulu'] },
+    { id: 'decision_maker', label: 'Met the decision maker', group: 'Buying signals', close: 10, churn: 0, syn: ['decision maker', 'met the owner', 'met the director', 'met the boss', 'met the manager', 'jumpa boss', 'jumpa bos', 'jumpa tauke', 'jumpa towkay', 'jumpa pengurus', 'jumpa owner', 'jumpa pemilik', 'pembuat keputusan'] },
+    { id: 'bulk', label: 'Wants a bigger order', group: 'Buying signals', close: 15, churn: 0, syn: ['bulk', 'bigger order', 'larger order', 'large order', 'more volume', 'increase order', 'order besar', 'pesanan besar', 'tambah order', 'tambah pesanan', 'order banyak'] },
+    { id: 'expanding', label: 'Expanding business', group: 'Buying signals', close: 12, churn: 0, syn: ['expanding', 'expansion', 'new branch', 'new outlet', 'new site', 'new location', 'opening', 'buka cawangan', 'cawangan baru', 'kedai baru', 'buka kedai', 'buka outlet', 'berkembang'] },
+    { id: 'follow_up', label: 'Wants a follow-up', group: 'Buying signals', close: 12, churn: 0, syn: ['follow up', 'call back', 'come back', 'next week', 'revisit', 'datang balik', 'datang semula', 'jumpa lagi', 'minggu depan', 'call balik', 'telefon balik', 'susulan', 'follow up la'] },
+    { id: 'price', label: 'Price too high', group: 'Concerns', close: 0, churn: 8, syn: ['price', 'pricing', 'expensive', 'too high', 'cheaper', 'discount', 'costly', 'mahal', 'harga tinggi', 'harga mahal', 'nak diskaun', 'minta diskaun', 'potong harga', 'murah sikit', 'kurang harga'] },
+    { id: 'competitor', label: 'Competitor offer', group: 'Concerns', close: 0, churn: 15, syn: ['competitor', 'competition', 'another supplier', 'other supplier', 'switch', 'switching', 'alternative', 'pesaing', 'kompetitor', 'supplier lain', 'pembekal lain', 'tukar supplier', 'tukar pembekal'] },
+    { id: 'delivery', label: 'Delivery issue', group: 'Concerns', close: 0, churn: 10, syn: ['delivery', 'late', 'delay', 'delayed', 'shipment', 'out of stock', 'lambat', 'penghantaran', 'stok habis', 'barang lambat', 'tak sampai', 'belum sampai', 'lewat'] },
+    { id: 'quality', label: 'Quality complaint', group: 'Concerns', close: 0, churn: 12, syn: ['quality', 'defect', 'defective', 'faulty', 'complaint', 'complained', 'broken', 'returned', 'kualiti', 'rosak', 'cacat', 'aduan', 'komplen', 'pulang barang', 'barang rosak'] },
+    { id: 'budget_cut', label: 'Budget cut', group: 'Concerns', close: -10, churn: 10, syn: ['budget cut', 'no budget', 'cutting costs', 'cost saving', 'freeze', 'potong bajet', 'bajet dipotong', 'tiada bajet', 'takde bajet', 'takde budget', 'jimat kos', 'kurangkan kos'] },
+    { id: 'payment', label: 'Payment issue', group: 'Concerns', close: 0, churn: 5, syn: ['payment', 'overdue', 'outstanding', 'credit limit', 'bayaran', 'tertunggak', 'hutang', 'belum bayar', 'lambat bayar', 'had kredit'] },
+    { id: 'not_interested', label: 'Not interested', group: 'Concerns', close: -20, churn: 8, syn: ['not interested', 'no need', 'not now', 'declined', 'not keen', 'tak berminat', 'tidak berminat', 'tak minat', 'tak perlu', 'tidak perlu', 'tak nak', 'tidak mahu', 'tolak'] }
   ];
+  // negation: "not", "no", "never", "tak", "tidak", "bukan" in the 3 words before, or "but … rejected" just after, cancels a keyword
+  var NEGATE = { not: 1, no: 1, never: 1, tak: 1, tidak: 1, bukan: 1 }, NT = { don: 1, didn: 1, won: 1, isn: 1, wasn: 1, aren: 1, doesn: 1, can: 1, couldn: 1, wouldn: 1, shouldn: 1, haven: 1, hasn: 1, weren: 1 };
+  function negatedAt(tok, i, len) {
+    for (var k = Math.max(0, i - 3); k < i; k++) { if (NEGATE[tok[k]] || (tok[k] === 't' && k > 0 && NT[tok[k - 1]])) return true; }
+    // "but" must follow the keyword closely: "competitor came but boss rejected"
+    var after = ' ' + tok.slice(i + len, i + len + 7).join(' ') + ' ';
+    return /^( \w+){0,2} (but|tapi|tetapi)( \w+){0,2} (rejected|declined|refused|said no|tolak|menolak)\b/.test(after);
+  }
+  // the rejection word in "but … declined" belongs to that phrase, not to the "Not interested" keyword
+  var REJECT = { rejected: 1, declined: 1, refused: 1, tolak: 1, menolak: 1 };
+  function rejectionWord(tok, i) { for (var k = Math.max(0, i - 3); k < i; k++) if (tok[k] === 'but' || tok[k] === 'tapi' || tok[k] === 'tetapi') return true; return false; }
   var KW = {}; KEYWORDS.forEach(function (k) { KW[k.id] = k; });
 
   // Voice transcript -> keyword ids + category names. Simple phrase matching only.
   function extractKeywords(text, categories) {
-    var t = normText(text), ids = [], cats = [];
+    var t = normText(text), tok = t.trim() ? t.trim().split(' ') : [], ids = [], cats = [], ignored = [];
     KEYWORDS.forEach(function (k) {
-      var hit = k.syn.some(function (s) {
-        var i = t.indexOf(' ' + s + ' ');
-        if (i < 0) return false;
-        // "not interested", "no budget", "not happy" must not count as the positive keyword
-        if (k.close > 0 && k.churn <= 0 && / (not|no|isn t|aren t|wasn t|never) $/.test(t.slice(0, i + 1))) return false;
-        return true;
+      var seen = false, live = false, phrase = '';
+      k.syn.forEach(function (s) {
+        var st = s.split(' '), n = st.length;
+        for (var i = 0; i + n <= tok.length; i++) {
+          var ok = true; for (var j = 0; j < n; j++) if (tok[i + j] !== st[j]) { ok = false; break; }
+          if (!ok) continue;
+          if (n === 1 && REJECT[st[0]] && rejectionWord(tok, i)) continue;
+          seen = true; if (!phrase) phrase = s;
+          if (!negatedAt(tok, i, n)) live = true;
+        }
       });
-      if (hit) ids.push(k.id);
+      if (live) ids.push(k.id); else if (seen) ignored.push({ id: k.id, label: k.label, why: 'negated', phrase: phrase });
     });
     if (ids.indexOf('budget_cut') >= 0) ids = ids.filter(function (x) { return x !== 'budget_ok'; });
+    ignored = ignored.filter(function (x) { return ids.indexOf(x.id) < 0; });
     (categories || []).forEach(function (c) { if (c.length > 2 && t.indexOf(normText(c)) >= 0) cats.push(c); });
-    return { keywords: ids, cats: cats };
+    return { keywords: ids, cats: cats, ignored: ignored };
   }
 
   // ---------------------------------------------------------------- documents
@@ -373,13 +416,13 @@
     [/^They asked for a quote/, 'Bring the quote'], [/^Their budget is approved/, 'Confirm the order'], [/^They wanted a sample/, 'Follow up the sample'], [/^They mentioned a bigger/, 'Offer a standing order'], [/^They are expanding/, 'Supply the new site'],
     [/^They showed interest/, 'Pick up their interest'], [/^Their budget was cut/, 'Offer smaller orders'], [/^They said no/, 'Try a new angle'], [/^They told you they are staying/, 'Thank them for staying'], [/^They normally order every/, 'Ask why orders stopped'], [/^They normally reorder/, 'Ask for the reorder'],
     [/^They used to buy/, 'Win back a category'], [/^Customers like them/, 'Introduce a new category'], [/^Their spending is up/, 'Propose a standing order'], [/^Their spending is down/, 'Ask about lost share'], [/^The .* applies to them/, 'Use the offer'],
-    [/^Use the current offer/, 'Use the current offer'], [/^Bring up the renewal/, 'Bring up the renewal'], [/^Be aware/, 'Be aware'], [/^From the account plan/, 'From the account plan'], [/^Ask what is coming up/, 'Ask about next month']];
+    [/^Use the current offer/, 'Use the current offer'], [/^Bring up the renewal/, 'Bring up the renewal'], [/^Be aware/, 'Be aware'], [/^From the account plan/, 'From the account plan'], [/^Ask what is coming up/, 'Ask about next month'], [/^They are on credit hold/, 'Collect first']];
   function pointTitle(text) { for (var i = 0; i < PTITLES.length; i++) if (PTITLES[i][0].test(text)) return PTITLES[i][1]; return 'Talking point'; }
 
   // ---------------------------------------------------------------- analysis
   var RULES = {
-    version: '1.8', date: '2026-11-17', // change both whenever a rule or threshold below changes
-    fewOrders: 2, roughOrders: 4, dataAgeWarn: 7, bandHigh: 50, bandMid: 30, creditHoldDays: 30,
+    version: '1.9', date: '2026-11-17', // change both whenever a rule or threshold below changes
+    fewOrders: 2, roughOrders: 4, dataAgeWarn: 7, bandHigh: 50, bandMid: 30, creditHoldDays: 30, festiveAfterDays: 14, festiveFactor: 0.5, nearby: 4,
     staleDays: 14, lostDays: 180, lostRatio: 6, expiryDays: 7, stayingPts: 30, stayingDays: 30, outcomeDays: 14, backtestWeeks: 8, tuneStep: 5, tuneMax: 10, tuneMinN: 20, tuneUp: 1.3, tuneDown: 0.9, tuneRestDays: 30,
     overdue: [[3, 45], [2, 35], [1.5, 20]],
     decline: [[-0.5, 30], [-0.25, 20], [-0.1, 8]],
@@ -390,6 +433,15 @@
     visitedDays: 2, visitedPenalty: 40,
     wMain: 0.6, wOther: 0.1, wValue: 0.3, listThreshold: 50
   };
+
+  // festive periods: gaps across them are left out of the usual rhythm, and lateness counts for less just after them
+  var FESTIVE = [
+    ['Chinese New Year', '2024-02-08', '2024-02-17'], ['Chinese New Year', '2025-01-27', '2025-02-05'], ['Chinese New Year', '2026-02-15', '2026-02-24'], ['Chinese New Year', '2027-02-04', '2027-02-13'],
+    ['Hari Raya Aidilfitri', '2024-04-07', '2024-04-17'], ['Hari Raya Aidilfitri', '2025-03-28', '2025-04-07'], ['Hari Raya Aidilfitri', '2026-03-17', '2026-03-27'], ['Hari Raya Aidilfitri', '2027-03-07', '2027-03-17'],
+    ['Deepavali', '2024-10-30', '2024-11-02'], ['Deepavali', '2025-10-19', '2025-10-22'], ['Deepavali', '2026-11-06', '2026-11-10'], ['Deepavali', '2027-10-27', '2027-10-30'],
+    ['Christmas', '2024-12-24', '2025-01-01'], ['Christmas', '2025-12-24', '2026-01-01'], ['Christmas', '2026-12-24', '2027-01-01'], ['Christmas', '2027-12-24', '2028-01-01']
+  ].map(function (x) { return { name: x[0], from: x[1], to: x[2] }; });
+  function holidays(state) { var h = state.settings && state.settings.holidays; return Array.isArray(h) ? h : FESTIVE; }
 
   function allTx(state) {
     var tx = (state.tx || []).slice();
@@ -425,6 +477,8 @@
     var tx = allTx(state).filter(function (t) { return t.d <= asOf; });
     var by = {}, catSet = {};
     tx.forEach(function (t) { (by[t.cid] = by[t.cid] || []).push(t); catSet[t.cat] = 1; });
+    var HOL = holidays(state).map(function (h) { return { name: h.name, from: h.from, to: h.to, a: dayNum(h.from), b: dayNum(h.to) }; });
+    var FEST = HOL.filter(function (w) { return w.b < A && A - w.b <= RULES.festiveAfterDays; }).sort(function (x, y) { return y.b - x.b; })[0] || null;
     var categories = Object.keys(catSet).sort();
 
     // base features for every customer (peers are needed for cross-sell)
@@ -433,7 +487,9 @@
       var last = rows[rows.length - 1];
       var days = [], seen = {};
       rows.forEach(function (t) { if (t.amt > 0 && !seen[t.d]) { seen[t.d] = 1; days.push(dayNum(t.d)); } });
-      var gaps = []; for (var i = 1; i < days.length; i++) gaps.push(days[i] - days[i - 1]);
+      var gapsAll = [], gaps = [];
+      for (var i = 1; i < days.length; i++) { var g = days[i] - days[i - 1]; gapsAll.push(g); if (!HOL.some(function (w) { return w.a <= days[i] && w.b >= days[i - 1]; })) gaps.push(g); }
+      var gapsSkipped = gapsAll.length - gaps.length; if (gaps.length < 2) { gaps = gapsAll; gapsSkipped = 0; }
       function rev(from, to) { return sum(rows, function (t) { var n = dayNum(t.d); return n > A - from && n <= A - to ? t.amt : 0; }); }
       var cats = {}, cats12 = {};
       rows.forEach(function (t) {
@@ -444,7 +500,7 @@
       var orderTotals = {}; rows.forEach(function (t) { var k = t.inv || t.d; orderTotals[k] = (orderTotals[k] || 0) + t.amt; });
       var ot = Object.keys(orderTotals).map(function (k) { return orderTotals[k]; }).filter(function (x) { return x > 0; });
       return {
-        cid: cid, name: last.cname, sp: last.sp, seg: last.seg, rows: rows,
+        cid: cid, name: last.cname, sp: last.sp, seg: last.seg, rows: rows, area: last.area || '', group: last.group || '', gapsSkipped: gapsSkipped,
         months12: (function () { var m = [], y = +asOf.slice(0, 4), mo = +asOf.slice(5, 7); for (var k = 11; k >= 0; k--) { var d = new Date(Date.UTC(y, mo - 1 - k, 1)), key = d.getUTCFullYear() + '-' + pad(d.getUTCMonth() + 1); m.push({ key: key, label: MONTHS[d.getUTCMonth()], amt: sum(rows, function (t) { return t.d.slice(0, 7) === key ? t.amt : 0; }) }); } return m; })(),
         nOrders: days.length, first: rows[0].d, last: days.length ? fromDayNum(days[days.length - 1]) : last.d,
         recency: days.length ? A - days[days.length - 1] : 9999,
@@ -454,6 +510,7 @@
       };
     });
     var fallbackGap = median(all.filter(function (c) { return c.gap; }).map(function (c) { return c.gap; })) || 30;
+    var byKey = {}; all.forEach(function (c) { var k = normName(c.name); if (k && !byKey[k]) byKey[k] = c; });
 
     // what similar customers buy
     var segStats = {};
@@ -474,8 +531,18 @@
         if (tn && tn.delta) { pts = Math.max(1, pts + tn.delta); tech += '; tuned ' + (tn.delta > 0 ? '+' : '') + tn.delta + ' on ' + tn.date + ' from past outcomes, approved by a manager → ' + pts; }
         F.push({ bucket: bucket, pts: pts, plain: plain, tech: tech, src: src || 'Sales data', label: label, ev: ev || null });
       }
-      var gap = c.gap || fallbackGap, gapNote = c.gap ? 'median gap between orders' : 'median gap of all customers (too few orders of their own)';
+      var gap = c.gap || fallbackGap, gapNote = (c.gap ? 'median gap between orders' : 'median gap of all customers (too few orders of their own)') + (c.gapsSkipped ? ', ' + c.gapsSkipped + ' gap' + (c.gapsSkipped === 1 ? '' : 's') + ' across a festive period left out' : '');
       var ratio = c.recency / gap;
+      // a branch is not leaving while its group keeps ordering
+      var par = c.group ? byKey[normName(c.group)] : null, effRec = c.recency;
+      c.viaGroup = par && par.cid !== c.cid && par.recency < c.recency ? { name: par.name, last: par.last, recency: par.recency } : null;
+      if (c.viaGroup) effRec = par.recency;
+      var ratioO = effRec / gap;
+      // credit: a Credit sheet or columns in the sales file
+      var cr = (state.credit || {})[c.cid], lastCr = null;
+      for (var q = c.rows.length - 1; q >= 0; q--) if (c.rows[q].hold != null || c.rows[q].overdue != null) { lastCr = c.rows[q]; break; }
+      c.credit = cr ? { hold: cr.hold, overdue: cr.overdue || 0, src: 'Credit sheet' } : lastCr ? { hold: lastCr.hold, overdue: lastCr.overdue || 0, src: 'Sales file' } : null;
+      c.collect = c.credit && (c.credit.hold === true || (c.credit.hold == null && c.credit.overdue > 0)) ? { amount: c.credit.overdue || 0, src: c.credit.src } : null;
       c.gapUsed = gap; c.ratio = ratio;
       c.trend = c.revPrev90 > 0 ? (c.rev90 - c.revPrev90) / c.revPrev90 : (c.rev90 > 0 ? 1 : 0);
       c.yoy = c.revPY > 0 ? (c.rev12 - c.revPY) / c.revPY : null;
@@ -504,9 +571,10 @@
       var i, r;
       for (i = 0; i < RULES.overdue.length; i++) {
         r = RULES.overdue[i];
-        if (ratio >= r[0]) {
-          add('churn', r[1], 'Usually orders every ' + Math.round(gap) + ' days, now ' + c.recency + '.',
-            'recency ' + c.recency + 'd ÷ ' + gapNote + ' ' + Math.round(gap) + 'd = ' + ratio.toFixed(2) + ' ≥ ' + r[0] + ' → +' + r[1] + ' churn', null, 'orders');
+        if (ratioO >= r[0]) {
+          var opts2 = FEST ? Math.round(r[1] * RULES.festiveFactor) : r[1];
+          add('churn', opts2, 'Usually orders every ' + Math.round(gap) + ' days, now ' + c.recency + '.',
+            'recency ' + effRec + 'd ÷ ' + gapNote + ' ' + Math.round(gap) + 'd = ' + ratioO.toFixed(2) + ' ≥ ' + r[0] + ' → +' + r[1] + ' churn' + (FEST ? '; ×' + RULES.festiveFactor + ' = +' + opts2 + ' because ' + FEST.name + ' ended ' + FEST.to + ' (within ' + RULES.festiveAfterDays + ' days)' : ''), null, 'orders');
           break;
         }
       }
@@ -608,6 +676,8 @@
       }
 
       function total(bucket) { return Math.max(0, Math.min(100, sum(F.filter(function (f) { return f.bucket === bucket; }), function (f) { return f.pts; }))); }
+      // on credit hold: no sales push, collect first
+      if (c.collect && !c.lost) { var cl = total('close'); if (cl) F.push({ bucket: 'close', pts: -cl, plain: 'On credit hold: collect ' + money(c.collect.amount, cur) + ' first.', tech: 'credit hold from the ' + c.collect.src + (c.credit.hold === true ? ' (hold = yes)' : ' (overdue ' + money(c.collect.amount, cur) + ')') + ' → close score set to 0, no sales push', src: c.collect.src, label: 'Collect first', ev: null }); }
       c.churn = c.lost ? 0 : total('churn');
       c.close = c.lost ? 0 : total('close');
       c.valuePct = revs.length ? Math.round(100 * revs.filter(function (x) { return x <= c.rev12; }).length / revs.length) : 0;
@@ -623,7 +693,7 @@
         'recency ' + c.recency + 'd > max(' + RULES.lostDays + 'd, ' + RULES.lostRatio + ' × gap ' + Math.round(gap) + 'd) → inactive: churn and close set to 0, −30 priority', null, 'orders');
       c.priority = Math.max(0, Math.min(100, sum(F.filter(function (f) { return f.bucket === 'priority'; }), function (f) { return f.pts; })));
       c.factors = F;
-      c.tag = c.lost ? 'Inactive' : (c.churn >= RULES.listThreshold && c.churn >= c.close) ? 'May churn' : c.close >= RULES.listThreshold ? 'Likely to close' : c.churn >= 30 && c.churn >= c.close ? 'Watch' : c.close >= 30 ? 'Good chance' : 'Steady';
+      c.tag = c.lost ? 'Inactive' : c.collect ? 'Collect first' : (c.churn >= RULES.listThreshold && c.churn >= c.close) ? 'May churn' : c.close >= RULES.listThreshold ? 'Likely to close' : c.churn >= 30 && c.churn >= c.close ? 'Watch' : c.close >= 30 ? 'Good chance' : 'Steady';
       c.rough = c.nOrders < RULES.roughOrders;
       // a customer with fewer than 2 orders only joins today's visits when a note or document makes them a priority
       c.boost = c.notes.some(function (n) { return (n.keywords || []).length && A - dayNum(n.ts.slice(0, 10)) <= RULES.notePosDays; }) || dPri.length > 0 || dRen.length > 0;
@@ -631,7 +701,7 @@
       c.held = !opts.noHoldout && holdShare(state) > 0 && c.eligible && seeded(c.sp + '|' + asOf + '|' + c.cid) < holdShare(state);
       c.closeBand = c.close >= RULES.bandHigh ? 'Likely' : c.close >= RULES.bandMid ? 'Maybe' : 'Unlikely';
       c.riskBand = c.churn >= RULES.bandHigh ? 'At risk' : c.churn >= RULES.bandMid ? 'Watch' : 'Steady';
-      c.asOfN = A;
+      c.asOfN = A; c.festive = FEST ? { name: FEST.name, to: FEST.to } : null;
       var topCat = Object.keys(c.cats).sort(function (a, b) { return c.cats[b].amt12 - c.cats[a].amt12 || c.cats[b].amt - c.cats[a].amt; })[0];
       c.topCat = topCat;
     });
@@ -648,11 +718,22 @@
     var pr = c.factors.filter(function (x) { return x.bucket === 'priority' && x.pts > 0; });
     return f.concat(pr).slice(0, n || 3);
   }
-  function lists(an) {
+  // the area with the highest total visit priority among eligible customers; the rep can pick another
+  function pickArea(list, want) {
+    if (!list.some(function (c) { return c.area; })) return { area: null, areas: [] };
+    var by = {}; list.forEach(function (c) { var a = c.area || 'Other'; var e = by[a] = by[a] || { name: a, total: 0, n: 0 }; e.total += c.priority; e.n++; });
+    var areas = Object.keys(by).map(function (k) { return by[k]; }).sort(function (a, b) { return b.total - a.total || (a.name < b.name ? -1 : 1); });
+    return { area: want && by[want] ? want : areas.length ? areas[0].name : null, areas: areas };
+  }
+  function lists(an, opts) {
+    opts = opts || {};
     var T = RULES.listThreshold, cs = an.customers.filter(function (c) { return !c.lost && !c.blocked; });
-    var would = cs.filter(function (c) { return c.eligible; }).slice(0, 3), shown = cs.filter(function (c) { return !c.held; });
+    var shown = cs.filter(function (c) { return !c.held; }), pa = pickArea(cs.filter(function (c) { return c.eligible; }), opts.area);
+    function inArea(c) { return !pa.area || (c.area || 'Other') === pa.area; }
+    var would = cs.filter(function (c) { return c.eligible && inArea(c); }).slice(0, 3), pool = shown.filter(function (c) { return c.eligible && inArea(c); });
     return {
-      top3: shown.filter(function (c) { return c.eligible; }).slice(0, 3),
+      area: pa.area, areas: pa.areas, nearby: pa.area ? pool.slice(3, 3 + RULES.nearby) : [],
+      top3: pool.slice(0, 3),
       close: shown.filter(function (c) { return c.close >= T; }).sort(function (a, b) { return b.close - a.close || b.rev12 - a.rev12; }).slice(0, 5),
       churn: shown.filter(function (c) { return c.churn >= T; }).sort(function (a, b) { return b.churn - a.churn || b.rev12 - a.rev12; }).slice(0, 5),
       // customers who would have been suggested today but are held back for the measurement
@@ -669,7 +750,8 @@
     function pt(text, src) { if (P.points.length < 4) P.points.push({ text: text, src: src }); }
     var every = Math.round(c.gapUsed), top = c.topCat;
 
-    if (c.lost) P.open = 'It has been a while. Go in to listen: ask how business is and what they use today instead of you.';
+    if (c.collect) { P.open = 'Collect first. Agree a payment date before talking about new orders.'; pt('They are on credit hold with ' + money(c.collect.amount, cur) + ' overdue. Ask for payment or a firm payment date today.', c.collect.src); }
+    else if (c.lost) P.open = 'It has been a while. Go in to listen: ask how business is and what they use today instead of you.';
     else if (c.tag === 'May churn' || c.tag === 'Watch') P.open = 'Go in to listen first. Ask how things are going with their orders before you talk about products.';
     else if (c.tag === 'Likely to close' || c.tag === 'Good chance') P.open = 'Go in ready to take an order today.';
     else P.open = 'A friendly check-in. Thank them for the steady business and look for one new idea to offer.';
@@ -715,12 +797,14 @@
     P.points.forEach(function (x) {
       if (P.sources.indexOf(x.src) < 0) P.sources.push(x.src);
       x.title = pointTitle(x.text);
+      if (!x.tech && c.collect && x.src === c.collect.src) x.tech = 'credit hold from the ' + c.collect.src + ': ' + money(c.collect.amount, cur) + ' overdue';
       if (!x.tech) x.tech = x.src === 'Visit notes' ? 'sentence chosen because your notes contain: ' + (kws.map(function (id) { return KW[id].label; }).join(', ') || 'no keywords') + ' (concerns kept ' + RULES.noteNegDays + ' days, buying signals ' + RULES.notePosDays + ' days)'
         : 'sentence chosen from: days since last order ' + c.recency + ', usual gap ' + every + ' days (ratio ' + c.ratio.toFixed(2) + '), 90-day spend change ' + pct(c.trend) + ', usual order ' + money(c.avgOrder, cur) + (c.peerGap.length ? ', category gap ' + c.peerGap[0] : '') + (c.lapsed.length ? ', lapsed ' + c.lapsed[0] : '');
     });
     P.remember = c.context.length ? { text: shorten(c.context[0].transcript || '', 220), date: c.context[0].ts.slice(0, 10) } : null;
     P.openTech = 'opening and closing ask chosen by status “' + c.tag + '” (close ' + c.close + ', churn ' + c.churn + ')';
-    if (has('quote') || has('budget_ok')) P.ask = 'Ask for the order today.';
+    if (c.collect) P.ask = 'Agree a payment date for the ' + money(c.collect.amount, cur) + ' overdue.';
+    else if (has('quote') || has('budget_ok')) P.ask = 'Ask for the order today.';
     else if (c.tag === 'May churn' || c.tag === 'Watch' || c.lost) P.ask = 'Ask for one small order this week to get things moving again.';
     else if (c.tag === 'Likely to close' || c.tag === 'Good chance') P.ask = 'Ask for the ' + top + ' reorder' + (c.peerGap.length ? ' and a first trial of ' + c.peerGap[0] : '') + '.';
     else P.ask = 'Agree the date of their next order before you leave.';
@@ -1077,7 +1161,7 @@
       var g = [];
       analyze(st, sp || null, { asOf: D, noHoldout: true }).customers.forEach(function (c) {
         if (c.lost) return;
-        var r = { d: D, cid: c.cid, name: c.name, sp: c.sp, close: c.close, churn: c.churn, band: c.closeBand, priority: c.priority, eligible: c.eligible, rev12: c.rev12, ratio: c.nOrders >= 2 ? c.ratio : -1,
+        var r = { d: D, cid: c.cid, name: c.name, sp: c.sp, area: c.area, close: c.close, churn: c.churn, band: c.closeBand, priority: c.priority, eligible: c.eligible, rev12: c.rev12, ratio: c.nOrders >= 2 ? c.ratio : -1,
           hit: ordered(by[c.cid] || [], D, N), rev: revIn(by[c.cid] || [], D, N), f: c.factors.filter(function (x) { return x.bucket === 'close' && x.pts > 0; }).map(function (x) { return [x.label, x.pts]; }) };
         rows.push(r); g.push(r);
       });
@@ -1101,7 +1185,8 @@
       var reps = {}; g.forEach(function (r) { (reps[r.sp] = reps[r.sp] || []).push(r); });
       Object.keys(reps).forEach(function (s) {
         var list = reps[s]; // already in Nudge's priority order
-        take('nudge', list.filter(function (r) { return r.eligible; }).slice(0, 3));
+        var el = list.filter(function (r) { return r.eligible; }), pa = pickArea(el, null);
+        take('nudge', el.filter(function (r) { return !pa.area || (r.area || 'Other') === pa.area; }).slice(0, 3));
         take('overdue', list.filter(function (r) { return r.ratio >= 0; }).sort(function (a, b) { return b.ratio - a.ratio; }).slice(0, 3));
         take('biggest', list.slice().sort(function (a, b) { return b.rev12 - a.rev12; }).slice(0, 3));
         var m = Math.min(3, list.length); bl.random.n += m; bl.random.hit += m * rate(list); bl.random.rev += m * sum(list, function (r) { return r.rev; }) / (list.length || 1); // expected value of a random pick
@@ -1179,6 +1264,14 @@
     return n;
   }
 
+  // ---------------------------------------------------------------- WhatsApp reorder message (plain text; Nudge never sends it)
+  function reorderMessage(c, an, rep) {
+    if (c.collect || c.lost) return null;
+    var cur = an.currency, o = c.offer;
+    return 'Hi ' + c.name + ', hope business is going well. Your usual ' + c.topCat + ' order is about ' + money(c.avgOrder, cur) + '.' +
+      (o ? ' The ' + o.name + ' can save you about ' + money(o.saving, cur) + (o.end ? ' until ' + shortDate(o.end) : '') + '.' : '') + ' Shall I prepare your next order?' + (rep ? ' ' + rep : '');
+  }
+
   // ---------------------------------------------------------------- evidence: the actual lines behind a fact
   // key 'orders' = latest lines, 'trend' = last 90 days against the 90 before, 'w365' = last 12 months
   function evidence(c, key) {
@@ -1190,7 +1283,7 @@
     return [grp('All lines, newest first', rows)];
   }
   function blindSpots(state) {
-    var credit = (state.credit && Object.keys(state.credit).length) || (state.tx || []).some(function (t) { return t.hold != null; });
+    var credit = (state.credit && Object.keys(state.credit).length) || (state.tx || []).some(function (t) { return t.hold != null || t.overdue != null; });
     return credit ? 'I don\'t see stock, or contact outside Nudge.' : 'I don\'t see credit holds, stock, or contact outside Nudge.';
   }
   // the version stamp kept with every brief, export and trail, so any past answer can be explained later
@@ -1227,6 +1320,12 @@
           ['Lists “Likely to close” and “May churn”: score of ' + RULES.listThreshold + ' or more', String(RULES.listThreshold)],
           ['Fewer than ' + RULES.roughOrders + ' orders: shown as a rough guess', 'label'],
           ['You said shop closed or not my customer: left out until a new order arrives', 'rule'], ['You said on credit hold: left out for ' + RULES.creditHoldDays + ' days', RULES.creditHoldDays + ' days'], ['You said visited recently: counts as recent contact', '−' + RULES.visitedPenalty]] },
+      { heading: 'Field rules', rows: [['With an Area or Postcode column: today\'s visits come from the area with the highest total visit priority (the rep can switch), plus up to ' + RULES.nearby + ' “also nearby” in the same area', '3 + ' + RULES.nearby],
+          ['Credit hold (yes) or an overdue amount (with no hold column): no sales push, “Collect first” with the amount', 'rule'],
+          ['Gaps between orders that span a festive period (' + holidays(state).map(function (h) { return h.name; }).filter(function (v, i, a) { return a.indexOf(v) === i; }).join(', ') + ') are left out of the usual rhythm', 'rule'],
+          ['For ' + RULES.festiveAfterDays + ' days after a festive period, lateness counts for less', '×' + RULES.festiveFactor],
+          ['A Parent or Group column: orders placed by the parent count as activity for every branch', 'rule'],
+          ['A note keyword is ignored when not, no, never, tak, tidak or bukan comes in the 3 words before it, or “but … rejected” just after', 'rule']] },
       { heading: 'Bands shown to reps', rows: [['Chance to close: Likely at ' + RULES.bandHigh + ' or more, Maybe ' + RULES.bandMid + ' to ' + (RULES.bandHigh - 1) + ', Unlikely below ' + RULES.bandMid, RULES.bandHigh + ' / ' + RULES.bandMid],
           ['Risk of leaving: At risk at ' + RULES.bandHigh + ' or more, Watch ' + RULES.bandMid + ' to ' + (RULES.bandHigh - 1) + ', Steady below ' + RULES.bandMid, RULES.bandHigh + ' / ' + RULES.bandMid]] },
       { heading: 'Other rules', rows: [['A campaign counts as unused when they have not bought its categories in the last 30 days; saving = discount × their typical order', 'rule'],
@@ -1240,7 +1339,7 @@
   var api = {
     parseDate: parseDate, detectDateOrder: detectDateOrder, normalizeRows: normalizeRows, nameVariants: nameVariants, mergeCustomers: mergeCustomers, applyAliases: applyAliases,
     evidence: evidence, blindSpots: blindSpots, stamp: stamp, dataInfo: dataInfo, rulesDoc: rulesDoc, mergeTx: mergeTx, analyze: analyze, lists: lists, topReasons: topReasons,
-    normalizeTargets: normalizeTargets, normalizeCampaigns: normalizeCampaigns, targetStatus: targetStatus, closeGap: closeGap, campaignLine: campaignLine, expiring: expiring, weeklyDigest: weeklyDigest, learning: learning, holdoutResult: holdoutResult, pickScore: pickScore, seeded: seeded, tone: tone, accountReview: accountReview, execSummary: execSummary, visitStats: visitStats, wrapUp: wrapUp, managerSummary: managerSummary, buildPitch: buildPitch, customerMarkdown: customerMarkdown, fileName: fileName, dashboard: dashboard, confirmDeals: confirmDeals,
+    normalizeTargets: normalizeTargets, normalizeCampaigns: normalizeCampaigns, targetStatus: targetStatus, closeGap: closeGap, campaignLine: campaignLine, expiring: expiring, weeklyDigest: weeklyDigest, learning: learning, reorderMessage: reorderMessage, normalizeCredit: normalizeCredit, creditMap: creditMap, holidays: holidays, FESTIVE: FESTIVE, pickArea: pickArea, holdoutResult: holdoutResult, pickScore: pickScore, seeded: seeded, tone: tone, accountReview: accountReview, execSummary: execSummary, visitStats: visitStats, wrapUp: wrapUp, managerSummary: managerSummary, buildPitch: buildPitch, customerMarkdown: customerMarkdown, fileName: fileName, dashboard: dashboard, confirmDeals: confirmDeals,
     extractKeywords: extractKeywords, linkDocs: linkDocs, salespeople: salespeople, asOfDate: asOfDate,
     KEYWORDS: KEYWORDS, KW: KW, RULES: RULES, money: money, pct: pct, niceDate: niceDate, shortDate: shortDate, todayISO: todayISO, addDays: addDays, dayNum: dayNum, MONTHS: MONTHS
   };

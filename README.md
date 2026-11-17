@@ -32,6 +32,9 @@ Two optional extra sheets in the same file:
 
 - **Targets**: Salesperson, Month (for example 2026-11), Target.
 - **Campaigns**: Campaign, Segment, Category (use + for a bundle), Discount %, Minimum Spend, End Date, Description.
+- **Credit**: Customer ID (or Customer Name), Credit Hold (yes/no) and/or Overdue Amount.
+
+Optional extra columns on the sales sheet: **Area** (or Postcode), **Group** (the parent account of a branch), **Credit Hold**, **Overdue Amount**. Dates written as text (03/04/2026) are checked; if the file does not show whether it is day/month or month/day, Nudge asks.
 
 ## What is in here
 
