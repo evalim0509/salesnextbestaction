@@ -5,7 +5,7 @@
 - Segment: Corporate
 - Status on 15 Nov 2026: **Likely to close**
 - File generated on this device by fixed rules. No AI language model was used.
-- Version: rules 1.7 (2026-11-17); data sample_transactions.xlsx, 2024-11-01 to 2026-11-14
+- Version: rules 1.8 (2026-11-17); data sample_transactions.xlsx, 2024-11-01 to 2026-11-14
 
 ## Performance
 

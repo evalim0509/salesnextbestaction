@@ -55,7 +55,7 @@ const ab = b => b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength);
     const doc = NBA.rulesDoc(state); assert(doc.length >= 5 && doc.every(s => s.rows.length));
     assert(JSON.stringify(doc).includes('+30')); assert(JSON.stringify(NBA.rulesDoc(Object.assign({}, state, { tuning: { 'Due to reorder': { delta: 5, date: '2026-11-16' } } }))).includes('35 (30 +5, approved 2026-11-16)'));
     state.uploads = [{ name: 'sample_transactions.xlsx', lines: 2219 }];
-    assert(/^rules 1\.7 \(2026-11-17\); data sample_transactions\.xlsx, 20\d\d-\d\d-\d\d to 2026-11-14$/.test(NBA.stamp(state)), NBA.stamp(state));
+    assert(/^rules 1\.8 \(2026-11-17\); data sample_transactions\.xlsx, 20\d\d-\d\d-\d\d to 2026-11-14$/.test(NBA.stamp(state)), NBA.stamp(state));
     assert(/credit holds/.test(NBA.blindSpots(state)));
     // same file, same answer
     const run = () => { const z = NBA.analyze(state, 'Aisha Rahman', { today: '2026-11-15' }); return JSON.stringify([NBA.lists(z).top3.map(c => c.cid), NBA.execSummary(state, 'Aisha Rahman', z, { today: '2026-11-15' }), z.customers.map(c => [c.cid, c.priority, c.close, c.churn, c.factors, NBA.buildPitch(c, z)])]); };
@@ -107,6 +107,37 @@ const ab = b => b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength);
     const enCount = I.pairs.filter(p => !p[1] || !p[0]).length; assert.strictEqual(enCount, 0, 'every pair has both languages');
     I.setLang('en'); assert.strictEqual(I.t('Mark visited'), 'Mark visited');
     console.log('Malay pairs:', I.pairs.length, '| engine sentences checked:', out.size);
+  }
+  { // PHASE 3: no replay leak, baselines, bands, misses, holdout, your pick vs Nudge
+    const T = '2026-11-15';
+    // documents without an upload date never reach past dates; with an old date they do
+    const L0 = NBA.learning(state, null, { today: T });
+    assert(!L0.factors.some(f => f.label === 'Offer or renewal'), 'documents uploaded today do not leak into the past');
+    assert(/0 of 2 documents/.test(L0.tech));
+    const old = Object.assign({}, state, { docs: state.docs.map(d => Object.assign({}, d, { added: '2024-01-01' })), campaigns: state.campaigns.map(c => Object.assign({}, c, { added: '2024-01-01' })) });
+    assert(NBA.learning(old, null, { today: T }).factors.some(f => f.label === 'Offer or renewal'));
+    // the four ways of picking, on the same 14-day window
+    const b = L0.baselines; ['nudge', 'overdue', 'biggest', 'random'].forEach(k => assert(b[k].n > 0 && b[k].rate >= 0 && b[k].rate <= 1, k));
+    assert.strictEqual(b.nudge.n, L0.weeks * 3 * 3, '3 picks per salesperson per week'); assert(b.random.revPer > 0 && b.nudge.revPer > 0); // reported as found, not assumed: on the sample Nudge's top 3 order less often but bring more revenue per pick
+    assert(L0.bands.Likely.n && L0.bands.Likely.rate > L0.bands.Unlikely.rate, 'Likely orders more often than Unlikely');
+    assert(L0.misses.length <= 3 && L0.misses.every(m => m.name && m.date));
+    console.log('BASELINES', Object.entries(b).map(([k, v]) => k + ' ' + Math.round(v.rate * 100) + '%').join(', '), '| BANDS', Object.entries(L0.bands).map(([k, v]) => k + ' ' + Math.round(v.rate * 100) + '% of ' + v.n).join(', '), '| weeks', L0.weeks);
+    // holdout: a fixed seed, about 20%, never suggested
+    assert.strictEqual(NBA.seeded('Aisha Rahman|2026-11-15|C101'), NBA.seeded('Aisha Rahman|2026-11-15|C101'));
+    let held = 0, n = 0; for (let i = 0; i < 4000; i++) { n++; if (NBA.seeded('rep|2026-11-' + (i % 30) + '|C' + i) < 0.2) held++; } assert(Math.abs(held / n - 0.2) < 0.03, 'about 20% held back');
+    const hs = Object.assign({}, state, { settings: { currency: '$', holdout: 0.2 } });
+    const ah = NBA.analyze(hs, 'Aisha Rahman', { today: T }), Lh = NBA.lists(ah);
+    assert(Lh.top3.every(c => !c.held) && Lh.close.every(c => !c.held) && Lh.churn.every(c => !c.held));
+    assert.deepStrictEqual(NBA.analyze(hs, 'Aisha Rahman', { today: T }).customers.filter(c => c.held).map(c => c.cid), ah.customers.filter(c => c.held).map(c => c.cid), 'same day, same held-back customers');
+    assert(!NBA.analyze(state, 'Aisha Rahman', { today: T }).customers.some(c => c.held), 'no holdout unless switched on');
+    // holdout result from recorded days
+    const top = NBA.lists(NBA.analyze(state, 'Aisha Rahman', { asOf: '2026-10-20' }));
+    const rec = Object.assign({}, state, { holdout: { 'Aisha Rahman|2026-10-20': { sp: 'Aisha Rahman', date: '2026-10-20', share: 0.2, shown: top.top3.map(c => c.cid), held: top.churn.slice(0, 1).map(c => c.cid) }, 'Aisha Rahman|2026-11-10': { sp: 'Aisha Rahman', date: '2026-11-10', shown: ['C101'], held: [] } } });
+    const hr = NBA.holdoutResult(rec, 'Aisha Rahman', { today: T });
+    assert.strictEqual(hr.days, 1); assert.strictEqual(hr.pending, 1); assert.strictEqual(hr.shown.n, 3); assert.strictEqual(hr.held.n, 1); assert(hr.ready && typeof hr.estimate === 'number' && /× 3$/.test(hr.tech));
+    // your pick vs Nudge's pick, judged after 14 days
+    const pk = Object.assign({}, state, { picks: [{ id: 'p', sp: 'Aisha Rahman', date: '2026-10-25', cids: ['C101', 'C102'], nudge: top.top3.map(c => c.cid) }, { id: 'q', sp: 'Aisha Rahman', date: '2026-11-12', cids: ['C103'], nudge: [] }] });
+    const ps = NBA.pickScore(pk, 'Aisha Rahman', { today: T }); assert.strictEqual(ps.done.length, 1); assert.strictEqual(ps.pending.length, 1); assert.strictEqual(ps.you.n, 2); assert.strictEqual(ps.nudge.n, 3);
   }
   { // targets, gap and campaigns
     const a = NBA.analyze(state, 'Aisha Rahman', { today: '2026-11-15' }), ts = NBA.targetStatus(state, 'Aisha Rahman', { today: '2026-11-15' });

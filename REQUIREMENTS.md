@@ -6,7 +6,7 @@ Last updated: 15 Nov 2026
 
 ## 1. Purpose
 
-Tell each salesperson their next best action every day, in plain English: who to visit, who is ready to buy, who may leave, and what to say. Give management a simple view of incremental revenue.
+Tell each salesperson their next best action every day, in plain English: who to visit, who is ready to buy, who may leave, and what to say. Give management a simple view of growth against last year, and an honest track record of how often Nudge is right.
 
 Nudge is an independent app, not an add-on to a CRM. The whole product is three steps: **upload → insights → export**. How it differs from Salesforce's AI features is set out in [docs/NUDGE_VS_SALESFORCE.md](docs/NUDGE_VS_SALESFORCE.md).
 
@@ -15,7 +15,7 @@ Nudge is an independent app, not an add-on to a CRM. The whole product is three 
 | User | What they need |
 |---|---|
 | Salesperson (not tech savvy, on a phone) | A short morning brief and a tailored pitch per customer. No reports, no typing. |
-| Sales management | A revenue dashboard showing incremental revenue. |
+| Sales management | A revenue dashboard showing growth against last year, and Nudge's track record. |
 
 ## 3. Requirements
 
@@ -130,6 +130,19 @@ Status: Done = built and tested. Pilot limit = works within the limit described.
 | N5 | Campaigns are linked to customers: the pitch, brief and customer file say which campaign applies, whether the customer has used it, and how much they would save on a typical order. | Done |
 | N4 | Notes work together with the uploaded data and documents to customise the pitch for that customer. | Done |
 
+### 3.5a Prove it works: track record (Phase 3)
+
+| ID | Requirement | Status |
+|---|---|---|
+| P1 | No leaks in the replay: past dates use only the sales, notes and feedback known then, and documents and campaigns only from the day they were uploaded (upload dates are now recorded). The method text says how many documents and campaigns were old enough to count. | Done |
+| P2 | Compared with simple alternatives on the same 14-day window: random customers (expected result), biggest by 12-month revenue, simple overdue sort (days since last order ÷ usual gap), Nudge's top 3. Each shows its order rate and revenue per pick. | Done |
+| P3 | Results by band: how often Likely, Maybe and Unlikely customers ordered within 14 days, against all active customers. | Done |
+| P4 | Scoreboard on the Dashboard: "Last 8 weeks: customers I marked Likely ordered within 14 days X% of the time. All your customers: Y%.", plus the latest misses ("I said Lakeside would order. They didn't."). A short version on the rep's home screen. | Done |
+| P5 | "Your pick vs Nudge's pick": a rep or manager marks up to 3 customers for the week; after 14 days the app shows who ordered next to Nudge's top 3 from the same day, and keeps score over time. | Done |
+| P6 | Holdout: each day a fixed random share (default 20%, setting in the menu) of eligible customers is held back, using a seed per salesperson and day so it can be reproduced. Held-back customers are never suggested that day. After 14 days, order rate and revenue of shown and held-back customers (among those who would have been suggested) are compared and shown as "Revenue Nudge helped add (estimate)" with the sample sizes. | Done (results appear 14 days after the first recorded day) |
+| P7 | "Incremental revenue" renamed "Growth vs last year" everywhere; only the holdout result may be called incremental. | Done |
+| P8 | Tests for the leak fix, the baselines, the band results, the holdout split and the pick score. | Done |
+
 ### 3.6 Export
 
 | ID | Requirement | Status |
@@ -150,7 +163,7 @@ Status: Done = built and tested. Pilot limit = works within the limit described.
 | D1 | A salesperson can record a closed deal from the chat. | Done |
 | D2 | Deals also come from newly uploaded sales files. A deal logged in the app stops being counted separately once an uploaded file covers it, so it is never counted twice. | Done |
 | D3 | Revenue dashboard is a separate tab, for management. The salesperson tabs filter it, with "All team" as the default. | Done |
-| D4 | Incremental revenue = this year to date compared with the same dates last year. Shown in total, for the current month, by month and by salesperson. | Done |
+| D4 | Growth vs last year = this year to date compared with the same dates last year (renamed from "incremental revenue" on 17 Nov 2026; only the holdout result may be called incremental). Shown in total, for the current month, by month and by salesperson. | Done |
 | D6 | The Revenue tab opens with a typed manager brief: team revenue against last year, who needs help, biggest accounts at risk, deals logged in the last 7 days, and visit plan completion. It follows the salesperson filter. | Done |
 | D7 | Visit plan completion per salesperson (today and last 7 days) is shown on the Revenue tab. | Pilot limit: counts visits marked on this device only (see R2). |
 | D8 | Saving a deal plays a short celebration (confetti, the orb turns green). The revenue card uses a drawn sky-and-hills picture; no outside image is loaded. | Done |
@@ -185,11 +198,13 @@ All thresholds live in one place: `RULES` in `js/engine.js`. Each score is 0 to 
 | Note keywords (last 45 days) | Asked for a quote +25, Budget approved +25, Interested +15, Wants a bigger order +15, Wants a sample +12, Expanding +12, Wants a follow-up +12, Met the decision maker +10, Happy +5, Budget cut -10, Not interested -20 | capped at ±40 |
 | Documents | renewal +15, campaign or offer +10, growth opportunity +8 | capped at +20 |
 
-**Rules version**: `RULES.version` and `RULES.date` in `js/engine.js` (now 1.7, 17 Nov 2026). Change both whenever a rule or threshold changes; the version is stamped on every trail and export.
+**Rules version**: `RULES.version` and `RULES.date` in `js/engine.js` (now 1.8, 17 Nov 2026). Change both whenever a rule or threshold changes; the version is stamped on every trail and export.
 
 **Bands (rep screens)**: chance to close: Likely at 50 or more, Maybe 30 to 49, Unlikely below 30. Risk of leaving: At risk at 50 or more, Watch 30 to 49, Steady below 30 (`RULES.bandHigh`, `RULES.bandMid`). The same cut-offs drive the "Likely to close" and "May churn" lists.
 
 **Rep feedback**: "Shop closed" or "Not my customer" leaves a customer out of suggestions until an order dated after the feedback arrives. "On credit hold" leaves them out for 30 days (`RULES.creditHoldDays`). "Visited recently" counts as contact that day (−40 priority for 2 days). Every reason removes the customer from today's visits and puts the next eligible customer in its place.
+
+**Track record**: rules replayed on up to 8 past dates (`RULES.backtestWeeks`), one week apart, ending 14 days before today; a hit is any order in the 14 days after. Baselines pick 3 customers per salesperson per date. Random = the average of all active customers (the expected result of a random pick). Holdout = `settings.holdout` (default 0.2, at most 0.5); a customer is held back when `seeded(salesperson|date|customer) < share`.
 
 **Few orders**: customers with fewer than 2 orders are left out of today's visits unless a scoring note in the last 45 days, or an account plan paragraph tagged priority or renewal, makes them a priority. Under 4 orders, screens say "rough guess, few orders".
 
@@ -227,11 +242,13 @@ Lists: "Likely to close" and "May churn" show customers scoring 50 or more. A cu
 | R12 | Sharing a file hands it to another app chosen by the salesperson, so from that point it leaves the phone. Nudge itself still sends nothing. |
 | R13 | PDFs use a built-in font, so a few symbols are replaced with plain ones (for example the rupee sign becomes "Rs"). Non-Latin customer names will not print correctly in PDF; use Word for those. |
 | R14 | "Staying with us" is the salesperson's opinion, not data. It cannot take a customer's risk to zero on its own, it expires after 30 days, and managers can see it in the audit trail and the Excel export. |
-| R15 | The outcome check replays past sales but uses today's documents and campaigns, so it slightly flatters rules that depend on them. With little history (under about 6 months) there are too few past flags to propose anything. |
+| R15 | Fixed on 17 Nov 2026: the replay now uses documents and campaigns only from their upload date. With little history (under about 6 months) there are too few past flags to propose anything. |
 | R16 | Tuning is stored on the phone where a manager approved it. Another phone keeps the original points until the same change is approved there. |
 | R17 | Context notes are free text and may hold sensitive remarks. They stay on the phone and in internal exports; salespeople should not write anything they would not want a colleague to read. |
 | R18 | Text dates in CSV files are now kept as text and checked, instead of being read by the spreadsheet library in US month/day order. Older uploads loaded before this change were not re-checked. |
 | R19 | Malay text was drafted without a native-speaker review; terms such as "berkemungkinan membeli" and "beralih" should be checked with the sales team. |
+| R20 | On the sample data Nudge's top 3 ordered within 14 days less often than a random pick (about 46% against 55%) but brought more revenue per pick (about RM2,100 against RM1,300), because visit priority leans on risk of leaving and at-risk customers order less often by definition. The dashboard shows this as found; the right yardstick for at-risk visits is an open question. |
+| R21 | The holdout means some customers who would have been suggested are not shown on a given day. Its estimate needs weeks of real use to be reliable, and only counts days recorded on the same phone. |
 | R7 | The assistant look and typing animation are presentation only. The text is produced instantly by fixed rules; no AI model is involved. The header says "Private, runs on this phone". |
 | R4 | Clearing browser data erases notes and deals. Customer files can be downloaded as a backup. |
 | R5 | The site code on GitHub Pages is public (including the invented sample data). Real business data is never part of the site. |
@@ -257,3 +274,4 @@ Lists: "Likely to close" and "May churn" show customers scoring 50 or more. A cu
 | 16 Nov 2026 | Note screen: orb turns green or red with the tone of what is said, voice note can be deleted and re-recorded in place, and two save options (for scores, or as context). Context notes shown on the customer card, above "What to say" and in internal exports. Trend dot on visit cards. Outcome tracking with manager-approved tuning proposals on the Dashboard. |
 | 17 Nov 2026 | Phase 1, trust foundation: upload health check with confirm button, duplicate/negative/no-salesperson/future/unreadable counts, name-variant merge, date-format check with question, hard stop; "Show me the orders" evidence; data date line; confidence in words and the fewer-than-2-orders rule; blind-spots line; How Nudge decides page; rules version stamp on trails and exports; same-answer test. |
 | 17 Nov 2026 | Phase 2, the rep stays in charge: action-led visit cards, "usually every 14 days, now 26", Likely/Maybe/Unlikely and At risk/Watch/Steady bands, "Wrong, because…" with effects and manager log, swap a visit, notes quoted back, who-can-see-notes line, RM default, "Tue 12 Nov" dates, one number per tile, 16px text, 360px check, Motion switch (animations kept on by owner decision), Malay interface. Rules version 1.7. |
+| 17 Nov 2026 | Phase 3, track record: replay leak fixed; comparison with random, biggest, most-overdue and Nudge's top 3; results by band; scoreboard with latest misses on the Dashboard and rep home; your pick vs Nudge's pick; seeded 20% holdout with "Revenue Nudge helped add (estimate)"; "incremental revenue" renamed "Growth vs last year". Rules version 1.8 (replay window 8 weeks). |

@@ -1,4 +1,4 @@
-/* Management view: incremental revenue vs the same period last year. */
+/* Management view: growth against the same period last year. (Only the holdout result is called incremental.) */
 (function (root) {
   'use strict';
   var NBA = root.NBA;
@@ -55,7 +55,7 @@
     }
     var cur = (state.settings && state.settings.currency) || '$', d = NBA.dashboard(state, { sp: sp || null }), h = '';
     h += '<div class="panel hero">' + SCENE + '<div class="small">' + (sp ? esc(sp) : 'All salespeople') + ', ' + d.year + ' up to ' + NBA.niceDate(d.asOf) + '</div>';
-    if (d.hasPrev) h += '<div>Incremental revenue</div><div class="hero-num">' + signed(d.ytd.inc, cur) + '</div><span class="pill">' + (d.ytd.inc >= 0 ? '▲ ' : '▼ ') + NBA.pct(d.ytd.pct) + ' against the same dates in ' + d.prevYear + '</span>';
+    if (d.hasPrev) h += '<div>Growth vs last year</div><div class="hero-num">' + signed(d.ytd.inc, cur) + '</div><span class="pill">' + (d.ytd.inc >= 0 ? '▲ ' : '▼ ') + NBA.pct(d.ytd.pct) + ' against the same dates in ' + d.prevYear + '</span>';
     else h += '<div>Revenue this year</div><div class="hero-num">' + NBA.money(d.ytd.cur, cur) + '</div><span class="pill">No ' + d.prevYear + ' sales uploaded to compare with</span>';
     h += '</div><div class="kpis">' +
       '<div class="panel"><div class="small">' + d.year + ' to date</div><div class="v">' + NBA.money(d.ytd.cur, cur) + '</div><div class="small">' + d.prevYear + ': ' + NBA.money(d.ytd.prev, cur) + '</div></div>' +
@@ -73,7 +73,7 @@
       d.months.map(function (m) { return '<tr><td>' + m.label + (m.partial ? ' (to date)' : '') + '</td><td>' + (m.future ? '' : NBA.money(m.cur, cur)) + '</td><td>' + NBA.money(m.partial ? m.prevToDate : m.prev, cur) + '</td><td>' + (m.future ? '' : signed(m.cur - (m.partial ? m.prevToDate : m.prev), cur)) + '</td></tr>'; }).join('') + '</table></div></div>';
 
     var maxInc = Math.max.apply(null, d.people.map(function (p) { return Math.abs(p.inc); })) || 1;
-    if (!sp) h += '<div class="panel"><h3>Incremental revenue by salesperson</h3><p class="small">' + d.year + ' to date against the same period in ' + d.prevYear + '.</p>' +
+    if (!sp) h += '<div class="panel"><h3>Growth vs last year by salesperson</h3><p class="small">' + d.year + ' to date against the same period in ' + d.prevYear + '.</p>' +
       d.people.map(function (p) {
         var w = Math.max(1.5, Math.abs(p.inc) / maxInc * 50), up = p.inc >= 0;
         return '<div class="person"><div class="row"><span>' + esc(p.name) + '</span><span class="delta ' + (up ? 'up' : 'down') + '">' + (up ? '▲ ' : '▼ ') + signed(p.inc, cur) + '</span></div>' +

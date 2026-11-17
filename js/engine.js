@@ -254,6 +254,9 @@
     (state.tx || []).forEach(function (t) { var m = map(t.cid); if (m !== t.cid) { t.cid = m; t.cname = name || t.cname; } });
     ['notes', 'deals', 'visits', 'feedback'].forEach(function (k) { (state[k] || []).forEach(function (x) { x.cid = map(x.cid); }); });
     Object.keys(state.plans || {}).forEach(function (k) { state.plans[k] = state.plans[k].map(map).filter(function (v, i, a) { return a.indexOf(v) === i; }); });
+    function uniq(a) { return (a || []).map(map).filter(function (v, i, x) { return x.indexOf(v) === i; }); }
+    Object.keys(state.holdout || {}).forEach(function (k) { var r = state.holdout[k]; r.shown = uniq(r.shown); r.held = uniq(r.held); });
+    (state.picks || []).forEach(function (pk) { pk.cids = uniq(pk.cids); pk.nudge = uniq(pk.nudge); });
     var seen = {}; state.tx = state.tx.filter(function (t) { var k = txKey(t); if (seen[k]) return false; seen[k] = 1; return true; });
   }
   function applyAliases(tx, state) {
@@ -375,9 +378,9 @@
 
   // ---------------------------------------------------------------- analysis
   var RULES = {
-    version: '1.7', date: '2026-11-17', // change both whenever a rule or threshold below changes
+    version: '1.8', date: '2026-11-17', // change both whenever a rule or threshold below changes
     fewOrders: 2, roughOrders: 4, dataAgeWarn: 7, bandHigh: 50, bandMid: 30, creditHoldDays: 30,
-    staleDays: 14, lostDays: 180, lostRatio: 6, expiryDays: 7, stayingPts: 30, stayingDays: 30, outcomeDays: 14, backtestWeeks: 12, tuneStep: 5, tuneMax: 10, tuneMinN: 20, tuneUp: 1.3, tuneDown: 0.9, tuneRestDays: 30,
+    staleDays: 14, lostDays: 180, lostRatio: 6, expiryDays: 7, stayingPts: 30, stayingDays: 30, outcomeDays: 14, backtestWeeks: 8, tuneStep: 5, tuneMax: 10, tuneMinN: 20, tuneUp: 1.3, tuneDown: 0.9, tuneRestDays: 30,
     overdue: [[3, 45], [2, 35], [1.5, 20]],
     decline: [[-0.5, 30], [-0.25, 20], [-0.1, 8]],
     growth: [[0.25, 20], [0.1, 10]],
@@ -625,6 +628,7 @@
       // a customer with fewer than 2 orders only joins today's visits when a note or document makes them a priority
       c.boost = c.notes.some(function (n) { return (n.keywords || []).length && A - dayNum(n.ts.slice(0, 10)) <= RULES.notePosDays; }) || dPri.length > 0 || dRen.length > 0;
       c.eligible = !c.lost && !c.blocked && (c.nOrders >= RULES.fewOrders || c.boost);
+      c.held = !opts.noHoldout && holdShare(state) > 0 && c.eligible && seeded(c.sp + '|' + asOf + '|' + c.cid) < holdShare(state);
       c.closeBand = c.close >= RULES.bandHigh ? 'Likely' : c.close >= RULES.bandMid ? 'Maybe' : 'Unlikely';
       c.riskBand = c.churn >= RULES.bandHigh ? 'At risk' : c.churn >= RULES.bandMid ? 'Watch' : 'Steady';
       c.asOfN = A;
@@ -646,10 +650,13 @@
   }
   function lists(an) {
     var T = RULES.listThreshold, cs = an.customers.filter(function (c) { return !c.lost && !c.blocked; });
+    var would = cs.filter(function (c) { return c.eligible; }).slice(0, 3), shown = cs.filter(function (c) { return !c.held; });
     return {
-      top3: cs.filter(function (c) { return c.eligible; }).slice(0, 3),
-      close: cs.filter(function (c) { return c.close >= T; }).sort(function (a, b) { return b.close - a.close || b.rev12 - a.rev12; }).slice(0, 5),
-      churn: cs.filter(function (c) { return c.churn >= T; }).sort(function (a, b) { return b.churn - a.churn || b.rev12 - a.rev12; }).slice(0, 5)
+      top3: shown.filter(function (c) { return c.eligible; }).slice(0, 3),
+      close: shown.filter(function (c) { return c.close >= T; }).sort(function (a, b) { return b.close - a.close || b.rev12 - a.rev12; }).slice(0, 5),
+      churn: shown.filter(function (c) { return c.churn >= T; }).sort(function (a, b) { return b.churn - a.churn || b.rev12 - a.rev12; }).slice(0, 5),
+      // customers who would have been suggested today but are held back for the measurement
+      held: cs.filter(function (c) { return c.held && (would.indexOf(c) >= 0 || c.close >= T || c.churn >= T); })
     };
   }
 
@@ -844,7 +851,7 @@
   // Who to approach: highest (close score × usual order size) first, until their usual orders cover the gap.
   function closeGap(an, gap) {
     var picks = [], covered = 0;
-    an.customers.filter(function (c) { return !c.lost && c.avgOrder > 0; })
+    an.customers.filter(function (c) { return !c.lost && !c.held && !c.blocked && c.avgOrder > 0; })
       .sort(function (a, b) { return b.close * b.avgOrder - a.close * a.avgOrder || b.avgOrder - a.avgOrder; })
       .some(function (c) {
         picks.push({ cid: c.cid, name: c.name, amount: Math.round(c.avgOrder), close: c.close, offer: c.offer, reason: (c.factors.filter(function (f) { return f.bucket === 'close' && f.pts > 0; }).sort(function (a, b) { return b.pts - a.pts; })[0] || {}).plain || '' });
@@ -1053,20 +1060,28 @@
   // ---------------------------------------------------------------- learning from outcomes
   // Replays the rules on past dates and checks what really happened next, then proposes small changes for a manager to approve.
   function ordered(rows, from, days) { var a = dayNum(from); return rows.some(function (t) { var n = dayNum(t.d); return t.amt > 0 && n > a && n <= a + days; }); }
+  function revIn(rows, from, days) { var a = dayNum(from); return sum(rows, function (t) { var n = dayNum(t.d); return n > a && n <= a + days ? t.amt : 0; }); }
   function learning(state, sp, opts) {
     opts = opts || {};
     var asOf = asOfDate(state, opts.today).asOf, N = RULES.outcomeDays, A = dayNum(asOf), tx = allTx(state), by = {}, first = null;
     tx.forEach(function (t) { (by[t.cid] = by[t.cid] || []).push(t); if (!first || t.d < first) first = t.d; });
-    var rows = [], weeks = 0;
+    var rows = [], groups = [], weeks = 0, docsAll = (state.docs || []).length, campsAll = (state.campaigns || []).length, docsUsed = 0;
     for (var k = 0; k < RULES.backtestWeeks; k++) {
       var D = fromDayNum(A - N - 7 * k); if (!first || dayNum(D) - dayNum(first) < 120) break;
-      var st = { tx: state.tx, docs: state.docs, campaigns: state.campaigns, targets: state.targets, settings: state.settings, tuning: {},
+      // no leaks: only documents, campaigns, notes and feedback that existed on that past date
+      var docs = (state.docs || []).filter(function (d) { return d.added && d.added <= D; });
+      docsUsed = Math.max(docsUsed, docs.length);
+      var st = { tx: state.tx, docs: docs, campaigns: (state.campaigns || []).filter(function (c) { return c.added && c.added <= D; }), targets: state.targets, tuning: {},
+        settings: Object.assign({}, state.settings, { holdout: 0 }), feedback: (state.feedback || []).filter(function (f) { return f.date <= D; }),
         notes: (state.notes || []).filter(function (n) { return n.ts.slice(0, 10) <= D; }), deals: (state.deals || []).filter(function (d) { return d.date <= D; }), visits: (state.visits || []).filter(function (v) { return v.date <= D; }) };
-      analyze(st, sp || null, { asOf: D }).customers.forEach(function (c) {
+      var g = [];
+      analyze(st, sp || null, { asOf: D, noHoldout: true }).customers.forEach(function (c) {
         if (c.lost) return;
-        rows.push({ d: D, cid: c.cid, close: c.close, churn: c.churn, hit: ordered(by[c.cid] || [], D, N), f: c.factors.filter(function (x) { return x.bucket === 'close' && x.pts > 0; }).map(function (x) { return [x.label, x.pts]; }) });
+        var r = { d: D, cid: c.cid, name: c.name, sp: c.sp, close: c.close, churn: c.churn, band: c.closeBand, priority: c.priority, eligible: c.eligible, rev12: c.rev12, ratio: c.nOrders >= 2 ? c.ratio : -1,
+          hit: ordered(by[c.cid] || [], D, N), rev: revIn(by[c.cid] || [], D, N), f: c.factors.filter(function (x) { return x.bucket === 'close' && x.pts > 0; }).map(function (x) { return [x.label, x.pts]; }) };
+        rows.push(r); g.push(r);
       });
-      weeks++;
+      groups.push(g); weeks++;
     }
     function rate(a) { return a.length ? a.filter(function (r) { return r.hit; }).length / a.length : 0; }
     var T = RULES.listThreshold, base = rate(rows), hi = rows.filter(function (r) { return r.close >= T; }), rk = rows.filter(function (r) { return r.churn >= T; }), tune = state.tuning || {}, labels = {};
@@ -1079,6 +1094,22 @@
       return { label: l, n: e.rows.length, rate: rt, lift: lift, pts: pts, delta: cur, step: step, dismissed: !!(state.tuneDismissed || {})[l],
         tech: e.rows.length + ' past flags; ' + Math.round(rt * 100) + '% ordered within ' + N + ' days against ' + Math.round(base * 100) + '% for all active customers = ' + lift.toFixed(2) + ' times; propose ' + (step ? (step > 0 ? '+' : '') + step : 'no change') + ' (needs ' + RULES.tuneMinN + '+ flags, ≥ ' + RULES.tuneUp + '× to raise, < ' + RULES.tuneDown + '× to lower, at most ±' + RULES.tuneMax + ' from the original, one step every ' + RULES.tuneRestDays + ' days)' };
     }).sort(function (a, b) { return b.lift - a.lift; });
+    // simple alternatives, each picking 3 customers per salesperson per past date, judged on the same 14-day window
+    var bl = {}; ['nudge', 'overdue', 'biggest', 'random'].forEach(function (k) { bl[k] = { n: 0, hit: 0, rev: 0 }; });
+    function take(k, list) { list.forEach(function (r) { bl[k].n++; if (r.hit) bl[k].hit++; bl[k].rev += r.rev; }); }
+    groups.forEach(function (g) {
+      var reps = {}; g.forEach(function (r) { (reps[r.sp] = reps[r.sp] || []).push(r); });
+      Object.keys(reps).forEach(function (s) {
+        var list = reps[s]; // already in Nudge's priority order
+        take('nudge', list.filter(function (r) { return r.eligible; }).slice(0, 3));
+        take('overdue', list.filter(function (r) { return r.ratio >= 0; }).sort(function (a, b) { return b.ratio - a.ratio; }).slice(0, 3));
+        take('biggest', list.slice().sort(function (a, b) { return b.rev12 - a.rev12; }).slice(0, 3));
+        var m = Math.min(3, list.length); bl.random.n += m; bl.random.hit += m * rate(list); bl.random.rev += m * sum(list, function (r) { return r.rev; }) / (list.length || 1); // expected value of a random pick
+      });
+    });
+    Object.keys(bl).forEach(function (k) { bl[k].rate = bl[k].n ? bl[k].hit / bl[k].n : 0; bl[k].revPer = bl[k].n ? bl[k].rev / bl[k].n : 0; });
+    var bands = {}; ['Likely', 'Maybe', 'Unlikely'].forEach(function (b) { var a = rows.filter(function (r) { return r.band === b; }); bands[b] = { n: a.length, rate: rate(a) }; });
+    var seen = {}, misses = rows.filter(function (r) { return r.band === 'Likely' && !r.hit; }).sort(function (a, b) { return a.d < b.d ? 1 : -1; }).filter(function (r) { if (seen[r.cid]) return false; seen[r.cid] = 1; return true; }).slice(0, 3).map(function (r) { return { name: r.name, date: r.d, sp: r.sp }; });
     // live record: the visits Nudge actually suggested, and what followed
     var live = { n: 0, hit: 0, visited: { n: 0, hit: 0 }, other: { n: 0, hit: 0 } };
     Object.keys(state.plans || {}).forEach(function (key) {
@@ -1090,8 +1121,48 @@
       });
     });
     return { days: N, weeks: weeks, samples: rows.length, base: base, close: { n: hi.length, rate: rate(hi) }, risk: { n: rk.length, quiet: rk.length ? 1 - rate(rk) : 0 }, factors: factors, live: live,
+      baselines: bl, bands: bands, misses: misses,
       applied: Object.keys(tune).map(function (l) { return { label: l, delta: tune[l].delta, date: tune[l].date }; }),
-      tech: 'rules replayed on ' + weeks + ' past dates, one week apart, ending ' + N + ' days before ' + asOf + ' (' + rows.length + ' customer-days); a hit is any order in the following ' + N + ' days; past dates use the sales known then, but today\'s documents and campaigns' };
+      tech: 'rules replayed on ' + weeks + ' past dates, one week apart, ending ' + N + ' days before ' + asOf + ' (' + rows.length + ' customer-days); a hit is any order in the following ' + N + ' days; past dates use only the sales, notes and feedback known then, and documents and campaigns from the day they were uploaded (' + docsUsed + ' of ' + docsAll + ' documents and ' + (state.campaigns || []).filter(function (c) { return c.added && c.added <= fromDayNum(A - N); }).length + ' of ' + campsAll + ' campaigns old enough to count)',
+      baseTech: 'each method picks 3 customers per salesperson on each past date: Nudge = top 3 by visit priority; overdue = highest days since last order ÷ usual gap; biggest = highest 12-month revenue; random = the average of all active customers (the expected result of a random pick); rate = share that ordered within ' + N + ' days' };
+  }
+
+  // ---------------------------------------------------------------- holdout: true incremental revenue
+  // A fixed random share of eligible customers is held back each day (same result for the same salesperson, day and customer).
+  function seeded(str) { var h = 2166136261; for (var i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0) / 4294967296; }
+  function holdShare(state) { var v = state.settings && state.settings.holdout; return typeof v === 'number' && v > 0 ? Math.min(0.5, v) : 0; }
+  function holdoutResult(state, sp, opts) {
+    opts = opts || {};
+    var asOf = asOfDate(state, opts.today).asOf, A = dayNum(asOf), N = RULES.outcomeDays, by = {};
+    allTx(state).forEach(function (t) { (by[t.cid] = by[t.cid] || []).push(t); });
+    var out = { shown: { n: 0, hit: 0, rev: 0 }, held: { n: 0, hit: 0, rev: 0 }, days: 0, pending: 0, share: holdShare(state) };
+    Object.keys(state.holdout || {}).forEach(function (key) {
+      var rec = state.holdout[key]; if (sp && rec.sp !== sp) return;
+      if (A - dayNum(rec.date) < N) { out.pending++; return; }
+      out.days++;
+      ['shown', 'held'].forEach(function (g) { (rec[g] || []).forEach(function (cid) { var b = out[g]; b.n++; if (ordered(by[cid] || [], rec.date, N)) b.hit++; b.rev += revIn(by[cid] || [], rec.date, N); }); });
+    });
+    ['shown', 'held'].forEach(function (g) { var b = out[g]; b.rate = b.n ? b.hit / b.n : 0; b.revPer = b.n ? b.rev / b.n : 0; });
+    out.ready = out.shown.n > 0 && out.held.n > 0;
+    out.perCustomer = out.ready ? out.shown.revPer - out.held.revPer : null;
+    out.estimate = out.ready ? out.perCustomer * out.shown.n : null;
+    out.tech = 'customers who would have been suggested (top 3 by priority, or in the close or risk lists) were split at random each day: held back = never shown that day; ' + out.days + ' days with ' + N + '-day results (' + out.pending + ' still waiting); estimate = (average ' + N + '-day revenue of shown − held back) × shown customers' +
+      (out.ready ? ' = (' + money(out.shown.revPer) + ' − ' + money(out.held.revPer) + ') × ' + out.shown.n : '');
+    return out;
+  }
+  // "Your pick vs Nudge's pick": up to 3 customers chosen by a person, judged against Nudge's top 3 from the same day
+  function pickScore(state, sp, opts) {
+    opts = opts || {};
+    var asOf = asOfDate(state, opts.today).asOf, A = dayNum(asOf), N = RULES.outcomeDays, by = {}, names = {};
+    allTx(state).forEach(function (t) { (by[t.cid] = by[t.cid] || []).push(t); names[t.cid] = t.cname; });
+    var res = { you: { n: 0, hit: 0 }, nudge: { n: 0, hit: 0 }, done: [], pending: [] };
+    (state.picks || []).filter(function (p) { return !sp || p.sp === sp; }).sort(function (a, b) { return a.date < b.date ? 1 : -1; }).forEach(function (p) {
+      if (A - dayNum(p.date) < N) { res.pending.push(p); return; }
+      function judge(list, b) { return list.map(function (cid) { var h = ordered(by[cid] || [], p.date, N); b.n++; if (h) b.hit++; return { cid: cid, name: names[cid] || cid, hit: h }; }); }
+      res.done.push({ date: p.date, sp: p.sp, you: judge(p.cids, res.you), nudge: judge(p.nudge || [], res.nudge) });
+    });
+    res.you.rate = res.you.n ? res.you.hit / res.you.n : 0; res.nudge.rate = res.nudge.n ? res.nudge.hit / res.nudge.n : 0;
+    return res;
   }
 
   // tone of a set of note keywords: used to colour the orb while the salesperson speaks or types
@@ -1161,6 +1232,7 @@
       { heading: 'Other rules', rows: [['A campaign counts as unused when they have not bought its categories in the last 30 days; saving = discount × their typical order', 'rule'],
           ['Ending soon: an unused campaign ends within ' + RULES.expiryDays + ' days', RULES.expiryDays + ' days'], ['Target pace: target × day of the month ÷ days in the month', 'rule'],
           ['Sales data older than ' + RULES.dataAgeWarn + ' days is flagged in amber; older than ' + RULES.staleDays + ' days, the brief is worked out as of the day after the last sale', RULES.dataAgeWarn + ' / ' + RULES.staleDays + ' days'],
+          ['Holdout: a fixed random share of eligible customers is held back each day to measure the revenue Nudge helps add', Math.round(holdShare(state) * 100) + '%'],
           ['Proposed changes from past results: ±' + RULES.tuneStep + ' points, at most ±' + RULES.tuneMax + ', one step every ' + RULES.tuneRestDays + ' days, only after a manager taps Apply', 'manager']] }
     ];
   }
@@ -1168,7 +1240,7 @@
   var api = {
     parseDate: parseDate, detectDateOrder: detectDateOrder, normalizeRows: normalizeRows, nameVariants: nameVariants, mergeCustomers: mergeCustomers, applyAliases: applyAliases,
     evidence: evidence, blindSpots: blindSpots, stamp: stamp, dataInfo: dataInfo, rulesDoc: rulesDoc, mergeTx: mergeTx, analyze: analyze, lists: lists, topReasons: topReasons,
-    normalizeTargets: normalizeTargets, normalizeCampaigns: normalizeCampaigns, targetStatus: targetStatus, closeGap: closeGap, campaignLine: campaignLine, expiring: expiring, weeklyDigest: weeklyDigest, learning: learning, tone: tone, accountReview: accountReview, execSummary: execSummary, visitStats: visitStats, wrapUp: wrapUp, managerSummary: managerSummary, buildPitch: buildPitch, customerMarkdown: customerMarkdown, fileName: fileName, dashboard: dashboard, confirmDeals: confirmDeals,
+    normalizeTargets: normalizeTargets, normalizeCampaigns: normalizeCampaigns, targetStatus: targetStatus, closeGap: closeGap, campaignLine: campaignLine, expiring: expiring, weeklyDigest: weeklyDigest, learning: learning, holdoutResult: holdoutResult, pickScore: pickScore, seeded: seeded, tone: tone, accountReview: accountReview, execSummary: execSummary, visitStats: visitStats, wrapUp: wrapUp, managerSummary: managerSummary, buildPitch: buildPitch, customerMarkdown: customerMarkdown, fileName: fileName, dashboard: dashboard, confirmDeals: confirmDeals,
     extractKeywords: extractKeywords, linkDocs: linkDocs, salespeople: salespeople, asOfDate: asOfDate,
     KEYWORDS: KEYWORDS, KW: KW, RULES: RULES, money: money, pct: pct, niceDate: niceDate, shortDate: shortDate, todayISO: todayISO, addDays: addDays, dayNum: dayNum, MONTHS: MONTHS
   };
