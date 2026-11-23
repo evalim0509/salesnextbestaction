@@ -421,8 +421,8 @@
 
   // ---------------------------------------------------------------- analysis
   var RULES = {
-    version: '1.9', date: '2026-11-17', // change both whenever a rule or threshold below changes
-    fewOrders: 2, roughOrders: 4, dataAgeWarn: 7, bandHigh: 50, bandMid: 30, creditHoldDays: 30, festiveAfterDays: 14, festiveFactor: 0.5, nearby: 4,
+    version: '2.0', date: '2026-11-23', // change both whenever a rule or threshold below changes
+    fewOrders: 2, roughOrders: 4, dataAgeWarn: 3, bandHigh: 50, bandMid: 30, creditHoldDays: 30, festiveAfterDays: 14, festiveFactor: 0.5, nearby: 4,
     staleDays: 14, lostDays: 180, lostRatio: 6, expiryDays: 7, stayingPts: 30, stayingDays: 30, outcomeDays: 14, backtestWeeks: 8, tuneStep: 5, tuneMax: 10, tuneMinN: 20, tuneUp: 1.3, tuneDown: 0.9, tuneRestDays: 30,
     overdue: [[3, 45], [2, 35], [1.5, 20]],
     decline: [[-0.5, 30], [-0.25, 20], [-0.1, 8]],

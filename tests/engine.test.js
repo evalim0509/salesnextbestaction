@@ -55,7 +55,7 @@ const ab = b => b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength);
     const doc = NBA.rulesDoc(state); assert(doc.length >= 5 && doc.every(s => s.rows.length));
     assert(JSON.stringify(doc).includes('+30')); assert(JSON.stringify(NBA.rulesDoc(Object.assign({}, state, { tuning: { 'Due to reorder': { delta: 5, date: '2026-11-16' } } }))).includes('35 (30 +5, approved 2026-11-16)'));
     state.uploads = [{ name: 'sample_transactions.xlsx', lines: 2219 }];
-    assert(/^rules 1\.9 \(2026-11-17\); data sample_transactions\.xlsx, 20\d\d-\d\d-\d\d to 2026-11-14$/.test(NBA.stamp(state)), NBA.stamp(state));
+    assert(new RegExp('^rules ' + NBA.RULES.version.replace('.', '\\.') + ' \\(' + NBA.RULES.date + '\\); data sample_transactions\\.xlsx, 20\\d\\d-\\d\\d-\\d\\d to 2026-11-14$').test(NBA.stamp(state)), NBA.stamp(state));
     assert(/credit holds/.test(NBA.blindSpots(state)));
     // same file, same answer
     const run = () => { const z = NBA.analyze(state, 'Aisha Rahman', { today: '2026-11-15' }); return JSON.stringify([NBA.lists(z).top3.map(c => c.cid), NBA.execSummary(state, 'Aisha Rahman', z, { today: '2026-11-15' }), z.customers.map(c => [c.cid, c.priority, c.close, c.churn, c.factors, NBA.buildPitch(c, z)])]); };

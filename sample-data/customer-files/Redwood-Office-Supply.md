@@ -5,7 +5,7 @@
 - Segment: Corporate
 - Status on 15 Nov 2026: **Steady**
 - File generated on this device by fixed rules. No AI language model was used.
-- Version: rules 1.9 (2026-11-17); data sample_transactions.xlsx, 2024-11-01 to 2026-11-14
+- Version: rules 2.0 (2026-11-23); data sample_transactions.xlsx, 2024-11-01 to 2026-11-14
 
 ## Performance
 

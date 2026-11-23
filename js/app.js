@@ -39,12 +39,14 @@
     var v = []; state.tx.forEach(function (t) { v.push(t.cname, t.sp, t.cat, t.seg, t.prod, t.area, t.group); }); state.campaigns.forEach(function (k) { v.push(k.name); }); state.docs.forEach(function (d) { v.push(d.name); }); state.uploads.forEach(function (u) { v.push(u.name); });
     I18.setKnown(v);
   }
-  // quiet line on every screen: how fresh the sales data is; amber when older than a week
+  // small line under the name in the header: how fresh the sales data is; amber when older than RULES.dataAgeWarn days
   function dataDate() {
     var el = $('#datadate'), di = NBA.dataInfo(state); if (!di.to) { el.hidden = true; return; }
-    var age = NBA.dayNum(NBA.todayISO()) - NBA.dayNum(di.to);
-    el.hidden = false; el.classList.toggle('old', age > NBA.RULES.dataAgeWarn);
-    el.textContent = 'Sales up to ' + NBA.shortDate(di.to) + ' (' + (age <= 0 ? 'today' : age === 1 ? '1 day old' : age + ' days old') + ')' + (age > NBA.RULES.dataAgeWarn ? '. Upload a newer file' : '');
+    var age = NBA.dayNum(NBA.todayISO()) - NBA.dayNum(di.to), old = age > NBA.RULES.dataAgeWarn;
+    el.hidden = false; el.classList.toggle('old', old);
+    el.textContent = old ? '! Sales to ' + NBA.shortDate(di.to) + ', upload a newer file' : 'Sales to ' + NBA.shortDate(di.to);
+    var full = 'Sales up to ' + NBA.shortDate(di.to) + ' (' + (age <= 0 ? 'today' : age === 1 ? '1 day old' : age + ' days old') + ')';
+    el.title = I18 && I18.getLang() === 'ms' ? I18.t(full) : full;
   }
   function setMood() {
     var app = $('#app'); if (!state.tx.length) { app.removeAttribute('data-mood'); app.classList.remove('has-target'); return; }

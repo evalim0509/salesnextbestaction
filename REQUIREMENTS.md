@@ -58,7 +58,7 @@ Status: Done = built and tested. Pilot limit = works within the limit described.
 | T4 | Hard stop: a file is not loaded when Date, Customer or Amount columns are missing, or more than 20% of lines cannot be read. | Done |
 | T5 | The confirmation is stored. While the latest upload is not confirmed, the brief shows "Figures not yet confirmed". | Done |
 | T6 | "Show me the orders": every fact and factor from sales data links, inside "How I got this", to the actual lines behind it (date, invoice, product, amount; at most 20, newest first): usual rhythm, last order, spending up or down, usual order size, category gap. | Done |
-| T7 | A quiet line on every screen: "Sales up to Mon 16 Nov (1 day old)", amber when older than 7 days. | Done |
+| T7 | A quiet line on every screen, under the salesperson's name in the header: "Sales to Mon 16 Nov" (the full "Sales up to Mon 16 Nov (1 day old)" on long press or hover). Amber with "! … upload a newer file" when older than 3 days (`RULES.dataAgeWarn`). | Done |
 | T8 | Every customer card shows "Based on N orders" (since 23 Nov 2026 not on the slim visit rows); under 4 orders adds "rough guess, few orders". Customers with fewer than 2 orders are never in today's visits unless a note or document makes them a priority. | Done |
 | T9 | Every recommendation's trail says what Nudge cannot see: "I don't see credit holds, stock, or contact outside Nudge." | Done |
 | T10 | "How Nudge decides" page in the menu: every rule in plain words with its points, generated from the rules the app runs plus approved changes, dated with the rules version, with a live "Same file, same answer" check. | Done |
@@ -89,6 +89,7 @@ Status: Done = built and tested. Pilot limit = works within the limit described.
 | B9 | Replies do not appear instantly: thinking dots show first, then the words type out. Tapping the chat skips to the full text. People who switch off motion on their phone get instant text. | Done |
 | B10 | The bottom bar is one row with no typing box: upload, a "Record a visit note" button and the customer list. The shortcuts (Today's brief, Close my gap, Likely to close, May churn, Wrap up my day) sit on the Home screen as buttons; the orb in the header goes back to Home. | Done |
 | B13 | Home page, kept minimal: the orb, "Hey {name}, what can I do for you today?", the target status and one "Today's brief" button. "More" opens the other shortcuts (Close my gap when there is a target gap, Likely to close, May churn, Wrap up my day). The app opens here, and tapping the orb returns here from anywhere. | Done |
+| B28 | Header, one slim row (about 56px, Apple Messages style): the orb on the left (tap for Home; its ring shows target progress), the salesperson's name in the middle as the dropdown with the data date under it, and the ⋯ menu on the right. The word "Nudge" is kept for screen readers only. | Done |
 | B14 | The orb shows the day's mood: green when month-to-date sales are at or above target pace, amber when behind. With no target it compares with last year. | Done |
 | B15 | Monthly target in the brief: how much is closed, how much more is needed and the days left, plus which customers to approach to close the gap, each with their usual order size and any offer that applies. Also available as "Close my gap". | Done |
 | B17 | Campaign expiry nudges: when a campaign ends within 7 days, the brief and manager brief say so, list the eligible customers who have not used it and the total they could save. | Done |
@@ -211,7 +212,7 @@ All thresholds live in one place: `RULES` in `js/engine.js`. Each score is 0 to 
 | Note keywords (last 45 days) | Asked for a quote +25, Budget approved +25, Interested +15, Wants a bigger order +15, Wants a sample +12, Expanding +12, Wants a follow-up +12, Met the decision maker +10, Happy +5, Budget cut -10, Not interested -20 | capped at ±40 |
 | Documents | renewal +15, campaign or offer +10, growth opportunity +8 | capped at +20 |
 
-**Rules version**: `RULES.version` and `RULES.date` in `js/engine.js` (now 1.9, 17 Nov 2026). Change both whenever a rule or threshold changes; the version is stamped on every trail and export.
+**Rules version**: `RULES.version` and `RULES.date` in `js/engine.js` (now 2.0, 23 Nov 2026). Change both whenever a rule or threshold changes; the version is stamped on every trail and export.
 
 **Bands (rep screens)**: chance to close: Likely at 50 or more, Maybe 30 to 49, Unlikely below 30. Risk of leaving: At risk at 50 or more, Watch 30 to 49, Steady below 30 (`RULES.bandHigh`, `RULES.bandMid`). The same cut-offs drive the "Likely to close" and "May churn" lists.
 
@@ -298,3 +299,4 @@ Lists: "Likely to close" and "May churn" show customers scoring 50 or more. A cu
 | 23 Nov 2026 | Decluttering, step 3 (owner choice, iPhone Mail style): visit cards became slim swipe rows (about 92px instead of 300px). Swipe right = visited, swipe left = Skip, Swap, Wrong; tap = customer. "Based on N orders" and the spend trend dot now sit on the customer card only. One-time swipe hint and peek. |
 | 23 Nov 2026 | Decluttering, step 4 (owner choice, Apple Contacts style): customer card from about 700px to about 490px, fits one screen. Duplicates removed (band shown once, last order only in the rhythm bar, spend trend on the 12-month tile). One main button; Why, File, Message, More as labelled icons; Deal closed, Export one-pager and Wrong, because… under More; bands and spend line under "More detail". |
 | 23 Nov 2026 | Decluttering, step 5 (owner choice, visits first): the brief is one bubble. Greeting and target bar, area chips, then the 3 visit rows as a grouped list; the 3 tiles became small pills under the visits; year total, gap and offers in one "More about today" fold; one "How I got this" instead of two. |
+| 23 Nov 2026 | Decluttering, step 6 (owner choice, one slim row): header from 89px to about 56px; "Nudge" title hidden (screen readers only); the data date moved under the salesperson's name and shortened to "Sales to Sun 22 Nov". Data is now flagged amber after 3 days instead of 7 (`RULES.dataAgeWarn` 3). Rules version 2.0. |
