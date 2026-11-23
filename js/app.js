@@ -45,7 +45,7 @@
     var btn = $('#dinfo'), pop = $('#dinfo-pop'), di = NBA.dataInfo(state); if (!di.to) { btn.hidden = true; pop.hidden = true; return; }
     var age = NBA.dayNum(NBA.todayISO()) - NBA.dayNum(di.to), old = age > NBA.RULES.dataAgeWarn;
     var full = 'Sales up to ' + NBA.shortDate(di.to) + ' (' + (age <= 0 ? 'today' : age === 1 ? '1 day old' : age + ' days old') + ')';
-    btn.hidden = false; btn.classList.toggle('old', old); btn.firstChild.textContent = old ? '!' : 'i';
+    btn.hidden = false; btn.classList.toggle('old', old);
     var lbl = old ? full + '. Upload a newer file' : full; btn.setAttribute('aria-label', I18 && I18.getLang() === 'ms' ? I18.t(lbl) : lbl);
     pop.innerHTML = '<p><b>' + esc(full) + '</b></p><p>' + (old ? 'Upload a newer file for an up-to-date brief.' : 'Your brief and scores use sales up to this date.') + '</p>' +
       '<button class="btn' + (old ? ' pri' : '') + '" data-act="upload">Upload a file</button>';
