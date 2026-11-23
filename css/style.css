@@ -256,7 +256,7 @@ details.audit[open] { margin-top: 10px; border-top: 1px solid var(--line); paddi
 details.audit[open] summary { padding: 2px 0 4px; color: var(--ink-2); }
 /* keep the last line of text clear of the (i); replies that end in buttons or tiles get a little room underneath */
 :is(p, h3):has(+ details.audit:not([open])), ul:has(+ details.audit:not([open])) > li:last-child { padding-right: 30px; }
-:is(.msg, .panel):has(> details.audit:not([open])):not(:has(> :is(p, ul, h3) + details.audit)) { padding-bottom: 38px; }
+:is(.msg, .panel):has(details.audit:not([open])):not(:has(:is(p, ul, h3) + details.audit:not([open]))) { padding-bottom: 38px; }
 .panel:has(> details.audit) { position: relative; }
 /* dashboard summary: tiles, then one row per section; a section opens on its own page */
 .dsum .tiles { margin: 0; } .dsum .tile b, .dsum .tile span, .dsum .tile small { white-space: normal; overflow-wrap: anywhere; }
@@ -451,7 +451,8 @@ details.audit[open] summary { padding: 2px 0 4px; color: var(--ink-2); }
 .who-row { display: flex; align-items: center; gap: 2px; max-width: 100%; min-width: 0; }
 .dinfo { flex: none; width: 36px; height: 36px; border: 0; background: none; display: grid; place-items: center; padding: 0; color: var(--ink-3); }
 /* same Apple-style info icon as "How I got this"; amber when the data is old */
-details.audit .ai, .dinfo span { width: 22px; height: 22px; border-radius: 50%; border: 1.6px solid currentColor; display: grid; place-items: center; font: italic 700 .8rem/1 Georgia, 'Times New Roman', serif; flex: none; }
+details.audit .ai, .dinfo span { width: 18px; height: 18px; border-radius: 50%; border: 1.3px solid currentColor; display: grid; place-items: center; font: italic 700 .66rem/1 Georgia, 'Times New Roman', serif; flex: none; }
+details.audit:not([open]) summary, .dinfo { color: #9aa3b2; }
 .dinfo.old { color: var(--watch); }
 .dinfo-pop { position: absolute; left: 50%; transform: translateX(-50%); top: 40px; width: min(280px, calc(100vw - 32px)); z-index: 20; background: rgba(255,255,255,.97); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); border-radius: 18px; box-shadow: 0 18px 44px rgba(16,21,31,.18); padding: 14px; text-align: left; font-size: .9rem; }
 .dinfo-pop p { margin: 0 0 8px; color: var(--ink-2); } .dinfo-pop p b { color: var(--ink); } .dinfo-pop .btn { width: 100%; margin-top: 2px; }

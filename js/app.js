@@ -287,12 +287,13 @@
   function refreshFoots(cid) {
     [].forEach.call(chat.querySelectorAll('.vfoot'), function (f) {
       if (f.dataset.visit !== cid) return;
-      f.innerHTML = footHTML(cid); var row = f.closest('.visit'), now = !!visitOf(cid), was = row.classList.contains('marked'); closeRow(row);
+      var row = f.closest('.visit'), m = row.querySelector('.vmain'), now = !!visitOf(cid), was = row.classList.contains('marked'), slid = !!row.dataset.slid;
       if (now && !was && row.closest('.vlist:not(.showdone)') && !still() && row.animate) {
-        row.style.overflow = 'hidden';
-        var a = row.animate([{ height: row.offsetHeight + 'px', opacity: 1 }, { height: '0px', opacity: 0 }], { duration: 260, easing: 'ease-in', fill: 'forwards' });
-        a.onfinish = function () { row.classList.add('marked'); a.cancel(); row.style.overflow = ''; updateLists(); };
-      } else row.classList.toggle('marked', now);
+        // the row closes up smoothly; its "Visited / Undo" line is only filled in afterwards, so the height never jumps first
+        row.style.overflow = 'hidden'; if (!slid) closeRow(row);
+        var a = row.animate([{ height: row.offsetHeight + 'px', opacity: 1 }, { height: '0px', opacity: slid ? 0.35 : 0 }], { duration: 320, delay: slid ? 40 : 0, easing: 'cubic-bezier(.4, 0, .2, 1)', fill: 'forwards' });
+        a.onfinish = function () { row.classList.add('marked'); f.innerHTML = footHTML(cid); a.cancel(); row.style.overflow = ''; delete row.dataset.slid; row.classList.remove('arm'); row.dataset.dir = ''; m.style.transition = ''; closeRow(row); updateLists(); };
+      } else { f.innerHTML = footHTML(cid); delete row.dataset.slid; row.classList.remove('arm'); row.dataset.dir = ''; m.style.transition = ''; closeRow(row); row.classList.toggle('marked', now); }
     });
   }
   // under each visit list: "Show done (n)", and once every row is done, the day's close
@@ -466,7 +467,14 @@
       if (lock !== 'x') return; lock = null;
       if (!state.seen) state.seen = {}; if (!state.seen.swipe) { state.seen.swipe = true; save(); [].forEach.call(chat.querySelectorAll('.swipehint'), function (h) { h.remove(); }); }
       row.classList.remove('arm', 'peek');
-      if (off >= ARM && !row.classList.contains('marked')) { set(0); markVisit(cid, 'done'); return; }
+      if (off >= ARM && !row.classList.contains('marked')) {
+        if (still()) { set(0); markVisit(cid, 'done'); return; }
+        // like iPhone Mail: the row carries on off the right edge, the green "Visited" strip stays, then closes up
+        row.dataset.slid = 1; row.classList.add('arm');
+        m.style.transition = 'transform .2s cubic-bezier(.2, .8, .2, 1)'; m.style.transform = 'translateX(' + (row.offsetWidth + 24) + 'px)';
+        setTimeout(function () { markVisit(cid, 'done'); }, 190);
+        return;
+      }
       if (off < -ACTW / 2) { row.classList.add('open'); set(-ACTW); } else { row.classList.remove('open'); set(0); }
     }
     m.addEventListener('pointerup', end); m.addEventListener('pointercancel', end);
