@@ -1,5 +1,5 @@
 /* Nudge offline support. Caches the app's own files only; your data never passes through here. */
-var CACHE = 'nudge-v13';
+var CACHE = 'nudge-v14';
 var FILES = ['./', 'index.html', 'css/style.css', 'js/i18n-pairs.js', 'js/i18n.js', 'js/engine.js', 'js/parsers.js', 'js/dashboard.js', 'js/export.js', 'js/app.js',
   'vendor/xlsx.full.min.js', 'vendor/jszip.min.js', 'vendor/pptxgen.min.js', 'vendor/jspdf.umd.min.js', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-180.png',
   'sample-data/sample_transactions.xlsx', 'sample-data/sample_account_plans.docx', 'sample-data/sample_campaign_deck.pptx'];

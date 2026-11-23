@@ -271,7 +271,7 @@
     var v = visitOf(cid);
     if (!v) return '';
     var c = cust(cid), wa = v.status === 'done' && c && NBA.reorderMessage(c, an, state.me);
-    return '<span class="vstate ' + v.status + '">' + (v.status === 'done' ? '✓ Visited' : 'Skipped: ' + esc(v.reason)) + '</span>' + (wa ? '<button data-v="wa">Send reorder message</button>' : '') + '<button data-v="undo">Undo</button>';
+    return '<span class="vstate ' + v.status + '">' + (v.status === 'done' ? '✓ Visited' : 'Skipped: ' + esc(v.reason)) + '</span>' + (wa ? '<button data-v="wa">Reorder message</button>' : '') + '<button data-v="undo">Undo</button>';
   }
   function refreshFoots(cid) { [].forEach.call(chat.querySelectorAll('.vfoot'), function (f) { if (f.dataset.visit === cid) { f.innerHTML = footHTML(cid); var row = f.closest('.visit'); row.classList.toggle('marked', !!visitOf(cid)); closeRow(row); } }); }
   function markVisit(cid, status, reason, quiet) {
@@ -390,7 +390,7 @@
     if (c.collect) return 'Collect first: ' + $$(c.collect.amount) + ' overdue';
     return c.nOrders >= 2 ? actionWord(c) + ', usually every ' + Math.round(c.gapUsed) + ' days' : actionWord(c);
   }
-  function visitCard(c, i) {
+  function visitCard(c, i, list) {
     var b = document.createElement('div'); b.className = 'visit fade' + (visitOf(c.cid) ? ' marked' : '');
     b.innerHTML = '<div class="vback"><span class="vdone" aria-hidden="true">✓ Visited</span>' +
       '<div class="vacts" data-visit="' + esc(c.cid) + '"><button data-v="skip">Skip today</button><button data-v="swap">Swap</button><button data-v="wrong">Wrong, because…</button></div></div>' +
@@ -398,7 +398,7 @@
       '<span class="why">' + esc(visitReason(c)) + '</span>' + toldLine(c) + '</span></button>' +
       '<div class="vfoot" data-visit="' + esc(c.cid) + '">' + footHTML(c.cid) + '</div>';
     swipeable(b, c.cid);
-    enqueue(function () { return pause(260).then(function () { chat.appendChild(b); follow(); if (i === 0 && !(state.seen || {}).swipe && !still()) b.classList.add('peek'); }); });
+    enqueue(function () { return pause(260).then(function () { (list || chat).appendChild(b); follow(); if (i === 0 && !(state.seen || {}).swipe && !still()) b.classList.add('peek'); }); });
     return b;
   }
   var ACTW = 228, ARM = 84;
@@ -437,40 +437,42 @@
     // keyboard and screen readers: moving focus onto the hidden actions opens the row
     row.querySelector('.vacts').addEventListener('focusin', function () { if (!row.classList.contains('open')) { closeRows(row); row.classList.add('open'); set(-ACTW); } });
   }
-  // Morning brief: headline, target bar, tappable tiles, then the visits. Sentences sit behind the tiles.
+  // Morning brief, visits first (Apple "Today" style): greeting and target bar, area, today's visits,
+  // then small pills (at risk, ready to buy, ending soon) and one "More about today" fold. One bubble, one trail.
   function brief() {
     refresh(); if (!an) return;
-    var P = plan(), first = state.me.split(' ')[0], ex = NBA.execSummary(state, state.me, an, { plan: P }), ts = ex.target, L = NBA.lists(an);
+    var P = plan(), first = state.me.split(' ')[0], ex = NBA.execSummary(state, state.me, an, { plan: P }), ts = ex.target;
     var d = NBA.dashboard(state, { sp: state.me }), by = {}; ex.points.forEach(function (x) { (by[x.kind] = by[x.kind] || []).push(x.text); });
-    var risk$ = L.churn.reduce(function (a, c) { return a + c.rev12; }, 0), visit$ = P.reduce(function (a, c) { return a + c.avgOrder; }, 0);
-    var tl = [['risk', 'At risk', String(L.churn.length), L.churn.length === 1 ? 'customer' : 'customers', 'churn', 'See these customers'],
-      ['close', 'Ready to buy', String(L.close.length), L.close.length === 1 ? 'customer' : 'customers', 'close', 'See these customers']];
-    if (ex.expiring.length) tl.push(['expiry', 'Ending soon', String(ex.expiring.length), ex.expiring.length === 1 ? 'offer' : 'offers', '', '']);
-    else tl.push(['value', 'Today\'s visits', $$(visit$), 'usual orders', '', '']);
-    void risk$;
-    var html = '<h3>' + greeting() + ', ' + esc(first) + '</h3>' +
-      '<p class="lead">' + $$(d.ytd.cur) + ' this year' + (d.hasPrev ? ' <span class="delta ' + (d.ytd.inc >= 0 ? 'up' : 'down') + '">' + (d.ytd.inc >= 0 ? '▲ ' : '▼ ') + NBA.pct(d.ytd.pct).replace(/^[+-]/, '') + ' on last year</span>' : '') + '</p>' +
-      tbar(ts) +
-      '<div class="tiles tap">' + tl.map(function (t) { return '<button class="tile" data-tile="' + t[0] + '" aria-expanded="false"><small>' + t[1] + '</small><b>' + esc(t[2]) + '</b><span>' + esc(t[3]) + '</span></button>'; }).join('') + '</div>' +
-      tl.map(function (t) { return '<div class="tp" data-tp="' + t[0] + '" hidden><p>' + esc((by[t[0]] || ['Nothing to report here today.']).join(' ')) + '</p>' + (t[4] ? '<button class="linkbtn" data-do="' + t[4] + '">' + t[5] + '</button>' : '') + '</div>'; }).join('') +
-      (by.gap ? more('How to close the gap', '<p>' + esc(by.gap.join(' ')) + '</p><button class="linkbtn" data-do="gap">Show me who to approach</button>') : '') +
-      (ex.offers.length ? more('Offers to use today (' + ex.offers.length + ')', '<ul>' + ex.offers.map(function (o) { return '<li><b>' + esc(o.name) + '</b>' + (o.renewal ? ' (renewal)' : '') + ': <span class="' + (o.quote ? 'nt' : '') + '">' + esc(o.text) + '</span></li>'; }).join('') + '</ul>') : '') +
+    var LA = NBA.lists(an, { area: state.areaPick[state.me + '|' + an.asOf] }), L = NBA.lists(an);
+    var visit$ = P.reduce(function (a, c) { return a + c.avgOrder; }, 0);
+    var pills = [['risk', L.churn.length + ' at risk', 'churn', 'See these customers'], ['close', L.close.length + ' ready to buy', 'close', 'See these customers']];
+    if (ex.expiring.length) pills.push(['expiry', ex.expiring.length + (ex.expiring.length === 1 ? ' offer ending' : ' offers ending'), '', '']);
+    else if (P.length) pills.push(['value', $$(visit$) + ' in today\'s visits', '', '']);
+    var areaRow = LA.area ? LA.areas.filter(function (a) { return a.name === LA.area; })[0] : null;
+    var extra = '<p class="lead">' + $$(d.ytd.cur) + ' this year' + (d.hasPrev ? ' <span class="delta ' + (d.ytd.inc >= 0 ? 'up' : 'down') + '">' + (d.ytd.inc >= 0 ? '▲ ' : '▼ ') + NBA.pct(d.ytd.pct).replace(/^[+-]/, '') + ' on last year</span>' : '') + '</p>' +
+      (by.gap ? '<div class="group">How to close the gap</div><p>' + esc(by.gap.join(' ')) + '</p><button class="linkbtn" data-do="gap">Show me who to approach</button>' : '') +
+      (ex.offers.length ? '<div class="group">Offers to use today (' + ex.offers.length + ')</div><ul>' + ex.offers.map(function (o) { return '<li><b>' + esc(o.name) + '</b>' + (o.renewal ? ' (renewal)' : '') + ': <span class="' + (o.quote ? 'nt' : '') + '">' + esc(o.text) + '</span></li>'; }).join('') + '</ul>' : '');
+    var html = '<h3>' + greeting() + ', ' + esc(first) + '</h3>' + tbar(ts) +
       (an.stale ? '<p class="small notice-line">Sales data stops on ' + NBA.shortDate(an.dataTo) + '. Upload a newer file for an up-to-date brief.</p>' : '') +
       (unconfirmed() ? '<p class="small unconf">Figures not yet confirmed. <button class="linkbtn" data-do="health">Check the upload</button></p>' : '') +
+      (LA.area ? '<div class="areas"><span>Area</span>' + LA.areas.map(function (a) { return '<button class="chip" data-area="' + esc(a.name) + '" aria-pressed="' + (a.name === LA.area) + '">' + esc(a.name) + '</button>'; }).join('') + '</div>' : '') +
+      (P.length ? (!(state.seen || {}).swipe ? '<p class="small swipehint">Swipe right when visited. Swipe left to skip, swap or say it is wrong.</p>' : '') + '<div class="vlist"></div>' : '<p>No active customers in the uploaded data.</p>') +
+      '<div class="bfoot"><div class="pills tap">' + pills.map(function (t) { return '<button class="pill" data-tile="' + t[0] + '" aria-expanded="false">' + esc(t[1]) + '</button>'; }).join('') + '</div>' +
+      pills.map(function (t) { return '<div class="tp" data-tp="' + t[0] + '" hidden><p>' + esc((by[t[0]] || ['Nothing to report here today.']).join(' ')) + '</p>' + (t[2] ? '<button class="linkbtn" data-do="' + t[2] + '">' + t[3] + '</button>' : '') + '</div>'; }).join('') +
+      more('More about today', extra) +
       trail([['Headline', ex.headlineTech]].concat(ex.points.map(function (x) { return [x.label, x.tech]; })).concat(ex.offers.map(function (o) { return ['Offer: ' + o.name, o.tech]; }))
-        .concat([['Visit order', 'top ' + P.length + ' active customers by visit priority = ' + NBA.RULES.wMain + ' × higher of close and risk score + ' + NBA.RULES.wOther + ' × lower + ' + NBA.RULES.wValue + ' × value percentile; fixed for the day when first shown'],
+        .concat([['Visit order', 'top ' + P.length + ' active customers by visit priority = ' + NBA.RULES.wMain + ' × higher of close and risk score + ' + NBA.RULES.wOther + ' × lower + ' + NBA.RULES.wValue + ' × value percentile; highest first; fixed for the day when first shown'],
+          ['Area', areaRow ? 'today\'s visits come from one area: ' + LA.area + ' (total visit priority ' + areaRow.total + ' across ' + areaRow.n + ' eligible customers; the highest of ' + LA.areas.map(function (a) { return a.name + ' ' + a.total; }).join(', ') + ' unless you picked another)' : ''],
           ['Sources', state.tx.length.toLocaleString() + ' sales rows up to ' + (an.dataTo || an.asOf) + ', ' + state.notes.length + ' notes, ' + state.docs.length + ' documents, ' + state.targets.length + ' targets, ' + state.campaigns.length + ' campaigns. Fixed rules, no AI model.'],
           ['Few orders', 'customers with fewer than ' + NBA.RULES.fewOrders + ' orders are left out of today\'s visits unless a recent note or account plan makes them a priority'],
-          ['Measuring', state.settings.holdout ? (state.holdout[state.me + '|' + an.asOf] || { held: [] }).held.length + ' customers who would have been suggested are held back today (' + Math.round(state.settings.holdout * 100) + '% of eligible customers, chosen at random with a fixed seed for you and today); they are not shown as suggestions, so the revenue Nudge helps add can be measured' : 'holdout is off']])
-        .concat(P.map(function (c) { var f = NBA.topReasons(c, 1)[0]; return [c.name + ' (priority ' + c.priority + ', ' + c.nOrders + ' orders)', f ? f.tech : 'priority ' + c.priority, orders(c, f && f.ev || 'orders')]; })), true);
-    bot(html, 'wide');
-    var LA = NBA.lists(an, { area: state.areaPick[state.me + '|' + an.asOf] });
-    bot((LA.area ? '<div class="areas"><span>Area</span>' + LA.areas.map(function (a) { return '<button class="chip" data-area="' + esc(a.name) + '" aria-pressed="' + (a.name === LA.area) + '">' + esc(a.name) + '</button>'; }).join('') + '</div>' : '') +
-      '<p>These ' + P.length + ' are worth a visit today. Tap one for what to say.</p>' +
-      (!(state.seen || {}).swipe ? '<p class="small swipehint">Swipe right when visited. Swipe left to skip, swap or say it is wrong.</p>' : '') +
-      trail([['Order', 'highest visit priority first; see “How I got this” above'], ['Area', LA.area ? 'today\'s visits come from one area: ' + LA.area + ' (total visit priority ' + LA.areas.filter(function (a) { return a.name === LA.area; })[0].total + ' across ' + LA.areas.filter(function (a) { return a.name === LA.area; })[0].n + ' eligible customers; the highest of ' + LA.areas.map(function (a) { return a.name + ' ' + a.total; }).join(', ') + ' unless you picked another)' : '']]));
-    if (!P.length) { bot('<p>No active customers in the uploaded data.</p>' + trail([['Rule', 'a customer is active if they ordered within ' + NBA.RULES.lostDays + ' days or ' + NBA.RULES.lostRatio + ' times their usual gap']])); return; }
-    P.forEach(visitCard);
+          ['Measuring', state.settings.holdout ? (state.holdout[state.me + '|' + an.asOf] || { held: [] }).held.length + ' customers who would have been suggested are held back today (' + Math.round(state.settings.holdout * 100) + '% of eligible customers, chosen at random with a fixed seed for you and today); they are not shown as suggestions, so the revenue Nudge helps add can be measured' : 'holdout is off'],
+          ['Rule', P.length ? '' : 'a customer is active if they ordered within ' + NBA.RULES.lostDays + ' days or ' + NBA.RULES.lostRatio + ' times their usual gap']])
+        .concat(P.map(function (c) { var f = NBA.topReasons(c, 1)[0]; return [c.name + ' (priority ' + c.priority + ', ' + c.nOrders + ' orders)', f ? f.tech : 'priority ' + c.priority, orders(c, f && f.ev || 'orders')]; })), true) + '</div>';
+    var bub = bot(html, 'wide brief' + (P.length ? ' wait' : ''));
+    if (!P.length) return;
+    var list = bub.querySelector('.vlist');
+    P.forEach(function (c, i) { visitCard(c, i, list); });
+    enqueue(function () { bub.classList.remove('wait'); follow(); });
     if (LA.nearby.length) bot('<h3>Also nearby</h3><div class="rowlist">' + LA.nearby.map(function (c) { return '<button data-cid="' + esc(c.cid) + '"><span>' + esc(c.name) + '<span class="sub">' + esc(actionWord(c)) + '</span></span>' + tag(c) + '</button>'; }).join('') + '</div>' +
       trail([['Also nearby', 'the next ' + LA.nearby.length + ' eligible customers by visit priority in ' + LA.area]], true));
   }

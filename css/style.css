@@ -403,6 +403,21 @@ details.audit summary { font-weight: 600; font-size: .8rem; color: var(--ink-3);
 .learn .btn.wide { margin-top: 8px; }
 
 /* phase 4: field reality */
+.msg.brief.wait .bfoot { display: none; }
+.brief .areas { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: 8px -16px 6px; padding: 0 16px; }
+.brief .areas::-webkit-scrollbar { display: none; }
+.brief .areas .chip { flex: none; min-height: 34px; }
+.brief .areas > span { flex: none; }
+.vlist { margin: 6px -16px 10px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.vlist .visit { border-radius: 0; box-shadow: none; background: var(--card); }
+.vlist .visit + .visit { border-top: 1px solid var(--line); }
+.vlist .vmain { padding-left: 16px; padding-right: 16px; }
+.vlist .vfoot { padding-left: 64px; }
+.pills { display: flex; flex-wrap: wrap; gap: 6px; margin: 2px 0 8px; }
+.pill { min-height: 36px; border: 0; border-radius: 999px; background: var(--card); padding: 0 13px; font-size: .86rem; font-weight: 650; color: var(--ink); box-shadow: 0 1px 4px rgba(45,80,130,.08); }
+.pill[aria-expanded="true"] { background: var(--ink); color: #fff; }
+.pill[data-tile="risk"]::before { content: "▲ "; color: var(--risk); } .pill[data-tile="close"]::before { content: "▲ "; color: var(--go); }
+.pill[aria-expanded="true"]::before { color: inherit; }
 .areas { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 8px; } .areas > span { font-weight: 700; font-size: .9rem; color: var(--ink-2); margin-right: 2px; }
 .areas .chip { min-height: 38px; font-size: .88rem; }
 .ignored { color: var(--watch) !important; font-weight: 600; margin-top: 6px !important; }
