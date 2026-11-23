@@ -26,7 +26,8 @@
   ['{money} to go for your {m} target, a little behind pace', '{money} lagi untuk sasaran {m}, sedikit di belakang rentak'], ['{money} to go for your {m} target, and you are on pace', '{money} lagi untuk sasaran {m}, dan anda mengikut rentak'],
   ['You have hit your {m} target', 'Anda telah mencapai sasaran {m}'],
   // ---------------------------------------------------------------- dock and chips
-  ['Record a visit note', 'Rekod nota lawatan'], ['Upload files', 'Muat naik fail'], ['My customers', 'Pelanggan saya'], ['Today\'s brief', 'Taklimat hari ini'], ['Close my gap', 'Tutup jurang saya'], ['{why}, usually every {n} days', '{why}, biasanya setiap {n} hari'], ['Collect first: {money} overdue', 'Kutip dahulu: {money} tertunggak'],
+  ['Record a visit note', 'Rekod nota lawatan'], ['Upload files', 'Muat naik fail'], ['My customers', 'Pelanggan saya'], ['Today\'s brief', 'Taklimat hari ini'], ['Close my gap', 'Tutup jurang saya'], ['Why', 'Kenapa'], ['File', 'Fail'], ['Message', 'Mesej'], ['More actions', 'Lagi tindakan'], ['More detail', 'Butiran lanjut'], ['Record the amount', 'Rekod jumlahnya'],
+  ['▲ {p}% in 3 months', '▲ {p}% dalam 3 bulan'], ['▼ {p}% in 3 months', '▼ {p}% dalam 3 bulan'], ['{why}, usually every {n} days', '{why}, biasanya setiap {n} hari'], ['Collect first: {money} overdue', 'Kutip dahulu: {money} tertunggak'],
   ['Swipe right when visited. Swipe left to skip, swap or say it is wrong.', 'Leret ke kanan bila sudah dilawati. Leret ke kiri untuk langkau, tukar atau beritahu ia salah.'], ['More', 'Lagi'],
   ['Likely to close', 'Berkemungkinan membeli'], ['May churn', 'Mungkin beralih'], ['My customers ({n})', 'Pelanggan saya ({n})'],
   // ---------------------------------------------------------------- brief

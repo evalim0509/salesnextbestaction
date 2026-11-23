@@ -152,6 +152,8 @@
     file: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l5 5v13H7zM14 3v5h5M10 13h6M10 17h6" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round" stroke-linecap="round"/></svg>',
     out: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4m0 0l-4 4m4-4l4 4M5 13v6h14v-6" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>',
     check: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    why: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M9.7 9.6a2.4 2.4 0 1 1 3.3 2.2c-.6.3-1 .8-1 1.5v.4M12 16.6v.2" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>',
+    dots: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="19" cy="12" r="1.9"/></svg>',
     chat: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19.5l1.3-3.9A8 8 0 1 1 8.6 19l-4.6.5z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/><path d="M9 10.5h6M9 13.5h4" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>'
   };
   function meter(label, v, kind, note) { return '<div class="mtr"><span>' + label + '</span><div class="bar"><i class="' + kind + '" style="width:' + Math.max(2, Math.min(100, v)) + '%"></i></div><b>' + (note || v) + '</b></div>'; }
@@ -280,6 +282,12 @@
     if (status && !quiet && p.length && !left) bot('<p>That is all ' + p.length + ' of today\'s visits accounted for.</p>' + acts([['wrap', 'Wrap up my day', 'pri full']]) + trail([['Count', p.length + ' planned visits for ' + an.asOf + ', each marked visited or skipped on this phone']]));
   }
   function autoVisited(cid) { if (plan().some(function (c) { return c.cid === cid; }) && !visitOf(cid)) markVisit(cid, 'done', '', true); }
+  // the customer card's "More": the less frequent actions, Microsoft-style overflow
+  function cardMoreSheet(cid) {
+    var c = cust(cid); if (!c) return;
+    openSheet(c.name, '<div class="rowlist" style="margin:0"><button data-a="deal"><span>Deal closed<span class="sub">Record the amount</span></span></button><button data-a="export1"><span>Export one-pager</span></button><button data-a="wrong"><span>Wrong, because…</span></button></div>');
+    $('#sheet-body').onclick = function (e) { var b = e.target.closest('[data-a]'); if (!b) return; closeSheet(); act(b.dataset.a, cid); };
+  }
   function skipSheet(cid) {
     var c = cust(cid); if (!c) return;
     var reasons = ['Customer not available', 'Ran out of time', 'Moved to another day', 'Not needed today'];
@@ -345,11 +353,8 @@
       if (rp && rp.next) visitCard(rp.next, rp.index);
     };
   }
-  // small coloured dot: is this customer's spend rising, flat or falling (last 90 days against the 90 before)
-  function trendDot(c) {
-    var t = c.revPrev90 > 0 ? c.trend : 0, k = t >= 0.1 ? 'up' : t <= -0.1 ? 'down' : 'flat';
-    return '<span class="trend ' + k + '" title="Spend ' + (k === 'up' ? 'rising' : k === 'down' ? 'falling' : 'steady') + '"><i></i>' + (k === 'up' ? '▲ ' : k === 'down' ? '▼ ' : '') + (k === 'flat' ? 'steady' : Math.abs(Math.round(t * 100)) + '%') + '</span>';
-  }
+  // spend in the last 90 days against the 90 before: up at +10% or more, down at -10% or less
+  function trendWord(c) { var t = c.revPrev90 > 0 ? c.trend : 0; return t >= 0.1 ? '▲ ' + Math.round(t * 100) + '% in 3 months' : t <= -0.1 ? '▼ ' + Math.abs(Math.round(t * 100)) + '% in 3 months' : 'steady'; }
   // the action leads: "Visit Lakeside Mart today: 12 days late"
   function actionWord(c) {
     if (c.ratio >= 1.5 && c.nOrders >= 2) return Math.round(c.recency - c.gapUsed) + ' days late';
@@ -657,16 +662,19 @@
   function showCustomer(cid, echo) {
     refresh(); var c = cust(cid); if (!c) return;
     if (echo !== false) said(c.name);
-    bot('<div data-cid="' + esc(c.cid) + '"><div class="chead"><div><h3>' + esc(c.name) + '</h3>' + tag(c) + trendDot(c) + conf(c) + '</div><button class="plus" data-do="note" aria-label="Add visit note">+</button></div>' +
+    bot('<div data-cid="' + esc(c.cid) + '"><div class="chead"><div><h3>' + esc(c.name) + '</h3><div class="cmeta">' + tag(c) + conf(c) + '</div></div><button class="plus" data-do="note" aria-label="Add visit note">+</button></div>' +
       blockedLine(c) + (toldLine(c) ? '<p>' + toldLine(c) + '</p>' : '') +
       (c.collect ? '<p class="blocked">On credit hold: ' + $$(c.collect.amount) + ' overdue. No sales push today.</p>' : '') +
       (c.viaGroup ? '<p class="small">Ordered through ' + esc(c.viaGroup.name) + ' on ' + NBA.shortDate(c.viaGroup.last) + '.</p>' : '') +
-      tiles([['Last order', c.recency === 0 ? 'Today' : c.recency + ' days', c.recency === 0 ? '' : 'ago'], ['Usual order', $$(c.avgOrder), 'per order'], ['12 months', $$(c.rev12), c.yoy == null ? '' : c.yoy >= 0 ? '▲ up' : '▼ down']]) +
-      bands(c) + rhythm(c) + spark(c) +
+      rhythm(c) +
+      tiles([['Usual order', $$(c.avgOrder), 'per order'], ['12 months', $$(c.rev12), c.revPrev90 > 0 ? trendWord(c) : c.yoy == null ? '' : c.yoy >= 0 ? '▲ up' : '▼ down']]) +
       (c.context.length ? more('What you know (' + c.context.length + ')', '<ul>' + c.context.slice(0, 5).map(function (n) { return '<li><b>' + NBA.shortDate(n.ts.slice(0, 10)) + '</b>: <span class="nt">' + esc(n.transcript) + '</span></li>'; }).join('') + '</ul>') : '') +
-      acts([['pitch', 'What to say', 'pri'], ['why', 'Why this customer']]) +
-      '<div class="iconrow"><button data-do="file" aria-label="Customer file" title="Customer file">' + ICON.file + '</button><button data-do="export1" aria-label="Export one-pager" title="Export one-pager">' + ICON.out + '</button>' + (NBA.reorderMessage(c, an, state.me) ? '<button data-do="wa" aria-label="Send reorder message" title="Send reorder message">' + ICON.chat + '</button>' : '') + '<button class="wrongbtn" data-do="wrong">Wrong, because…</button><button class="done" data-do="deal" aria-label="Deal closed">' + ICON.check + 'Done</button></div></div>' +
-      trail([['Tiles', 'last order ' + c.last + '; usual order = average of ' + c.nOrders + ' orders; 12-month revenue = sales from ' + NBA.addDays(an.asOf, -364) + ' to ' + an.asOf, orders(c, 'orders')], ['Order rhythm', 'days since last order ' + c.recency + ' against median gap ' + Math.round(c.gapUsed) + ' (ratio ' + c.ratio.toFixed(2) + '); shaded band = due window ' + NBA.RULES.reorderWindow[0] + ' to ' + NBA.RULES.reorderWindow[1] + ' × gap'], ['Spend line', 'sales summed by calendar month, ' + c.months12[0].key + ' to ' + c.months12[11].key, orders(c, 'w365')], ['Confidence', c.nOrders + ' orders' + (c.rough ? ' (fewer than ' + NBA.RULES.roughOrders + ': rough guess)' : '')], ['Bands', 'close ' + c.close + ' → ' + c.closeBand + ', risk ' + c.churn + ' → ' + c.riskBand + ' (' + NBA.RULES.bandHigh + ' and ' + NBA.RULES.bandMid + ' are the cut-offs); priority ' + c.priority], ['Your feedback', c.blocked ? c.blocked.tech : ''], ['Group', c.viaGroup ? 'ordered through ' + c.viaGroup.name + ' on ' + c.viaGroup.last + ' (' + c.viaGroup.recency + ' days ago); the group\'s orders count as activity for this branch, so lateness uses ' + c.viaGroup.recency + ' days, not ' + c.recency : ''],
+      acts([['pitch', 'What to say', 'pri full']]) +
+      '<div class="crow"><button data-do="why">' + ICON.why + '<span>Why</span></button><button data-do="file">' + ICON.file + '<span>File</span></button>' +
+      (NBA.reorderMessage(c, an, state.me) ? '<button data-do="wa">' + ICON.chat + '<span>Message</span></button>' : '') +
+      '<button data-do="cmore" aria-label="More actions">' + ICON.dots + '<span>More</span></button></div>' +
+      more('More detail', bands(c) + spark(c)) + '</div>' +
+      trail([['Tiles', 'last order ' + c.last + ' (shown in the order rhythm); usual order = average of ' + c.nOrders + ' orders; 12-month revenue = sales from ' + NBA.addDays(an.asOf, -364) + ' to ' + an.asOf, orders(c, 'orders')], ['Order rhythm', 'days since last order ' + c.recency + ' against median gap ' + Math.round(c.gapUsed) + ' (ratio ' + c.ratio.toFixed(2) + '); shaded band = due window ' + NBA.RULES.reorderWindow[0] + ' to ' + NBA.RULES.reorderWindow[1] + ' × gap'], ['Spend line', 'sales summed by calendar month, ' + c.months12[0].key + ' to ' + c.months12[11].key, orders(c, 'w365')], ['Confidence', c.nOrders + ' orders' + (c.rough ? ' (fewer than ' + NBA.RULES.roughOrders + ': rough guess)' : '')], ['Bands', 'close ' + c.close + ' → ' + c.closeBand + ', risk ' + c.churn + ' → ' + c.riskBand + ' (' + NBA.RULES.bandHigh + ' and ' + NBA.RULES.bandMid + ' are the cut-offs); priority ' + c.priority], ['Your feedback', c.blocked ? c.blocked.tech : ''], ['Group', c.viaGroup ? 'ordered through ' + c.viaGroup.name + ' on ' + c.viaGroup.last + ' (' + c.viaGroup.recency + ' days ago); the group\'s orders count as activity for this branch, so lateness uses ' + c.viaGroup.recency + ' days, not ' + c.recency : ''],
         ['Credit', c.credit ? 'from the ' + c.credit.src + ': hold ' + (c.credit.hold === true ? 'yes' : c.credit.hold === false ? 'no' : 'not given') + ', overdue ' + $$(c.credit.overdue || 0) + (c.collect ? ' → collect first, no sales push' : '') : ''],
         ['Festive period', c.festive ? c.festive.name + ' ended ' + c.festive.to + '; for ' + NBA.RULES.festiveAfterDays + ' days after, lateness counts ×' + NBA.RULES.festiveFactor : ''], ['Usual rhythm', c.gapsSkipped ? c.gapsSkipped + ' gaps across festive periods left out of the median' : '']].concat(scoreTrail(c)), true), 'wide');
   }
@@ -1111,6 +1119,7 @@
     else if (name === 'why') showWhy(cid);
     else if (name === 'note') { if (cid) noteSheet(cid); else customersSheet('Visit note for which customer?', noteSheet); }
     else if (name === 'deal') dealSheet(cid);
+    else if (name === 'cmore') cardMoreSheet(cid);
     else if (name === 'file') fileSheet(cid);
   }
   chat.addEventListener('click', function (e) {

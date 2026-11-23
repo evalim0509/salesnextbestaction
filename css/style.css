@@ -167,6 +167,11 @@ svg.spark { width: 100%; height: 54px; display: block; fill: none; }
 .sheet-foot .btn:not(.pri) { background: var(--card); box-shadow: 0 1px 6px rgba(45,80,130,.1); }
 .chead { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
 .plus { flex: none; width: 42px; height: 42px; border-radius: 50%; border: 0; background: var(--ink); color: #fff; font-size: 1.5rem; line-height: 1; font-weight: 400; display: grid; place-items: center; }
+.cmeta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin-top: 6px; } .cmeta .tag { margin: 0; } .cmeta .conf { margin: 0; display: inline; }
+.crow { display: flex; justify-content: space-around; gap: 4px; margin: 6px -4px 2px; }
+.crow button { flex: 1; min-height: 56px; border: 0; background: none; border-radius: 14px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: var(--ink); font-size: .76rem; font-weight: 600; }
+.crow button svg { width: 22px; height: 22px; fill: currentColor; }
+.crow button:active { background: var(--calm-bg); }
 .iconrow { display: flex; gap: 8px; margin-top: 8px; align-items: center; }
 .iconrow button { width: 46px; height: 46px; border-radius: 50%; border: 0; background: var(--calm-bg); display: grid; place-items: center; }
 .iconrow .done { width: auto; margin-left: auto; border-radius: 999px; padding: 0 18px 0 14px; display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: .9rem; background: var(--go-bg); color: #24420a; }
