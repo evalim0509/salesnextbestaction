@@ -5,7 +5,7 @@
   var $ = function (s, r) { return (r || document).querySelector(s); };
   var chat = $('#chat'), dock = $('#dock'), sheet = $('#sheet'), fileInput = $('#file');
   var state = blank(), an = null, dashSp = null, view = 'brief';
-  function blank() { return { me: null, tx: [], docs: [], notes: [], deals: [], visits: [], plans: {}, tuning: {}, tuneDismissed: {}, uploads: [], aliases: {}, keepApart: {}, feedback: [], swaps: [], holdout: {}, picks: [], areaPick: {}, credit: {}, targets: [], campaigns: [], files: [], settings: { currency: 'RM', voice: true, motion: true, lang: 'en', holdout: 0.2 } }; }
+  function blank() { return { me: null, tx: [], docs: [], notes: [], deals: [], visits: [], plans: {}, tuning: {}, tuneDismissed: {}, uploads: [], aliases: {}, keepApart: {}, feedback: [], swaps: [], holdout: {}, picks: [], seen: {}, areaPick: {}, credit: {}, targets: [], campaigns: [], files: [], settings: { currency: 'RM', voice: true, motion: true, lang: 'en', holdout: 0.2 } }; }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
   function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
   function cur() { return state.settings.currency; }
@@ -267,11 +267,11 @@
   function visitOf(cid) { return state.visits.filter(function (v) { return v.cid === cid && v.sp === state.me && v.date === an.asOf; })[0]; }
   function footHTML(cid) {
     var v = visitOf(cid);
-    if (!v) return '<button data-v="done">Mark visited</button><button data-v="skip">Skip today</button><span class="vlinks"><button data-v="swap">Swap</button><button data-v="wrong">Wrong, because…</button></span>';
+    if (!v) return '';
     var c = cust(cid), wa = v.status === 'done' && c && NBA.reorderMessage(c, an, state.me);
-    return '<span class="vstate ' + v.status + '">' + (v.status === 'done' ? '✓ Visited' : 'Skipped: ' + esc(v.reason)) + '</span><button data-v="undo">Undo</button>' + (wa ? '<span class="vlinks"><button data-v="wa">Send reorder message</button></span>' : '');
+    return '<span class="vstate ' + v.status + '">' + (v.status === 'done' ? '✓ Visited' : 'Skipped: ' + esc(v.reason)) + '</span>' + (wa ? '<button data-v="wa">Send reorder message</button>' : '') + '<button data-v="undo">Undo</button>';
   }
-  function refreshFoots(cid) { [].forEach.call(chat.querySelectorAll('.vfoot'), function (f) { if (f.dataset.visit === cid) f.innerHTML = footHTML(cid); }); }
+  function refreshFoots(cid) { [].forEach.call(chat.querySelectorAll('.vfoot'), function (f) { if (f.dataset.visit === cid) { f.innerHTML = footHTML(cid); var row = f.closest('.visit'); row.classList.toggle('marked', !!visitOf(cid)); closeRow(row); } }); }
   function markVisit(cid, status, reason, quiet) {
     state.visits = state.visits.filter(function (v) { return !(v.cid === cid && v.sp === state.me && v.date === an.asOf); });
     if (status) state.visits.push({ cid: cid, sp: state.me, date: an.asOf, status: status, reason: reason || '' });
@@ -380,15 +380,57 @@
     if (c.lost) return '<div class="bands"><div class="bandrow"><span>Status</span><b class="band low"><i aria-hidden="true">▼</i>Inactive</b></div></div>';
     return '<div class="bands"><div class="bandrow"><span>Chance to close</span>' + bandHTML('close', c.closeBand) + '</div><div class="bandrow"><span>Risk of leaving</span>' + bandHTML('risk', c.riskBand) + '</div></div>';
   }
+  // a slim row, like iPhone Mail: swipe right = visited, swipe left = Skip, Swap, Wrong; tap = the customer
+  function visitReason(c) {
+    if (c.collect) return 'Collect first: ' + $$(c.collect.amount) + ' overdue';
+    return c.nOrders >= 2 ? actionWord(c) + ', usually every ' + Math.round(c.gapUsed) + ' days' : actionWord(c);
+  }
   function visitCard(c, i) {
-    var b = document.createElement('div'); b.className = 'visit fade';
-    b.innerHTML = '<button class="vmain" data-cid="' + esc(c.cid) + '"><span class="n">' + (i + 1) + '</span><span><span class="name">' + esc(actionLine(c)) + '</span>' +
-      '<span class="why">' + esc(normalLine(c)) + '</span>' + toldLine(c) +
-      '<span class="vmeta">' + tag(c) + trendDot(c) + '</span>' + conf(c) + '</span>' +
-      '<span class="arrow"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-6-6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button>' +
+    var b = document.createElement('div'); b.className = 'visit fade' + (visitOf(c.cid) ? ' marked' : '');
+    b.innerHTML = '<div class="vback"><span class="vdone" aria-hidden="true">✓ Visited</span>' +
+      '<div class="vacts" data-visit="' + esc(c.cid) + '"><button data-v="skip">Skip today</button><button data-v="swap">Swap</button><button data-v="wrong">Wrong, because…</button></div></div>' +
+      '<button class="vmain" data-cid="' + esc(c.cid) + '"><span class="n">' + (i + 1) + '</span><span class="vtext"><span class="vtop"><span class="name">' + esc(c.name) + '</span>' + tag(c) + '</span>' +
+      '<span class="why">' + esc(visitReason(c)) + '</span>' + toldLine(c) + '</span></button>' +
       '<div class="vfoot" data-visit="' + esc(c.cid) + '">' + footHTML(c.cid) + '</div>';
-    enqueue(function () { return pause(260).then(function () { chat.appendChild(b); follow(); }); });
+    swipeable(b, c.cid);
+    enqueue(function () { return pause(260).then(function () { chat.appendChild(b); follow(); if (i === 0 && !(state.seen || {}).swipe && !still()) b.classList.add('peek'); }); });
     return b;
+  }
+  var ACTW = 228, ARM = 84;
+  function closeRow(row, keep) { if (!row || row === keep) return; row.classList.remove('open'); var m = row.querySelector('.vmain'); if (m) m.style.transform = ''; }
+  function closeRows(keep) { [].forEach.call(chat.querySelectorAll('.visit.open'), function (r) { closeRow(r, keep); }); }
+  function swipeable(row, cid) {
+    var m = row.querySelector('.vmain'), x0 = 0, y0 = 0, lock = null, off = 0, base = 0, armed = false, id = null;
+    function set(x) { off = x; m.style.transform = x ? 'translateX(' + x + 'px)' : ''; row.dataset.dir = x > 0 ? 'right' : x < 0 ? 'left' : ''; }
+    m.addEventListener('pointerdown', function (e) {
+      if (row.classList.contains('gone') || (e.pointerType === 'mouse' && e.button !== 0)) return;
+      row.classList.remove('peek'); id = e.pointerId; x0 = e.clientX; y0 = e.clientY; lock = null; base = row.classList.contains('open') ? -ACTW : 0; armed = false; row._moved = false;
+    });
+    m.addEventListener('pointermove', function (e) {
+      if (e.pointerId !== id) return; var dx = e.clientX - x0, dy = e.clientY - y0;
+      if (!lock && (Math.abs(dx) > 8 || Math.abs(dy) > 8)) { lock = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y'; if (lock === 'x') { try { m.setPointerCapture(id); } catch (er) {} row.classList.add('dragging'); closeRows(row); } }
+      if (lock !== 'x') return; row._moved = true;
+      var x = base + dx, marked = row.classList.contains('marked');
+      if (x > 0) x = marked ? 0 : (x > ARM ? ARM + (x - ARM) * 0.35 : x);
+      if (x < -ACTW) x = -ACTW - (-ACTW - x) * 0.25;
+      set(x); var a = x >= ARM; if (a !== armed) { armed = a; row.classList.toggle('arm', a); if (a && navigator.vibrate) navigator.vibrate(8); }
+    });
+    function end(e) {
+      if (e.pointerId !== id) return; id = null; row.classList.remove('dragging');
+      if (lock !== 'x') return; lock = null;
+      if (!state.seen) state.seen = {}; if (!state.seen.swipe) { state.seen.swipe = true; save(); [].forEach.call(chat.querySelectorAll('.swipehint'), function (h) { h.remove(); }); }
+      row.classList.remove('arm', 'peek');
+      if (off >= ARM && !row.classList.contains('marked')) { set(0); markVisit(cid, 'done'); return; }
+      if (off < -ACTW / 2) { row.classList.add('open'); set(-ACTW); } else { row.classList.remove('open'); set(0); }
+    }
+    m.addEventListener('pointerup', end); m.addEventListener('pointercancel', end);
+    // a swipe is not a tap; a tap on an open row closes it
+    m.addEventListener('click', function (e) {
+      if (row._moved) { e.preventDefault(); e.stopImmediatePropagation(); row._moved = false; return; }
+      if (row.classList.contains('open')) { e.preventDefault(); e.stopImmediatePropagation(); closeRow(row); off = 0; row.dataset.dir = ''; }
+    }, true);
+    // keyboard and screen readers: moving focus onto the hidden actions opens the row
+    row.querySelector('.vacts').addEventListener('focusin', function () { if (!row.classList.contains('open')) { closeRows(row); row.classList.add('open'); set(-ACTW); } });
   }
   // Morning brief: headline, target bar, tappable tiles, then the visits. Sentences sit behind the tiles.
   function brief() {
@@ -420,6 +462,7 @@
     var LA = NBA.lists(an, { area: state.areaPick[state.me + '|' + an.asOf] });
     bot((LA.area ? '<div class="areas"><span>Area</span>' + LA.areas.map(function (a) { return '<button class="chip" data-area="' + esc(a.name) + '" aria-pressed="' + (a.name === LA.area) + '">' + esc(a.name) + '</button>'; }).join('') + '</div>' : '') +
       '<p>These ' + P.length + ' are worth a visit today. Tap one for what to say.</p>' +
+      (!(state.seen || {}).swipe ? '<p class="small swipehint">Swipe right when visited. Swipe left to skip, swap or say it is wrong.</p>' : '') +
       trail([['Order', 'highest visit priority first; see “How I got this” above'], ['Area', LA.area ? 'today\'s visits come from one area: ' + LA.area + ' (total visit priority ' + LA.areas.filter(function (a) { return a.name === LA.area; })[0].total + ' across ' + LA.areas.filter(function (a) { return a.name === LA.area; })[0].n + ' eligible customers; the highest of ' + LA.areas.map(function (a) { return a.name + ' ' + a.total; }).join(', ') + ' unless you picked another)' : '']]));
     if (!P.length) { bot('<p>No active customers in the uploaded data.</p>' + trail([['Rule', 'a customer is active if they ordered within ' + NBA.RULES.lostDays + ' days or ' + NBA.RULES.lostRatio + ' times their usual gap']])); return; }
     P.forEach(visitCard);
@@ -614,7 +657,7 @@
   function showCustomer(cid, echo) {
     refresh(); var c = cust(cid); if (!c) return;
     if (echo !== false) said(c.name);
-    bot('<div data-cid="' + esc(c.cid) + '"><div class="chead"><div><h3>' + esc(c.name) + '</h3>' + tag(c) + conf(c) + '</div><button class="plus" data-do="note" aria-label="Add visit note">+</button></div>' +
+    bot('<div data-cid="' + esc(c.cid) + '"><div class="chead"><div><h3>' + esc(c.name) + '</h3>' + tag(c) + trendDot(c) + conf(c) + '</div><button class="plus" data-do="note" aria-label="Add visit note">+</button></div>' +
       blockedLine(c) + (toldLine(c) ? '<p>' + toldLine(c) + '</p>' : '') +
       (c.collect ? '<p class="blocked">On credit hold: ' + $$(c.collect.amount) + ' overdue. No sales push today.</p>' : '') +
       (c.viaGroup ? '<p class="small">Ordered through ' + esc(c.viaGroup.name) + ' on ' + NBA.shortDate(c.viaGroup.last) + '.</p>' : '') +
@@ -1077,7 +1120,7 @@
       [].forEach.call(msg.querySelectorAll('[data-tile]'), function (b) { b.setAttribute('aria-expanded', 'false'); }); [].forEach.call(msg.querySelectorAll('.tp'), function (x) { x.hidden = true; });
       if (!open) { tile.setAttribute('aria-expanded', 'true'); msg.querySelector('.tp[data-tp="' + tile.dataset.tile + '"]').hidden = false; follow(); } return; }
     var v = e.target.closest('[data-v]');
-    if (v) { var id = v.closest('.vfoot').dataset.visit, k = v.dataset.v; if (k === 'skip') skipSheet(id); else if (k === 'wa') waSheet(id); else if (k === 'swap') swapSheet(id); else if (k === 'wrong') wrongSheet(id); else markVisit(id, k === 'done' ? 'done' : null); return; }
+    if (v) { var id = v.closest('[data-visit]').dataset.visit, k = v.dataset.v; closeRows(); if (k === 'skip') skipSheet(id); else if (k === 'wa') waSheet(id); else if (k === 'swap') swapSheet(id); else if (k === 'wrong') wrongSheet(id); else markVisit(id, k === 'done' ? 'done' : null); return; }
     var d = e.target.closest('[data-do]');
     if (d) { var holder = d.closest('[data-cid]'); act(d.dataset.do, d.dataset.for || (holder && holder.dataset.cid)); return; }
     var c = e.target.closest('[data-cid]'); if (c && c.tagName === 'BUTTON') showCustomer(c.dataset.cid);

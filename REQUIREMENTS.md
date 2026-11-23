@@ -59,7 +59,7 @@ Status: Done = built and tested. Pilot limit = works within the limit described.
 | T5 | The confirmation is stored. While the latest upload is not confirmed, the brief shows "Figures not yet confirmed". | Done |
 | T6 | "Show me the orders": every fact and factor from sales data links, inside "How I got this", to the actual lines behind it (date, invoice, product, amount; at most 20, newest first): usual rhythm, last order, spending up or down, usual order size, category gap. | Done |
 | T7 | A quiet line on every screen: "Sales up to Mon 16 Nov (1 day old)", amber when older than 7 days. | Done |
-| T8 | Every customer shows "Based on N orders"; under 4 orders adds "rough guess, few orders". Customers with fewer than 2 orders are never in today's visits unless a note or document makes them a priority. | Done |
+| T8 | Every customer card shows "Based on N orders" (since 23 Nov 2026 not on the slim visit rows); under 4 orders adds "rough guess, few orders". Customers with fewer than 2 orders are never in today's visits unless a note or document makes them a priority. | Done |
 | T9 | Every recommendation's trail says what Nudge cannot see: "I don't see credit holds, stock, or contact outside Nudge." | Done |
 | T10 | "How Nudge decides" page in the menu: every rule in plain words with its points, generated from the rules the app runs plus approved changes, dated with the rules version, with a live "Same file, same answer" check. | Done |
 | T11 | Rules version stamp (currently 1.6, 17 Nov 2026). Every trail and export records the rules version, approved changes, data file names and date range. | Done |
@@ -69,11 +69,11 @@ Status: Done = built and tested. Pilot limit = works within the limit described.
 
 | ID | Requirement | Status |
 |---|---|---|
-| C1 | Suggestions say "worth a visit" or "worth a check", never "must". Visit cards lead with the action: "Visit Lakeside Mart today: 12 days late" (or "reorder due", "ready to buy"). | Done |
+| C1 | Suggestions say "worth a visit" or "worth a check", never "must". Visit rows show the customer name, the band and the reason in one line: "12 days late, usually every 30 days" (or "reorder due", "ready to buy", "Collect first: RM… overdue"). | Done |
 | C2 | Compare with the customer's normal: "Usually orders every 14 days, now 26." Ratios and points appear only in "How I got this". | Done |
 | C3 | Bands on rep screens instead of 0–100 scores: chance to close Likely / Maybe / Unlikely; risk of leaving At risk / Watch / Steady. Each band word carries a shape, never colour alone. | Done |
-| C4 | "Wrong, because…" on every visit card and customer card: shop closed, on credit hold, visited recently, not my customer, other. Closed or not mine: no suggestions until a new order. Credit hold: 30 days. Visited recently: the recently-contacted penalty. Confirmed in one line; the customer is replaced in today's visits; logged for the manager (Dashboard, weekly digest) and the Excel export. | Done |
-| C5 | Swap a visit: replace any of today's visits with a customer picked from the list, with a reason. Recorded as feedback, not as a skipped visit. | Done |
+| C4 | "Wrong, because…" on every visit row (swipe left) and customer card: shop closed, on credit hold, visited recently, not my customer, other. Closed or not mine: no suggestions until a new order. Credit hold: 30 days. Visited recently: the recently-contacted penalty. Confirmed in one line; the customer is replaced in today's visits; logged for the manager (Dashboard, weekly digest) and the Excel export. | Done |
+| C5 | Swap a visit (swipe left on the row): replace any of today's visits with a customer picked from the list, with a reason. Recorded as feedback, not as a skipped visit. | Done |
 | C6 | When a note changed a suggestion, the card says "You told me on Tue 3 Nov: budget approved". | Done |
 | C7 | The note screen says who can see notes. | Done |
 | C8 | Readability: currency RM by default (a setting); screen dates as "Tue 12 Nov" (technical dates stay in the trail); one number per tile and one sentence per card; every colour paired with a word or arrow; body text at least 16px; main buttons within thumb reach; checked on a 360px-wide screen. | Done |
@@ -105,14 +105,15 @@ Status: Done = built and tested. Pilot limit = works within the limit described.
 | B12 | End-of-day wrap-up ("Wrap up my day"): visits done, skipped and still open, deals closed today, notes saved and notes still missing, and tomorrow's likely visits. | Done |
 
 | B19 | Clean first glance: replies lead with visuals and a few words (tiles, score meters, target bar, order rhythm bar, 12-month spend line); sentences and explanations open on tap. | Done |
-| B20 | Morning brief layout: one headline, target bar, three tappable tiles (at risk, ready to buy, ending soon), collapsed "How to close the gap" and "Offers to use today", then the visit cards. | Done |
+| B20 | Morning brief layout: one headline, target bar, three tappable tiles (at risk, ready to buy, ending soon), collapsed "How to close the gap" and "Offers to use today", then the visit rows. | Done |
 | B21 | Customer card: a + button beside the name adds a visit note; only "What to say" and "Why this customer" are text buttons; customer file and export are icons; "Done" records a closed deal. | Done |
 | B22 | "What to say" shows short numbered titles; each opens to the full sentence and its source. "Why this customer" shows three meters and short factor names with points; each opens to the sentence and calculation. | Done |
 | B23 | Orb states are clearly visible: stronger colours and glow; a fast spin with a pulsing halo while thinking; violet with ripples while listening to a voice note; a green flash on a closed deal. | Done |
 | B24 | First-run welcome page: the Upload, Insights, Export steps are a small, quiet row. Not shown on Home once data is loaded (Upload is on the bottom bar, Export in the menu). | Done |
 | B25 | Menu wording: Export, Brief, Dashboard. No "use it like an app" section (the app can still be installed from the browser). | Done |
 
-| B26 | Each visit card carries a small coloured dot with an arrow and percentage: the customer's spend in the last 90 days against the 90 before (green up, red down, grey steady). | Done |
+| B27 | Today's visits are slim rows, like iPhone Mail: number, customer name, band, one-line reason, and "You told me…" when a note changed it. Swipe right past the line to mark visited (green, "✓ Visited"); swipe left to show Skip today, Swap and Wrong, because…; tap to open the customer. A marked row shows "✓ Visited" or "Skipped: reason", Undo and, after a visit, Send reorder message. Until the first swipe, the list shows "Swipe right when visited. Swipe left to skip, swap or say it is wrong." and the first row peeks left once (not when Motion is off). Keyboard and screen readers reach the hidden actions; focusing one opens the row. | Done |
+| B26 | Each customer card (moved from the visit rows on 23 Nov 2026) carries a small coloured dot with an arrow and percentage: the customer's spend in the last 90 days against the 90 before (green up, red down, grey steady). | Done |
 
 ### 3.4 Customer notes and pitch
 
@@ -294,3 +295,4 @@ Lists: "Likely to close" and "May churn" show customers scoring 50 or more. A cu
 | 17 Nov 2026 | Phase 4, field reality: area grouping with one-tap switch and "Also nearby"; credit hold and overdue ("Collect first") from columns or a Credit sheet; editable Malaysian festive periods (gaps left out of the rhythm, lateness halved for 14 days after); chains and branches; negation in notes in English and Malay; Malay and Manglish synonyms; WhatsApp reorder message through the share sheet. Sample data now has areas, a chain and a Credit sheet. Rules version 1.9. |
 | 23 Nov 2026 | Decluttering, step 1 (owner choice, WhatsApp style): the bottom bar is now one row; the scrolling row of shortcuts moved onto the Home screen as short buttons (Today's brief full width, the rest two per row). |
 | 23 Nov 2026 | Decluttering, step 2 (owner choice, minimal Home): orb 96px, greeting, target line and one "Today's brief" button; the other shortcuts are behind "More"; the track-record line now lives on the Dashboard only; the Upload/Insights/Export strip is only on the first-run welcome page. |
+| 23 Nov 2026 | Decluttering, step 3 (owner choice, iPhone Mail style): visit cards became slim swipe rows (about 92px instead of 300px). Swipe right = visited, swipe left = Skip, Swap, Wrong; tap = customer. "Based on N orders" and the spend trend dot now sit on the customer card only. One-time swipe hint and peek. |
