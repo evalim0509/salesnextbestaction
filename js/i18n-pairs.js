@@ -26,7 +26,7 @@
   ['{money} to go for your {m} target, a little behind pace', '{money} lagi untuk sasaran {m}, sedikit di belakang rentak'], ['{money} to go for your {m} target, and you are on pace', '{money} lagi untuk sasaran {m}, dan anda mengikut rentak'],
   ['You have hit your {m} target', 'Anda telah mencapai sasaran {m}'],
   // ---------------------------------------------------------------- dock and chips
-  ['Record a visit note', 'Rekod nota lawatan'], ['Upload files', 'Muat naik fail'], ['My customers', 'Pelanggan saya'], ['Today\'s brief', 'Taklimat hari ini'], ['Close my gap', 'Tutup jurang saya'],
+  ['Record a visit note', 'Rekod nota lawatan'], ['Upload files', 'Muat naik fail'], ['My customers', 'Pelanggan saya'], ['Today\'s brief', 'Taklimat hari ini'], ['Close my gap', 'Tutup jurang saya'], ['More', 'Lagi'],
   ['Likely to close', 'Berkemungkinan membeli'], ['May churn', 'Mungkin beralih'], ['My customers ({n})', 'Pelanggan saya ({n})'],
   // ---------------------------------------------------------------- brief
   ['{money} this year', '{money} tahun ini'], ['{p} on last year', '{p} berbanding tahun lalu'], ['▼ {p} on last year', '▼ {p} berbanding tahun lalu'], ['▲ {p} on last year', '▲ {p} berbanding tahun lalu'],

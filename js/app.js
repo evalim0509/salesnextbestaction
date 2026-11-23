@@ -204,9 +204,10 @@
     var status = ts.hasTarget ? (ts.gap > 0 ? $$(ts.gap) + ' to go for your ' + ts.month + ' target, ' + (ts.ahead ? 'and you are on pace' : 'a little behind pace') : 'You have hit your ' + ts.month + ' target') : '';
     var h = document.createElement('div'); h.className = 'hello fade';
     h.innerHTML = '<span class="ring big"><span class="orb"></span></span><h2>Hey ' + esc(first) + ', what can I do for you today?</h2>' + (status ? '<p class="status">' + status + '</p>' : '') +
-      scoreLine(learnFor(state.me), false) +
-      '<div class="steps"><button data-do="upload"><b>1</b>Upload</button><i></i><button data-do="brief"><b>2</b>Insights</button><i></i><button data-do="export"><b>3</b>Export</button></div>' +
-      acts([['brief', 'Today\'s brief', 'pri full']].concat(ts.hasTarget && ts.gap > 0 ? [['gap', 'Close my gap', '']] : []).concat([['close', 'Likely to close', ''], ['churn', 'May churn', ''], ['wrap', 'Wrap up my day', '']]));
+      acts([['brief', 'Today\'s brief', 'pri']]) +
+      '<details class="moreacts"><summary>More</summary>' + acts((ts.hasTarget && ts.gap > 0 ? [['gap', 'Close my gap', '']] : []).concat([['close', 'Likely to close', ''], ['churn', 'May churn', ''], ['wrap', 'Wrap up my day', '']])) + '</details>';
+    // opening "More" scrolls the extra shortcuts clear of the bottom bar
+    var md = h.querySelector('.moreacts'); md.addEventListener('toggle', function () { if (md.open) chat.scrollTo({ top: chat.scrollHeight, behavior: still() ? 'auto' : 'smooth' }); });
     Q.then(function () { chat.appendChild(h); chat.scrollTop = 0; });
   }
   // "Last 8 weeks: customers I marked Likely ordered within 14 days X% of the time. All your customers: Y%."
