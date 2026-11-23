@@ -206,7 +206,7 @@
     h.innerHTML = '<span class="ring big"><span class="orb"></span></span><h2>Hey ' + esc(first) + ', what can I do for you today?</h2>' + (status ? '<p class="status">' + status + '</p>' : '') +
       scoreLine(learnFor(state.me), false) +
       '<div class="steps"><button data-do="upload"><b>1</b>Upload</button><i></i><button data-do="brief"><b>2</b>Insights</button><i></i><button data-do="export"><b>3</b>Export</button></div>' +
-      acts([['brief', 'Give me today\'s brief', 'pri']].concat(ts.hasTarget && ts.gap > 0 ? [['gap', 'How do I close my target gap?', '']] : []).concat([['close', 'Who is likely to close?', ''], ['churn', 'Who may churn?', ''], ['wrap', 'Wrap up my day', '']]));
+      acts([['brief', 'Today\'s brief', 'pri full']].concat(ts.hasTarget && ts.gap > 0 ? [['gap', 'Close my gap', '']] : []).concat([['close', 'Likely to close', ''], ['churn', 'May churn', ''], ['wrap', 'Wrap up my day', '']]));
     Q.then(function () { chat.appendChild(h); chat.scrollTop = 0; });
   }
   // "Last 8 weeks: customers I marked Likely ordered within 14 days X% of the time. All your customers: Y%."
