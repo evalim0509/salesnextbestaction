@@ -583,6 +583,50 @@
   }
   // ---- manager brief on the Revenue tab: same typed style as the chat
   var dashRun = 0;
+  // Dashboard, Apple Health "Summary" style: the headline and 4 tiles, then one row per section with its key number.
+  // Each row opens that section on its own page with a Back button. Nothing is removed, only moved one tap away.
+  var dashSec = null;
+  function dashSummary(el, m, D, Lr) {
+    var d = NBA.dashboard(state, { sp: dashSp }), ts = m.target, vs = NBA.visitStats(state, d.asOf, dashSp || null);
+    var tp = (dashSp ? [dashSp] : NBA.salespeople(state)).map(function (n) { return NBA.targetStatus(state, n); }).filter(function (t) { return t.hasTarget; });
+    var likely = Lr.samples && Lr.bands.Likely.n ? Math.round(Lr.bands.Likely.rate * 100) : null;
+    var tl = [['This year', $$(d.ytd.cur), d.hasPrev ? (d.ytd.inc >= 0 ? '▲ ' : '▼ ') + NBA.pct(d.ytd.pct).replace(/^[+-]/, '') + ' on last year' : ''],
+      ts.hasTarget ? [ts.month + ' target', Math.round(100 * ts.mtd / ts.target) + '%', ts.gap > 0 ? $$(ts.gap) + ' to go' : 'Target reached'] : [d.month.label + ' to date', $$(d.month.cur), ''],
+      ['At risk', String(m.atRisk.n), m.atRisk.n ? $$(m.atRisk.value) + ' a year' : 'accounts'],
+      likely != null ? ['Likely ordered', likely + '%', 'all customers ' + Math.round(Lr.base * 100) + '%'] : ['Deals', String(d.deals.length), 'in the app']];
+    var sum = document.createElement('div'); sum.className = 'panel dsum';
+    sum.innerHTML = tiles(tl).replace('class="tiles"', 'class="tiles two"') +
+      trail([['This year', 'sales from 1 January to ' + d.asOf + (d.hasPrev ? ' against the same dates last year' : '') + ', uploaded rows plus deals logged in the app'],
+        ['Target', ts.hasTarget ? ts.tech : ''], ['At risk', 'customers with a risk score of ' + NBA.RULES.listThreshold + ' or more; value = their sales in the last 12 months'],
+        ['Likely ordered', likely != null ? 'share of customers marked Likely in the last ' + Lr.weeks + ' weeks who ordered within ' + Lr.days + ' days, against all active customers' : '']]);
+    var rows = [['week', 'This week', D.tiles[0] ? D.tiles[0].value : ''],
+      ['target', tp.length ? tp[0].month + ' target' : '', tp.length ? tp.filter(function (t) { return t.ahead || t.gap <= 0; }).length + ' of ' + tp.length + ' on pace' : ''],
+      ['rev', 'Revenue by month', $$(d.month.cur) + ' in ' + d.month.label],
+      ['growth', 'Growth by salesperson', d.hasPrev ? NBA.pct(d.ytd.pct) : ''],
+      ['learn', 'Is Nudge getting it right?', likely != null ? likely + '%' : ''],
+      ['fb', 'Feedback from reps', ''],
+      ['visits', 'Visit plans', vs.today.planned ? vs.today.done + ' of ' + vs.today.planned + ' today' : ''],
+      ['deals', 'Deals in the app', String(d.deals.length)]];
+    var list = document.createElement('div'); list.className = 'glist dlist';
+    list.innerHTML = rows.filter(function (r) { return el.querySelector('[data-sec="' + r[0] + '"]'); }).map(function (r) {
+      var p = el.querySelector('[data-sec="' + r[0] + '"]'), h = p.querySelector('h3');
+      return grow('data-sec-go="' + r[0] + '"', esc(r[1] || (h ? h.textContent : r[0])), esc(r[2] || (r[0] === 'fb' ? String((h.textContent.match(/\((\d+)\)/) || [0, ''])[1]) : '')));
+    }).join('');
+    var head = el.querySelector('.mbrief');
+    head.after(sum); sum.after(list);
+    var back = document.createElement('button'); back.className = 'dback'; back.innerHTML = '<span aria-hidden="true">‹</span> Summary'; el.insertBefore(back, el.firstChild);
+    var top = 0;
+    function open(k) {
+      var on = el.querySelectorAll('[data-sec="' + k + '"]'); if (!on.length) { dashSec = null; return; }
+      top = el.scrollTop; dashSec = k; el.classList.add('insec');
+      [].forEach.call(el.querySelectorAll('[data-sec]'), function (p) { p.classList.toggle('on', p.dataset.sec === k); });
+      el.scrollTop = 0;
+    }
+    function close() { dashSec = null; el.classList.remove('insec'); el.scrollTop = top; }
+    list.addEventListener('click', function (e) { var b = e.target.closest('[data-sec-go]'); if (b) open(b.dataset.secGo); });
+    back.addEventListener('click', close);
+    if (dashSec) open(dashSec);
+  }
   function showDash() {
     var el = $('#view-dash'), run = ++dashRun; window.NBADash.render(el, state, dashSp);
     if (!state.tx.length) return;
@@ -590,13 +634,13 @@
     card.innerHTML = '<div class="typing"><span class="orb xs"></span><span class="dots"><i></i><i></i><i></i></span></div>';
     el.insertBefore(card, el.firstChild);
     // this week, at a glance
-    var D = NBA.weeklyDigest(state, dashSp), wk = document.createElement('div'); wk.className = 'panel digest';
+    var D = NBA.weeklyDigest(state, dashSp), wk = document.createElement('div'); wk.className = 'panel digest'; wk.dataset.sec = 'week';
     wk.innerHTML = '<div class="row"><h3>This week</h3><button class="linkbtn" data-act="digest">Export</button></div><p class="small">' + esc(D.period) + '</p>' +
       '<div class="tiles two">' + D.tiles.map(function (t) { return '<div class="tile"><small>' + esc(t.label) + '</small><b>' + esc(t.value) + '</b><span class="' + (t.dir === 'up' ? 'delta up' : t.dir === 'down' ? 'delta down' : '') + '">' + (t.dir === 'up' ? '▲ ' : t.dir === 'down' ? '▼ ' : '') + esc(t.sub) + '</span></div>'; }).join('') + '</div>' +
       D.sections.map(function (s) { return more(s.heading, '<ul>' + s.bullets.map(function (b) { return '<li>' + esc(b) + '</li>'; }).join('') + '</ul>'); }).join('') + trail(D.audit);
     el.insertBefore(wk, card.nextSibling);
     // track record: is Nudge getting it right, against simple alternatives, a holdout and people's own picks
-    var Lr = NBA.learning(state, dashSp), lp = document.createElement('div'); lp.className = 'panel learn';
+    var Lr = NBA.learning(state, dashSp), lp = document.createElement('div'); lp.className = 'panel learn'; lp.dataset.sec = 'learn';
     if (Lr.samples) {
       var props = Lr.factors.filter(function (f) { return f.step && !f.dismissed; }), Hr = NBA.holdoutResult(state, dashSp), Pk = NBA.pickScore(state, dashSp), bl = Lr.baselines;
       function pc(x) { return Math.round(x * 100); }
@@ -637,12 +681,13 @@
       .concat((state.swaps || []).filter(function (x) { return !dashSp || x.sp === dashSp; }).map(function (x) { return { ts: x.ts, sp: x.sp, text: 'Swapped ' + x.outName + ' for ' + x.inName + ' (' + label(SWAPWHY, x.reason).toLowerCase() + ')' }; }))
       .sort(function (a, b) { return a.ts < b.ts ? 1 : -1; });
     if (fbl.length) {
-      var fp = document.createElement('div'); fp.className = 'panel';
+      var fp = document.createElement('div'); fp.className = 'panel'; fp.dataset.sec = 'fb';
       fp.innerHTML = '<h3>Feedback from reps (' + fbl.length + ')</h3><ul class="facts">' + fbl.slice(0, 8).map(function (x) { return '<li><b>' + NBA.shortDate(x.ts.slice(0, 10)) + ', ' + esc(x.sp) + '</b>' + esc(x.text) + '</li>'; }).join('') + '</ul>' +
         (fbl.length > 8 ? more('Show all ' + fbl.length, '<ul>' + fbl.slice(8).map(function (x) { return '<li>' + NBA.shortDate(x.ts.slice(0, 10)) + ', ' + esc(x.sp) + ': ' + esc(x.text) + '</li>'; }).join('') + '</ul>') : '') +
         trail([['Source', '“Wrong, because…” taps and visit swaps saved on this phone; also in the Excel portfolio export']]);
       (lp.parentNode ? lp : wk).after(fp);
     }
+    dashSummary(el, m, D, Lr);
     card.addEventListener('pointerdown', function () { fast = true; skippers.splice(0).forEach(function (f) { f(); }); });
     pause(900).then(function () {
       if (run !== dashRun) return;

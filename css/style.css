@@ -259,7 +259,17 @@ details.audit[open] { margin-top: 10px; border-top: 1px solid var(--line); paddi
 details.audit[open] summary { padding: 2px 0 4px; color: var(--ink-2); }
 /* keep the last line of text clear of the (i); replies that end in buttons or tiles get a little room underneath */
 :is(p, h3):has(+ details.audit:not([open])), ul:has(+ details.audit:not([open])) > li:last-child { padding-right: 30px; }
-.msg:has(details.audit:not([open])):not(:has(:is(p, ul, h3) + details.audit)) { padding-bottom: 38px; }
+:is(.msg, .panel):has(> details.audit:not([open])):not(:has(> :is(p, ul, h3) + details.audit)) { padding-bottom: 38px; }
+.panel:has(> details.audit) { position: relative; }
+/* dashboard summary: tiles, then one row per section; a section opens on its own page */
+.dsum .tiles { margin: 0; } .dsum .tile b, .dsum .tile span, .dsum .tile small { white-space: normal; overflow-wrap: anywhere; }
+.dlist { margin-top: 12px; }
+.dash > [data-sec] { display: none; }
+.dash.insec > [data-sec].on { display: block; } .dash.insec > .kpis[data-sec].on { display: grid; }
+.dash.insec > :not([data-sec]):not(.dback) { display: none; }
+.dback { display: none; align-items: center; gap: 4px; border: 0; background: none; padding: 10px 2px 2px; font-size: 1rem; font-weight: 650; color: var(--ink); }
+.dback span { font-size: 1.6rem; line-height: 1; margin-top: -3px; }
+.dash.insec > .dback { display: inline-flex; }
 .score { display: flex; justify-content: space-between; font-weight: 700; margin: 12px 0 4px; }
 .factor { display: grid; grid-template-columns: 44px 1fr; gap: 8px; padding: 8px 0; border-top: 1px dashed var(--line); font-size: .84rem; }
 .factor.nopts { grid-template-columns: 1fr; }

@@ -1092,6 +1092,7 @@
       if (t.length) out.points.push({ kind: 'people', label: 'Who needs help', text: t.join(' ') });
     }
     var risks = an.customers.filter(function (c) { return !c.lost && c.churn >= RULES.listThreshold; }).sort(function (a, b) { return b.rev12 - a.rev12; });
+    out.atRisk = { n: risks.length, value: sum(risks, function (c) { return c.rev12; }) };
     out.points.push({ kind: 'risk', label: 'Accounts at risk', text: risks.length
       ? risks.length + (risks.length === 1 ? ' account' : ' accounts') + ' worth ' + money(sum(risks, function (c) { return c.rev12; }), cur) + ' a year ' + (risks.length === 1 ? 'shows' : 'show') + ' signs of leaving. The biggest: ' +
         joinNames(risks.slice(0, 3).map(function (c) { return c.name + ' (' + money(c.rev12, cur) + (sp ? '' : ', ' + c.sp.split(' ')[0]) + ')'; })) + '.'
