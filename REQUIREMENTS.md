@@ -99,7 +99,7 @@ Status: Done = built and tested. Pilot limit = works within the limit described.
 | B3 | Suggest the top 3 customers to visit each day, with reasons in plain English. | Done |
 | B4 | Show which customers are likely to close a deal. | Done |
 | B5 | Show which customers may churn. | Done |
-| B6 | Every response has an audit trail, "How I got this", as a small link under the reply: the numbers used, the rule and the source. This covers the brief, offers, visit list, lists, customer card, pitch, gap, notes, deals, wrap-up, uploads, exports and the manager brief. | Done |
+| B6 | Every response has an audit trail, "How I got this", shown as a small ⓘ in the reply's bottom-right corner (since 23 Nov 2026; tap target 36px, named "How I got this" for screen readers; the last line of text keeps clear of it). Tapping it opens the details under the reply: the numbers used, the rule and the source. This covers the brief, offers, visit list, lists, customer card, pitch, gap, notes, deals, wrap-up, uploads, exports and the manager brief. | Done |
 | B7 | No complicated report layouts for the salesperson. | Done |
 
 | B11 | Today's 3 visits are a fixed plan for the day. Each can be marked visited, or skipped with a reason picked from a list. Saving a note or deal for a planned customer marks it visited. A new sales upload refreshes a plan nobody has started. | Done |
@@ -300,3 +300,4 @@ Lists: "Likely to close" and "May churn" show customers scoring 50 or more. A cu
 | 23 Nov 2026 | Decluttering, step 4 (owner choice, Apple Contacts style): customer card from about 700px to about 490px, fits one screen. Duplicates removed (band shown once, last order only in the rhythm bar, spend trend on the 12-month tile). One main button; Why, File, Message, More as labelled icons; Deal closed, Export one-pager and Wrong, because… under More; bands and spend line under "More detail". |
 | 23 Nov 2026 | Decluttering, step 5 (owner choice, visits first): the brief is one bubble. Greeting and target bar, area chips, then the 3 visit rows as a grouped list; the 3 tiles became small pills under the visits; year total, gap and offers in one "More about today" fold; one "How I got this" instead of two. |
 | 23 Nov 2026 | Decluttering, step 6 (owner choice, one slim row): header from 89px to about 56px; "Nudge" title hidden (screen readers only); the data date moved under the salesperson's name and shortened to "Sales to Sun 22 Nov". Data is now flagged amber after 3 days instead of 7 (`RULES.dataAgeWarn` 3). Rules version 2.0. |
+| 23 Nov 2026 | Decluttering, step 7 (owner choice, Apple info button): "How I got this" is now a small ⓘ in each reply's bottom-right corner instead of a divider line and link; it opens the same details. Every reply still has one. |

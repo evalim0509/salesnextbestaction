@@ -137,7 +137,8 @@
     rows = rows.filter(function (r) { return r && r[1]; });
     if (rec) rows.push(['Blind spots', NBA.blindSpots(state)]);
     rows.push(['Version', NBA.stamp(state)]);
-    return '<details class="audit"><summary>How I got this</summary>' + rows.map(function (r) { return '<div class="factor nopts"><span>' + esc(r[0]) + '<code>' + esc(r[1]) + '</code>' + (r[2] || '') + '</span></div>'; }).join('') + '</details>';
+    // shown as a small (i) in the reply's bottom-right corner; the words appear when it is opened
+    return '<details class="audit"><summary aria-label="How I got this"><i class="ai" aria-hidden="true">i</i><span class="tl">How I got this</span></summary>' + rows.map(function (r) { return '<div class="factor nopts"><span>' + esc(r[0]) + '<code>' + esc(r[1]) + '</code>' + (r[2] || '') + '</span></div>'; }).join('') + '</details>';
   }
   // "Show me the orders": the actual sales lines behind a fact, at most 20, newest first
   function orders(c, key) {

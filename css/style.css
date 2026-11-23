@@ -248,8 +248,18 @@ details.fx code { font-family: ui-monospace, Menlo, Consolas, monospace; font-si
 .rowlist button .tag { margin: 0; flex: none; }
 .rowlist button .sub { display: block; font-weight: 400; font-size: .97rem; color: var(--ink-3); }
 
-details.audit { margin-top: 10px; border-top: 1px solid var(--line); padding-top: 8px; }
-details.audit summary { font-weight: 600; font-size: .8rem; color: var(--ink-3); padding: 4px 0; cursor: pointer; }
+/* "How I got this": a small (i) in the bottom-right corner of the reply, like Apple's info button */
+details.audit summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: .8rem; color: var(--ink-3); }
+details.audit summary::-webkit-details-marker { display: none; }
+details.audit .ai { width: 22px; height: 22px; border-radius: 50%; border: 1.6px solid currentColor; display: grid; place-items: center; font: italic 700 .8rem/1 Georgia, 'Times New Roman', serif; flex: none; }
+details.audit:not([open]) { position: absolute; right: 6px; bottom: 4px; margin: 0; }
+details.audit:not([open]) summary { width: 36px; height: 36px; justify-content: center; }
+details.audit:not([open]) .tl { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+details.audit[open] { margin-top: 10px; border-top: 1px solid var(--line); padding-top: 8px; }
+details.audit[open] summary { padding: 2px 0 4px; color: var(--ink-2); }
+/* keep the last line of text clear of the (i); replies that end in buttons or tiles get a little room underneath */
+:is(p, h3):has(+ details.audit:not([open])), ul:has(+ details.audit:not([open])) > li:last-child { padding-right: 30px; }
+.msg:has(details.audit:not([open])):not(:has(:is(p, ul, h3) + details.audit)) { padding-bottom: 38px; }
 .score { display: flex; justify-content: space-between; font-weight: 700; margin: 12px 0 4px; }
 .factor { display: grid; grid-template-columns: 44px 1fr; gap: 8px; padding: 8px 0; border-top: 1px dashed var(--line); font-size: .84rem; }
 .factor.nopts { grid-template-columns: 1fr; }
