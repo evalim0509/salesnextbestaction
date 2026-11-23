@@ -76,7 +76,11 @@
   }
   function hurry() { if (!pending) return; fast = true; skippers.splice(0).forEach(function (f) { f(); }); }
   // keep the newest words in view, but never push the start of the reply off the top
+  // while a finger is on the chat (and for the tap that follows) the chat never scrolls on its own,
+  // so a button the rep is tapping cannot move away when the rest of a reply appears
+  var held = false, heldTimer = null;
   function follow() {
+    if (held) return;
     var target = chat.scrollHeight - chat.clientHeight;
     if (turnStart && turnStart.parentNode) target = Math.min(target, turnStart.offsetTop - 8);
     if (target > chat.scrollTop) chat.scrollTop = target;
@@ -1206,7 +1210,8 @@
     if (d) { var holder = d.closest('[data-cid]'); act(d.dataset.do, d.dataset.for || (holder && holder.dataset.cid)); return; }
     var c = e.target.closest('[data-cid]'); if (c && c.tagName === 'BUTTON') showCustomer(c.dataset.cid);
   });
-  chat.addEventListener('pointerdown', hurry);
+  chat.addEventListener('pointerdown', function () { clearTimeout(heldTimer); held = true; hurry(); });
+  ['pointerup', 'pointercancel'].forEach(function (t) { document.addEventListener(t, function () { if (held) { clearTimeout(heldTimer); heldTimer = setTimeout(function () { held = false; }, 350); } }, true); });
   document.addEventListener('click', function (e) { var b = e.target.closest('[data-act]'); if (b) act(b.dataset.act); });
   $('#who').addEventListener('click', function (e) { e.stopPropagation(); whoMenu($('#who-menu').hidden); });
   document.addEventListener('click', function () { whoMenu(false); });
