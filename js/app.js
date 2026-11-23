@@ -193,7 +193,7 @@
 
   // ------------------------------------------------------------ flows
   function welcome() {
-    hurry(); chat.innerHTML = ''; dock.hidden = true; $('#who').hidden = true;
+    hurry(); view = 'brief'; $('#view-brief').hidden = false; $('#view-dash').hidden = true; chat.innerHTML = ''; dock.hidden = true; $('#who').hidden = true;
     var h = document.createElement('div'); h.className = 'hello fade';
     h.innerHTML = '<span class="orb"></span><h2>' + greeting() + '. Shall we plan your day?</h2><div class="steps"><button data-do="upload"><b>1</b>Upload</button><i></i><button disabled><b>2</b>Insights</button><i></i><button disabled><b>3</b>Export</button></div><p>Upload your sales file and I will tell you who to visit, who is ready to buy and what to say.</p>' +
       acts([['upload', 'Upload my files', 'pri'], ['sample', 'Try with sample data', '']]) +
@@ -705,8 +705,9 @@
   }
 
   // ------------------------------------------------------------ bottom sheet
-  function openSheet(title, bodyHTML, footHTML) {
+  function openSheet(title, bodyHTML, footHTML, back) {
     $('#sheet-title').textContent = title; $('#sheet-body').innerHTML = bodyHTML; $('#sheet-foot').innerHTML = footHTML || '';
+    var bk = $('#sheet-back'); bk.hidden = !back; bk.onclick = back || null;
     sheet.hidden = false; $('#sheet-body').scrollTop = 0;
   }
   var onClose = null;
@@ -920,40 +921,61 @@
       '<div class="rowlist" style="margin:0">' + list.map(row).join('') + '</div>');
     $('#sheet-body').onclick = function (e) { var b = e.target.closest('[data-cid]'); if (b) { closeSheet(); if (cb) cb(b.dataset.cid); else showCustomer(b.dataset.cid); } };
   }
+  // ⋯ menu, iPhone Settings style: a short grouped list; the settings live on their own page,
+  // each row shows its current value, and a choice opens a small list with a tick
+  function glist(rows) { return '<div class="glist">' + rows.join('') + '</div>'; }
+  function grow(attr, label, val, chev) { return '<button ' + attr + '><span>' + label + '</span><span class="val">' + (val || '') + (chev === false ? '' : '<i class="chev" aria-hidden="true">›</i>') + '</span></button>'; }
+  function gswitch(key, label, on) { return '<div class="gsw"><span id="sw-' + key + '">' + label + '</span><button class="sw" role="switch" data-sw="' + key + '" aria-checked="' + !!on + '" aria-labelledby="sw-' + key + '"></button></div>'; }
+  var CURRENCIES = ['RM', 'S$', '$', '€', '£', '₹', 'Rp', '¥'], LANGS = [['en', 'English'], ['ms', 'Bahasa Melayu']], HOLDS = [['0', '0%'], ['0.1', '10%'], ['0.2', '20%'], ['0.3', '30%']];
   function moreSheet() {
-    var cs = ['RM', 'S$', '$', '€', '£', '₹', 'Rp', '¥'];
-    var when = NBA.asOfDate(state), nCust = {}; state.tx.forEach(function (t) { nCust[t.cid] = 1; });
     openSheet('Menu',
-      '<div class="rowlist" style="margin:0 0 6px"><button data-act="export"><span>Export</span></button><button data-act="rules"><span>How Nudge decides</span></button><button data-act="tab-brief"><span>Brief</span>' + (view === 'brief' ? '<span class="tag">Open</span>' : '') + '</button><button data-act="tab-dash"><span>Dashboard</span>' + (view === 'dash' ? '<span class="tag">Open</span>' : '') + '</button></div>' +
-      '<div class="group">On this phone</div><p class="small" style="margin:0 0 8px">' + state.tx.length.toLocaleString() + ' sales rows for ' + Object.keys(nCust).length + ' customers, up to ' + (when.dataTo ? NBA.shortDate(when.dataTo) : 'n/a') + '. ' +
-      state.targets.length + ' monthly targets. ' + state.campaigns.length + ' campaigns. ' + state.docs.length + ' document' + (state.docs.length === 1 ? '' : 's') + (state.docs.length ? ' (' + state.docs.map(function (d) { return esc(d.name); }).join(', ') + ')' : '') + '. ' + state.notes.length + ' visit notes. ' + state.deals.length + ' deals logged.</p>' +
-      '<div class="rowlist"><button data-m="zip">Download all my customer files (.zip)</button><button data-m="sample">Load sample data</button></div>' +
-      '<div class="group">Currency</div><div id="cur">' + chipsHTML(cs.map(function (x) { return [x, x]; }), [cur()]) + '</div>' +
-      '<div class="group">Voice notes</div><div id="voice">' + chipsHTML([['on', 'On'], ['off', 'Off']], [state.settings.voice ? 'on' : 'off']) + '</div>' +
-      '<div class="group">Language</div><div id="lang">' + chipsHTML([['en', 'English'], ['ms', 'Bahasa Melayu']], [state.settings.lang === 'ms' ? 'ms' : 'en']) + '</div>' +
-      '<div class="group">Festive periods</div><div class="rowlist" style="margin:0"><button data-act="festive"><span>Edit festive periods<span class="sub">' + NBA.holidays(state).length + ' periods</span></span></button></div>' +
-      '<div class="group">Holdout (measuring Nudge)</div><div id="hold">' + chipsHTML([['0', '0%'], ['0.1', '10%'], ['0.2', '20%'], ['0.3', '30%']], [String(state.settings.holdout || 0)]) + '</div>' +
-      '<div class="group">Motion</div><div id="motion">' + chipsHTML([['on', 'On'], ['off', 'Off']], [state.settings.motion === false ? 'off' : 'on']) + '</div>' +
-      '<div class="group">Start over</div><button class="btn danger" data-m="wipe" style="width:100%">Erase everything on this phone</button>');
+      glist([grow('data-act="tab-brief"', 'Brief', view === 'brief' ? '<span class="tag">Open</span>' : '', view !== 'brief'), grow('data-act="tab-dash"', 'Dashboard', view === 'dash' ? '<span class="tag">Open</span>' : '', view !== 'dash')]) +
+      glist([grow('data-act="export"', 'Export'), grow('data-act="rules"', 'How Nudge decides')]) +
+      glist([grow('data-m="settings"', 'Settings')]));
+    $('#sheet-body').onclick = function (e) { var b = e.target.closest('[data-m]'); if (b && b.dataset.m === 'settings') settingsSheet(); };
+  }
+  function settingsSheet() {
+    var hold = String(state.settings.holdout || 0);
+    openSheet('Settings',
+      glist([grow('data-m="cur"', 'Currency', esc(cur())), grow('data-m="lang"', 'Language', label(LANGS, state.settings.lang === 'ms' ? 'ms' : 'en'))]) +
+      glist([gswitch('voice', 'Voice notes', state.settings.voice !== false), gswitch('motion', 'Motion', state.settings.motion !== false)]) +
+      glist([grow('data-act="festive"', 'Festive periods', NBA.holidays(state).length + ' periods'), grow('data-m="hold"', 'Holdout', label(HOLDS, hold) || hold)]) +
+      '<p class="gf">Holdout: the share of eligible customers held back each day, so the revenue Nudge helps add can be measured.</p>' +
+      glist([grow('data-m="data"', 'My data', state.tx.length.toLocaleString() + ' rows')]) +
+      glist(['<button class="gdanger" data-m="wipe">Erase everything on this phone</button>']), '', moreSheet);
     $('#sheet-body').onclick = function (e) {
-      var ch = e.target.closest('.chip'), b = e.target.closest('[data-m]');
-      if (ch) {
-        [].forEach.call(ch.parentNode.children, function (x) { x.setAttribute('aria-pressed', 'false'); }); ch.setAttribute('aria-pressed', 'true');
-        if (ch.closest('#cur')) state.settings.currency = ch.dataset.k;
-        else if (ch.closest('#motion')) { state.settings.motion = ch.dataset.k === 'on'; applyMotion(); }
-        else if (ch.closest('#hold')) { state.settings.holdout = +ch.dataset.k; }
-        else if (ch.closest('#lang')) { if (state.settings.lang !== ch.dataset.k) { state.settings.lang = ch.dataset.k; save().then(function () { location.reload(); }); } return; }
-        else state.settings.voice = ch.dataset.k === 'on';
-        save(); return;
-      }
-      if (!b) return;
-      var m = b.dataset.m;
-      if (m === 'zip') { closeSheet(); downloadAll(); }
-      if (m === 'sample') { closeSheet(); loadSample(); }
-      if (m === 'wipe') {
+      var s = e.target.closest('[data-sw]');
+      if (s) { var on = s.getAttribute('aria-checked') !== 'true'; s.setAttribute('aria-checked', on);
+        if (s.dataset.sw === 'motion') { state.settings.motion = on; applyMotion(); } else state.settings.voice = on;
+        save(); return; }
+      var b = e.target.closest('[data-m]'); if (!b) return; var m = b.dataset.m;
+      if (m === 'cur') pickSheet2('Currency', 'cur', CURRENCIES.map(function (x) { return [x, x]; }), cur(), function (k) { state.settings.currency = k; save(); settingsSheet(); });
+      else if (m === 'lang') pickSheet2('Language', 'lang', LANGS, state.settings.lang === 'ms' ? 'ms' : 'en', function (k) { if (state.settings.lang !== k) { state.settings.lang = k; save().then(function () { location.reload(); }); } else settingsSheet(); });
+      else if (m === 'hold') pickSheet2('Holdout', 'hold', HOLDS, hold, function (k) { state.settings.holdout = +k; save(); settingsSheet(); });
+      else if (m === 'data') dataSheet();
+      else if (m === 'wipe') {
         if (b.dataset.sure) { state = blank(); an = null; dashSp = null; save(); closeSheet(); welcome(); }
         else { b.dataset.sure = 1; b.textContent = 'Tap again to erase all data, notes and deals'; }
       }
+    };
+  }
+  // a list of choices with a tick on the current one; tapping a row chooses it and goes back
+  function pickSheet2(title, id, items, sel, done) {
+    openSheet(title, '<div class="glist" id="' + id + '">' + items.map(function (k) { return '<button data-k="' + esc(k[0]) + '" aria-pressed="' + (k[0] === sel) + '"><span>' + esc(k[1]) + '</span>' + (k[0] === sel ? '<i class="tick" aria-hidden="true">✓</i>' : '') + '</button>'; }).join('') + '</div>', '', settingsSheet);
+    $('#sheet-body').onclick = function (e) { var b = e.target.closest('[data-k]'); if (b) done(b.dataset.k); };
+  }
+  function dataSheet() {
+    var when = NBA.asOfDate(state), nCust = {}; state.tx.forEach(function (t) { nCust[t.cid] = 1; });
+    function row(l, v) { return '<div class="gsw"><span>' + l + '</span><span class="val">' + v + '</span></div>'; }
+    openSheet('My data',
+      glist([row('Sales rows', state.tx.length.toLocaleString()), row('Customers', Object.keys(nCust).length), row('Data up to', when.dataTo ? NBA.shortDate(when.dataTo) : 'n/a'),
+        row('Monthly targets', state.targets.length), row('Campaigns', state.campaigns.length), row('Documents', state.docs.length), row('Visit notes', state.notes.length), row('Deals logged', state.deals.length)]) +
+      (state.docs.length ? '<p class="gf nt">' + state.docs.map(function (d) { return esc(d.name); }).join(', ') + '</p>' : '') +
+      glist([grow('data-m="zip"', 'Download all my customer files (.zip)', '', false), grow('data-m="sample"', 'Load sample data', '', false)]) +
+      '<p class="gf">Everything stays on this phone. Nothing is sent anywhere.</p>', '', settingsSheet);
+    $('#sheet-body').onclick = function (e) {
+      var b = e.target.closest('[data-m]'); if (!b) return;
+      if (b.dataset.m === 'zip') { closeSheet(); downloadAll(); } else if (b.dataset.m === 'sample') { closeSheet(); loadSample(); }
     };
   }
 
