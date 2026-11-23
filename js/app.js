@@ -39,15 +39,18 @@
     var v = []; state.tx.forEach(function (t) { v.push(t.cname, t.sp, t.cat, t.seg, t.prod, t.area, t.group); }); state.campaigns.forEach(function (k) { v.push(k.name); }); state.docs.forEach(function (d) { v.push(d.name); }); state.uploads.forEach(function (u) { v.push(u.name); });
     I18.setKnown(v);
   }
-  // small line under the name in the header: how fresh the sales data is; amber when older than RULES.dataAgeWarn days
+  // how fresh the sales data is: a small (i) beside the name in the header, amber "!" when older than
+  // RULES.dataAgeWarn days; tapping it shows the date and, when old, asks for a newer file
   function dataDate() {
-    var el = $('#datadate'), di = NBA.dataInfo(state); if (!di.to) { el.hidden = true; return; }
+    var btn = $('#dinfo'), pop = $('#dinfo-pop'), di = NBA.dataInfo(state); if (!di.to) { btn.hidden = true; pop.hidden = true; return; }
     var age = NBA.dayNum(NBA.todayISO()) - NBA.dayNum(di.to), old = age > NBA.RULES.dataAgeWarn;
-    el.hidden = false; el.classList.toggle('old', old);
-    el.textContent = old ? '! Sales to ' + NBA.shortDate(di.to) + ', upload a newer file' : 'Sales to ' + NBA.shortDate(di.to);
     var full = 'Sales up to ' + NBA.shortDate(di.to) + ' (' + (age <= 0 ? 'today' : age === 1 ? '1 day old' : age + ' days old') + ')';
-    el.title = I18 && I18.getLang() === 'ms' ? I18.t(full) : full;
+    btn.hidden = false; btn.classList.toggle('old', old); btn.firstChild.textContent = old ? '!' : 'i';
+    var lbl = old ? full + '. Upload a newer file' : full; btn.setAttribute('aria-label', I18 && I18.getLang() === 'ms' ? I18.t(lbl) : lbl);
+    pop.innerHTML = '<p><b>' + esc(full) + '</b></p><p>' + (old ? 'Upload a newer file for an up-to-date brief.' : 'Your brief and scores use sales up to this date.') + '</p>' +
+      '<button class="btn' + (old ? ' pri' : '') + '" data-act="upload">Upload a file</button>';
   }
+  function dinfo(open) { $('#dinfo-pop').hidden = !open; $('#dinfo').setAttribute('aria-expanded', !!open); }
   function setMood() {
     var app = $('#app'); if (!state.tx.length) { app.removeAttribute('data-mood'); app.classList.remove('has-target'); return; }
     var t = NBA.targetStatus(state, view === 'dash' ? dashSp : state.me), m = t.mood; if (m === 'calm') app.removeAttribute('data-mood'); else app.dataset.mood = m;
@@ -280,13 +283,43 @@
     var c = cust(cid), wa = v.status === 'done' && c && NBA.reorderMessage(c, an, state.me);
     return '<span class="vstate ' + v.status + '">' + (v.status === 'done' ? '✓ Visited' : 'Skipped: ' + esc(v.reason)) + '</span>' + (wa ? '<button data-v="wa">Reorder message</button>' : '') + '<button data-v="undo">Undo</button>';
   }
-  function refreshFoots(cid) { [].forEach.call(chat.querySelectorAll('.vfoot'), function (f) { if (f.dataset.visit === cid) { f.innerHTML = footHTML(cid); var row = f.closest('.visit'); row.classList.toggle('marked', !!visitOf(cid)); closeRow(row); } }); }
+  // a row marked visited or skipped folds away (Apple Reminders style); "Show done" brings it back with Undo
+  function refreshFoots(cid) {
+    [].forEach.call(chat.querySelectorAll('.vfoot'), function (f) {
+      if (f.dataset.visit !== cid) return;
+      f.innerHTML = footHTML(cid); var row = f.closest('.visit'), now = !!visitOf(cid), was = row.classList.contains('marked'); closeRow(row);
+      if (now && !was && row.closest('.vlist:not(.showdone)') && !still() && row.animate) {
+        row.style.overflow = 'hidden';
+        var a = row.animate([{ height: row.offsetHeight + 'px', opacity: 1 }, { height: '0px', opacity: 0 }], { duration: 260, easing: 'ease-in', fill: 'forwards' });
+        a.onfinish = function () { row.classList.add('marked'); a.cancel(); row.style.overflow = ''; updateLists(); };
+      } else row.classList.toggle('marked', now);
+    });
+  }
+  // under each visit list: "Show done (n)", and once every row is done, the day's close
+  function updateLists() {
+    [].forEach.call(chat.querySelectorAll('.vlist'), function (l) {
+      var s = l.nextElementSibling; if (!s || !s.classList.contains('vsum')) { s = document.createElement('div'); s.className = 'vsum'; l.after(s); }
+      var rows = l.querySelectorAll('.visit:not(.gone)'), marked = l.querySelectorAll('.visit.marked:not(.gone)').length, all = rows.length > 0 && marked === rows.length;
+      l.classList.toggle('alldone', all);
+      s.innerHTML = (all ? '<p class="alldone">✓ That is all ' + rows.length + ' of today\'s visits accounted for.</p>' + acts([['wrap', 'Wrap up my day', 'pri full']]) : '') +
+        (marked ? '<button class="linkbtn" data-showdone>' + (l.classList.contains('showdone') ? 'Hide done' : 'Show done (' + marked + ')') + '</button>' : '');
+      if (I18) I18.translateTree(s);
+    });
+  }
+  var toastTimer = null;
+  function toast(html, onClick) {
+    var t = $('#toast'); if (!t) { t = document.createElement('div'); t.id = 'toast'; t.className = 'toast'; t.setAttribute('role', 'status'); $('#app').appendChild(t); }
+    t.innerHTML = html; if (I18) I18.translateTree(t); t.hidden = false; t.onclick = function (e) { var b = e.target.closest('button'); if (!b) return; t.hidden = true; onClick(b.dataset.t); };
+    clearTimeout(toastTimer); toastTimer = setTimeout(function () { t.hidden = true; }, 6000);
+  }
   function markVisit(cid, status, reason, quiet) {
     state.visits = state.visits.filter(function (v) { return !(v.cid === cid && v.sp === state.me && v.date === an.asOf); });
     if (status) state.visits.push({ cid: cid, sp: state.me, date: an.asOf, status: status, reason: reason || '' });
-    save(); refreshFoots(cid);
-    var p = plan(), left = p.filter(function (c) { return !visitOf(c.cid); }).length;
-    if (status && !quiet && p.length && !left) bot('<p>That is all ' + p.length + ' of today\'s visits accounted for.</p>' + acts([['wrap', 'Wrap up my day', 'pri full']]) + trail([['Count', p.length + ' planned visits for ' + an.asOf + ', each marked visited or skipped on this phone']]));
+    save(); refreshFoots(cid); updateLists();
+    var c = cust(cid);
+    if (status && !quiet && c) toast('<span>' + (status === 'done' ? '✓ Visited ' : 'Skipped ') + esc(c.name) + '</span>' + (status === 'done' && NBA.reorderMessage(c, an, state.me) ? '<button data-t="wa">Reorder message</button>' : '') + '<button data-t="undo">Undo</button>',
+      function (k) { if (k === 'undo') markVisit(cid, null); else waSheet(cid); });
+    else if (!status) { var t = $('#toast'); if (t) t.hidden = true; }
   }
   function autoVisited(cid) { if (plan().some(function (c) { return c.cid === cid; }) && !visitOf(cid)) markVisit(cid, 'done', '', true); }
   // the customer card's "More": the less frequent actions, Microsoft-style overflow
@@ -322,8 +355,9 @@
     var next = wantCid ? cust(wantCid) : an.customers.filter(function (c) { return c.eligible && pl.indexOf(c.cid) < 0; })[0];
     if (next) pl[i] = next.cid; else pl.splice(i, 1);
     save();
-    [].forEach.call(chat.querySelectorAll('.visit'), function (v) { var m = v.querySelector('.vmain'); if (m && m.dataset.cid === cid) { v.classList.add('gone'); var f = v.querySelector('.vfoot'); if (f) f.innerHTML = '<span class="vstate">Replaced' + (next ? ' by ' + esc(next.name) : '') + '</span>'; } });
-    return { next: next, index: i };
+    var holder = null;
+    [].forEach.call(chat.querySelectorAll('.visit'), function (v) { var m = v.querySelector('.vmain'); if (m && m.dataset.cid === cid && !v.classList.contains('gone') && v.closest('.vlist')) holder = v; if (m && m.dataset.cid === cid) { v.classList.add('gone'); var f = v.querySelector('.vfoot'); if (f) f.innerHTML = '<span class="vstate">Replaced' + (next ? ' by ' + esc(next.name) : '') + '</span>'; } });
+    return { next: next, index: i, list: holder && holder.parentNode, after: holder };
   }
   function wrongSheet(cid) {
     var c = cust(cid); if (!c) return;
@@ -338,7 +372,7 @@
       bot('<p>' + esc(msg) + (rp && rp.next ? ' I\'ve put ' + esc(rp.next.name) + ' in its place.' : '') + '</p>' +
         trail([['Recorded', 'reason “' + label(WRONG, r) + '” for ' + c.name + ' on ' + an.asOf + '; kept on this phone, shown to your manager and in the Excel export'], ['Effect', { closed: 'left out of suggestions until an order dated after today arrives', notmine: 'left out of suggestions until an order dated after today arrives', credit: 'left out of suggestions until ' + NBA.addDays(an.asOf, NBA.RULES.creditHoldDays), recent: 'counts as contact today: −' + NBA.RULES.visitedPenalty + ' priority for ' + NBA.RULES.visitedDays + ' days', other: 'taken out of today\'s visits only' }[r]],
           ['Replacement', rp && rp.next ? 'next customer by visit priority who is not already in today\'s visits' : '']]));
-      if (rp && rp.next) visitCard(rp.next, rp.index);
+      if (rp && rp.next) visitCard(rp.next, rp.index, rp.list, rp.after);
     };
   }
   function swapSheet(cid) {
@@ -357,7 +391,7 @@
       var rp = replaceInPlan(cid, pick);
       said('Swap ' + c.name + ' for ' + n.name);
       bot('<p>Swapped: ' + esc(n.name) + ' in for ' + esc(c.name) + '.</p>' + trail([['Recorded', 'swap on ' + an.asOf + ', reason “' + label(SWAPWHY, why) + '”; kept as feedback for your manager, not as a skipped visit']]));
-      if (rp && rp.next) visitCard(rp.next, rp.index);
+      if (rp && rp.next) visitCard(rp.next, rp.index, rp.list, rp.after);
     };
   }
   // spend in the last 90 days against the 90 before: up at +10% or more, down at -10% or less
@@ -397,7 +431,7 @@
     if (c.collect) return 'Collect first: ' + $$(c.collect.amount) + ' overdue';
     return c.nOrders >= 2 ? actionWord(c) + ', usually every ' + Math.round(c.gapUsed) + ' days' : actionWord(c);
   }
-  function visitCard(c, i, list) {
+  function visitCard(c, i, list, after) {
     var b = document.createElement('div'); b.className = 'visit fade' + (visitOf(c.cid) ? ' marked' : '');
     b.innerHTML = '<div class="vback"><span class="vdone" aria-hidden="true">✓ Visited</span>' +
       '<div class="vacts" data-visit="' + esc(c.cid) + '"><button data-v="skip">Skip today</button><button data-v="swap">Swap</button><button data-v="wrong">Wrong, because…</button></div></div>' +
@@ -405,7 +439,7 @@
       '<span class="why">' + esc(visitReason(c)) + '</span>' + toldLine(c) + '</span></button>' +
       '<div class="vfoot" data-visit="' + esc(c.cid) + '">' + footHTML(c.cid) + '</div>';
     swipeable(b, c.cid);
-    enqueue(function () { return pause(260).then(function () { (list || chat).appendChild(b); follow(); if (i === 0 && !(state.seen || {}).swipe && !still()) b.classList.add('peek'); }); });
+    enqueue(function () { return pause(260).then(function () { if (after && after.parentNode) after.after(b); else (list || chat).appendChild(b); updateLists(); follow(); if (i === 0 && !(state.seen || {}).swipe && !still()) b.classList.add('peek'); }); });
     return b;
   }
   var ACTW = 228, ARM = 84;
@@ -1204,6 +1238,7 @@
     if (tile) { var msg = tile.closest('.msg'), open = tile.getAttribute('aria-expanded') === 'true';
       [].forEach.call(msg.querySelectorAll('[data-tile]'), function (b) { b.setAttribute('aria-expanded', 'false'); }); [].forEach.call(msg.querySelectorAll('.tp'), function (x) { x.hidden = true; });
       if (!open) { tile.setAttribute('aria-expanded', 'true'); msg.querySelector('.tp[data-tp="' + tile.dataset.tile + '"]').hidden = false; follow(); } return; }
+    var sd = e.target.closest('[data-showdone]'); if (sd) { var vl = sd.closest('.vsum').previousElementSibling; vl.classList.toggle('showdone'); updateLists(); return; }
     var v = e.target.closest('[data-v]');
     if (v) { var id = v.closest('[data-visit]').dataset.visit, k = v.dataset.v; closeRows(); if (k === 'skip') skipSheet(id); else if (k === 'wa') waSheet(id); else if (k === 'swap') swapSheet(id); else if (k === 'wrong') wrongSheet(id); else markVisit(id, k === 'done' ? 'done' : null); return; }
     var d = e.target.closest('[data-do]');
@@ -1213,8 +1248,10 @@
   chat.addEventListener('pointerdown', function () { clearTimeout(heldTimer); held = true; hurry(); });
   ['pointerup', 'pointercancel'].forEach(function (t) { document.addEventListener(t, function () { if (held) { clearTimeout(heldTimer); heldTimer = setTimeout(function () { held = false; }, 350); } }, true); });
   document.addEventListener('click', function (e) { var b = e.target.closest('[data-act]'); if (b) act(b.dataset.act); });
-  $('#who').addEventListener('click', function (e) { e.stopPropagation(); whoMenu($('#who-menu').hidden); });
-  document.addEventListener('click', function () { whoMenu(false); });
+  $('#who').addEventListener('click', function (e) { e.stopPropagation(); dinfo(false); whoMenu($('#who-menu').hidden); });
+  document.addEventListener('click', function (e) { whoMenu(false); if (!e.target.closest('#dinfo-pop')) dinfo(false); });
+  $('#dinfo').addEventListener('click', function (e) { e.stopPropagation(); whoMenu(false); dinfo($('#dinfo-pop').hidden); });
+  $('#dinfo-pop').addEventListener('click', function (e) { if (e.target.closest('[data-act]')) dinfo(false); });
   $('#who-menu').addEventListener('click', function (e) {
     var b = e.target.closest('[data-sp]'); if (!b) return;
     if (view === 'dash') { dashSp = b.dataset.sp || null; renderPeople(); setMood(); showDash(); }
